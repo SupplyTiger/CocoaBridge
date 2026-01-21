@@ -148,3 +148,8 @@ model IndustryDay {
       @@index([status])
 
 }
+
+// TODO: finalize opportunity schema
+model Opportunity {
+
+}

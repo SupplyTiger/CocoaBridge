@@ -4,7 +4,7 @@ export const ENV = {
   PORT: process.env.PORT || 5001,
   NODE_ENV: process.env.NODE_ENV,
   CLIENT_URL: process.env.CLIENT_URL,
-  SAM_BASE_URL: process.env.SAM_BASE_URL,
+  SAMGOV_BASE_URL: process.env.SAMGOV_BASE_URL,
   USASPENDING_BASE_URL: process.env.USASPENDING_BASE_URL,
   DATABASE_URL: process.env.DATABASE_URL,
   CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY,

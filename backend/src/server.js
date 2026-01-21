@@ -31,7 +31,7 @@ app.use(
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
-app.use("/api/sam", samRoutes);
+app.use("/api/samgov", samRoutes);
 app.use("/api/usaspending", usaspendingRoutes);
 const startServer = async () => {
   try {

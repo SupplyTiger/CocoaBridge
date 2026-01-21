@@ -1,8 +1,112 @@
 import express from "express";
 import axios from "axios";
 import { ENV } from "../config/env.js";
+import { matchesOpportunity } from "../utils/filter.js";
 
 // todo: implement SAM routes
+// (TIDY todo): port over routes to controllers instead of having logic in routes files
+// Fields of interest:
+/**
+ * Total Records:
+ * Notice Id:
+ * Limit:
+ * Title:
+ * type:
+ * baseType:
+ * Solicitation Number:
+ * Department:
+ * Subtier:
+ * Office:
+ * postedDate:
+ * rtpe:
+ * responseDeadline:
+ * naicsCode:
+ * Classification Code:
+ * active: true/false
+ * data.award,
+ * data.award.awardee
+ * pointofcontact
+ * description
+ * organizationType
+ * officeAddress
+ * placeOfPerformance
+ * links
+ */
 const router = express.Router();
+
+// PING endpoint for testing
+router.get("/ping", (req, res) => {
+  console.log("SAM PING HIT", req.body);
+  res.json({ ok: true, body: req.body });
+});
+
+// get opportunities from SAM.gov by year, then get more specific with filters later
+router.get("/opportunities/historical", async (req, res) => {
+  try {
+    const { query } = req;
+
+    console.log(ENV.SAMGOV_BASE_URL);
+    const response = await axios.get(ENV.SAMGOV_BASE_URL, {
+      params: {
+        api_key: ENV.SAMGOV_API_KEY,
+        ...query,
+      },
+      timeout: 50000,
+    });
+
+    res.json({ response: response.data }
+        
+    );
+  } catch (error) {
+    console.error("Error fetching SAM.gov data:", error);
+    res
+      .status(500)
+      .json({
+        error: "Failed to fetch data from SAM.gov",
+        details: error?.response?.data,
+      });
+  }
+});
+
+// This endpoint fetches opportunities and filters them based on criteria
+// The current criteria are defined in the matchesOpportunity function
+router.get("/opportunities/event", async (req, res) => {
+  try {
+    const { query } = req || {};
+
+    const response = await axios.get(ENV.SAMGOV_BASE_URL, {
+      params: {
+        api_key: ENV.SAMGOV_API_KEY,
+        ...query,
+      },
+      timeout: 50000,
+    });
+    const data = response.data;
+
+    const opportunities = 
+    data.response?.opportunitiesData ||
+    data?.opportunitiesData ||
+    data?.opportunities ||
+    data?.data ||
+     [];
+
+     const filteredOpportunities = opportunities.filter(matchesOpportunity);
+     res.json({
+      meta: {
+        pulled: opportunities.length,
+        returned: filteredOpportunities.length,
+      },
+      data: {
+        opportunities: filteredOpportunities,
+      }
+     })
+  } catch (error) {
+    console.error("Error fetching SAM.gov data:", error);
+    res.status(500).json({
+      error: "Failed to fetch data from SAM.gov",
+      details: error?.response?.data,
+    });
+  }
+});
 
 export default router;
