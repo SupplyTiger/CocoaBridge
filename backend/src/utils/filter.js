@@ -205,7 +205,7 @@ export const matchesOpportunitySolicitation = (item) => {
 
   // Return true if any criteria match
   return (titleMatch || naicsMatch || classificiationMatch) && countryMatch;
-};;
+};
 
 
 // todo: implement historical opportunity matching logic

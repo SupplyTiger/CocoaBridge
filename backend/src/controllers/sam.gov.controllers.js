@@ -11,6 +11,9 @@ export async function upsertContactsForOpportunity(db, samOpportunity, opportuni
   // Dedupe strategy: Email-first
   // If email missing, fall back to phone, else just create.
   for (const c of contacts) {
+    // Clean fields, remove spaces and treat "" as null
+    const phone = c.phone && String(c.phone).trim() ? String(c.phone).trim() : null;
+
     try {
     let contact;
     if (c.email) {
@@ -19,13 +22,13 @@ export async function upsertContactsForOpportunity(db, samOpportunity, opportuni
         update: {
           fullName: c.fullName,
           title: c.title,
-          phone: c.phone,
+          phone,
         },
         create: {
           fullName: c.fullName,
           title: c.title,
           email: c.email,
-          phone: c.phone,
+          phone,
         },
       });
     } else {
@@ -35,7 +38,7 @@ export async function upsertContactsForOpportunity(db, samOpportunity, opportuni
           fullName: c.fullName,
           title: c.title,
           email: c.email,
-          phone: c.phone,
+          phone,
         },
       });
     }
@@ -64,12 +67,17 @@ export async function upsertContactsForOpportunity(db, samOpportunity, opportuni
         },
     });
 } catch (error) {
-    console.error("Error in upsertContactsForOpportunity controller: ", error);
+    console.error("Error in upsertContactsForOpportunity controller: ", {
+        opportunityId,
+        externalId: c.externalId,
+        email: c.email ?? null,
+        phone: c.phone ?? null,
+        message: error?.message ?? String(error),
+    });
     // continue to next contact
   }
 }
 };
-
 
 export async function upsertOpportunityFromSam(prisma, opportunity) {
   const normalized = normalizeOpportunity(opportunity);

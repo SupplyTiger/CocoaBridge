@@ -146,7 +146,7 @@ router.get("/opportunities/event", async (req, res) => {
       matchesOpportunityIndustryDay,
     );
 
-    const dbResults = await prisma.$transaction(async (tx) => {
+    
       let attempted = 0;
       let upserted = 0;
       let skipped = 0;
@@ -161,10 +161,13 @@ router.get("/opportunities/event", async (req, res) => {
         }
 
         try {
-          const savedOpp = await upsertOpportunityFromSam(tx, opp);
-          await upsertIndustryDayFromSam(tx, opp, savedOpp.id);
+          await prisma.$transaction(async (tx) => {
+            const savedOpp = await upsertOpportunityFromSam(tx, opp);
+            await upsertIndustryDayFromSam(tx, opp, savedOpp.id);
+          }, {timeout: 20000});
           upserted += 1;
         } catch (e) {
+
           skipped += 1;
           errors.push({
             noticeId: opp?.noticeId ?? opp?.id ?? null,
@@ -174,15 +177,12 @@ router.get("/opportunities/event", async (req, res) => {
         }
       }
 
-      return { attempted, upserted, skipped, errors };
-    });
-
     return res.status(200).json({
       meta: {
         pulled: opportunities.length,
         returned: filteredOpportunities.length,
       },
-      db: dbResults,
+      db: {attempted, upserted, skipped, errors},
       data: {
         opportunities: filteredOpportunities,
       },
