@@ -58,42 +58,59 @@ enum SourceSystem {
 }
 
 model Contact {
-  id   String      @id @default(cuid())
-  type ContactType @default(OTHER)
+  id String @id @default(cuid())
 
   fullName String?
-  email    String?
+  email    String? @unique
   phone    String?
   title    String?
-
-  // Durable relationship
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-
-  // Workflow relationship
-  inboxItemId String?
-  inboxItem   InboxItem? @relation(fields: [inboxItemId], references: [id], onDelete: SetNull)
-
-  // Opportunity
-  opportunityId String?
-  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
-
-  // IndustryDay
-  industryDayId String?
-  industryDay   IndustryDay? @relation(fields: [industryDayId], references: [id], onDelete: SetNull)
-
-  externalId String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Indexes
+  links ContactLink[]
+
   @@index([email])
   @@index([phone])
-  @@index([organizationId])
+}
+
+model ContactLink {
+  id String @id @default(cuid())
+
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  type   ContactType  @default(OTHER)
+  source SourceSystem @default(SAM)
+
+  // Dedupe key from source payload (scoped to the parent record)
+  externalId String
+
+  // Parent pointers (only ONE should be set per row)
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  industryDayId String?
+  industryDay   IndustryDay? @relation(fields: [industryDayId], references: [id], onDelete: Cascade)
+
+  inboxItemId String?
+  inboxItem   InboxItem? @relation(fields: [inboxItemId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Scoped uniqueness so the same externalId can exist under different parents
+  @@unique([opportunityId, externalId])
+  @@unique([industryDayId, externalId])
+  @@unique([inboxItemId, externalId])
+  @@unique([organizationId, externalId])
   @@index([opportunityId])
   @@index([industryDayId])
   @@index([inboxItemId])
+  @@index([organizationId])
 }
 
 model Organization {
@@ -103,7 +120,7 @@ model Organization {
   cageCode String?
   website  String?
 
-  contacts Contact[]
+  contactLinks ContactLink[]
 
   inboxItems    InboxItem[]
   awards        Award[]
@@ -171,7 +188,7 @@ model IndustryDay {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  contacts Contact[]
+  contactLinks ContactLink[]
 
   inboxItems InboxItem[]
 
@@ -216,7 +233,7 @@ model Opportunity {
   inboxItems InboxItem[]
 
   // Contacts scraped from SAM for this opportunity (optional but useful)
-  contacts Contact[]
+  contactLinks ContactLink[]
 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -259,7 +276,7 @@ model InboxItem {
   industryDayId String?
   industryDay   IndustryDay? @relation(fields: [industryDayId], references: [id], onDelete: SetNull)
 
-  contacts Contact[]
+  contactLinks ContactLink[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

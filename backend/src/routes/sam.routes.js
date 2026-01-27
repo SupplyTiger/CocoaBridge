@@ -52,7 +52,7 @@ router.get("/opportunities/current", async (req, res) => {
                 api_key: ENV.SAMGOV_API_KEY,
                 ...query,
               },
-              timeout: 50000,
+              timeout: 75000,
             });
 
         const data = response.data;
@@ -99,7 +99,7 @@ router.get("/opportunities/historical", async (req, res) => {
         api_key: ENV.SAMGOV_API_KEY,
         ...query,
       },
-      timeout: 50000,
+      timeout: 75000,
     });
 
     return res.status(200).json({ response: response.data });
@@ -130,7 +130,7 @@ router.get("/opportunities/event", async (req, res) => {
         api_key: ENV.SAMGOV_API_KEY,
         ...query,
       },
-      timeout: 50000,
+      timeout: 75000,
     });
 
     const data = response.data;

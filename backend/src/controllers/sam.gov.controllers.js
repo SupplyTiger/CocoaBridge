@@ -7,24 +7,67 @@ import {
 import { extractContact, toDateOrNull } from "../utils/filter.js";
 export async function upsertContactsForOpportunity(db, samOpportunity, opportunityId) {
   const contacts = extractContact(samOpportunity);
-
-    for (const c of contacts) {
-        await db.contact.upsert({
-            where: { externalId: c.externalId},
-            update: {
-                type: c.type,
-                fullName: c.fullName,
-                title: c.title,
-                email: c.email,
-                phone: c.phone,
-                opportunityId, // attach/update link
-            },
-            create: {
-                ...c,
-                opportunityId,
-            },
-        });
+  // 1) Upsert/create the PERSON (Contact)
+  // Dedupe strategy: Email-first
+  // If email missing, fall back to phone, else just create.
+  for (const c of contacts) {
+    try {
+    let contact;
+    if (c.email) {
+      contact = await db.contact.upsert({
+        where: { email: c.email },
+        update: {
+          fullName: c.fullName,
+          title: c.title,
+          phone: c.phone,
+        },
+        create: {
+          fullName: c.fullName,
+          title: c.title,
+          email: c.email,
+          phone: c.phone,
+        },
+      });
+    } else {
+      // No email, create new contact record
+      contact = await db.contact.create({
+        data: {
+          fullName: c.fullName,
+          title: c.title,
+          email: c.email,
+          phone: c.phone,
+        },
+      });
     }
+
+    // 2) Upsert/create the OpportunityContact link
+    // Prisma will generate a compound unique selector name:
+    // opportunityId_externalId (based on @@unique([opportunityId, externalId]))
+    await db.contactLink.upsert({
+        where: {
+            opportunityId_externalId: {
+                opportunityId,
+                externalId: c.externalId
+            }
+        },
+        update: {
+            type: c.type,
+            source: c.source,
+            contactId: contact.id,
+        },
+        create: {
+            opportunityId,
+            externalId: c.externalId,
+            type: c.type,
+            source: c.source,
+            contactId: contact.id,
+        },
+    });
+} catch (error) {
+    console.error("Error in upsertContactsForOpportunity controller: ", error);
+    // continue to next contact
+  }
+}
 };
 
 

@@ -42,12 +42,15 @@ export const extractContact = (opportunity) => {
           const externalId = `SAM:${noticeId}:${type}:${email || phone || fullName || "unknown"}`;
 
           contacts.push({
-            externalId,
-            type,
             fullName,
             title,
             email,
             phone,
+
+            // link
+            externalId,
+            type,
+            source: SourceSystem.SAM,
           });
         }
       }
