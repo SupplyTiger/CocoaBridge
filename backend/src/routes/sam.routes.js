@@ -42,6 +42,7 @@ router.get("/ping", (req, res) => {
   return res.status(200).json({ ok: true, body: req.body });
 });
 
+// TODO: implement pagination handling for large result sets
 router.get("/opportunities/current", async (req, res) => {
   try {
         const query  = req.query;
@@ -70,7 +71,7 @@ router.get("/opportunities/current", async (req, res) => {
         let upserted = 0;
         let skipped = 0;
         const errors = [];
-        
+
         for (const opp of filteredOpportunities) {
           attempted += 1;
           if (!opp?.noticeId && !opp?.id) {
@@ -79,9 +80,8 @@ router.get("/opportunities/current", async (req, res) => {
           }
 
           try {
-            await prisma.$transaction(async (tx) => {
-              await upsertOpportunityFromSam(tx, opp);
-            }, {timeout: 20000});
+            // No transaction wrapper needed here - upsert operations are atomic
+            await upsertOpportunityFromSam(prisma, opp);
             upserted += 1;
           } catch (e) {
             skipped += 1;
@@ -154,9 +154,8 @@ router.get("/opportunities/historical", async (req, res) => {
       }
 
       try {
-        await prisma.$transaction(async (tx) => {
-          await upsertHistoricalOpportunityFromSam(tx, opp);
-        }, {timeout: 20000});
+        // No transaction wrapper needed here - upsert is atomic
+        await upsertHistoricalOpportunityFromSam(prisma, opp);
         upserted += 1;
       } catch (e) {
         skipped += 1;
@@ -229,7 +228,7 @@ router.get("/opportunities/event", async (req, res) => {
           await prisma.$transaction(async (tx) => {
             const savedOpp = await upsertOpportunityFromSam(tx, opp);
             await upsertIndustryDayFromSam(tx, opp, savedOpp.id);
-          }, {timeout: 20000});
+          }, {timeout: 30000});
           upserted += 1;
         } catch (e) {
 
@@ -268,7 +267,7 @@ router.get("/opportunities/event", async (req, res) => {
   }
 });
 
-// TODO: Cache into db --> 
+// TODO: Cache description into db --> 
 // description: https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid=ab59e24aa7a143378601cee95947dd64&api_key=YOUR_API_KEY
 // and capture details that match our criteria
 

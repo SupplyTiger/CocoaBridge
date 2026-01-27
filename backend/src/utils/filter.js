@@ -204,7 +204,6 @@ export const matchesOpportunitySolicitation = (item) => {
 };
 
 
-// todo: implement historical opportunity matching logic
 export const matchesOpportunityHistorical = (item) => {
 
       const titleMatch = titleMatchesKeyword(
@@ -220,4 +219,3 @@ export const matchesOpportunityHistorical = (item) => {
 
     return (titleMatch || naicsMatch || classificiationMatch) && countryMatch;
 }
-// TODO: Add Paginator utility function
