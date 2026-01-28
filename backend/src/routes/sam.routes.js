@@ -54,6 +54,4 @@ router.get("/opportunities/historical", getHistoricalOpportunitiesFromSam);
 */
 router.get("/opportunities/event", getIndustryDayOpportunitiesFromSam);
 
-
-
 export default router;

@@ -136,6 +136,8 @@ async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
 
 async function upsertOpportunityFromSam(prisma, opportunity) {
   const normalized = normalizeOpportunity(opportunity);
+  // create helper function to check if opportunity has an award linked to it
+  // if it does, we can upsert the award data as well, and link it to any recipient orgs
 
   if (!normalized.noticeId) {
     throw new Error("Missing noticeId for Opportunity upsert");
