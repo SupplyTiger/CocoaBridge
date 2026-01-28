@@ -1,12 +1,24 @@
-import { SourceSystem, IndustryDayStatus } from "@prisma/client";
+import { SourceSystem } from "@prisma/client";
+import { ENV } from "../config/env.js";
+import axios from "axios";
+import prisma from "../config/db.js";
+import { extractContact } from "../utils/extractSAM.js";
+
+import {
+  matchesOpportunityIndustryDay,
+  matchesOpportunitySolicitation,
+  matchesOpportunityHistorical,
+} from "../utils/extractSAM.js";
+
 import {
   normalizeSamIndustryDay,
   normalizeOpportunity,
   normalizeSamHistoricalOpportunity,
 } from "../utils/normalizeSAM.js";
 
-import { extractContact, toDateOrNull } from "../utils/filterSAM.js";
-export async function upsertContactsForOpportunity(db, samOpportunity, opportunityId) {
+
+// helper functions
+async function upsertContactsForOpportunity(db, samOpportunity, opportunityId) {
   const contacts = extractContact(samOpportunity);
   // 1) Upsert/create the PERSON (Contact)
   // Dedupe strategy: Email-first
@@ -81,7 +93,7 @@ export async function upsertContactsForOpportunity(db, samOpportunity, opportuni
 };
 
 
-export async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
+async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
   const normalized = normalizeSamHistoricalOpportunity(opportunity);
 
   if (!normalized.noticeId) {
@@ -122,7 +134,7 @@ export async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
   });
 };
 
-export async function upsertOpportunityFromSam(prisma, opportunity) {
+async function upsertOpportunityFromSam(prisma, opportunity) {
   const normalized = normalizeOpportunity(opportunity);
 
   if (!normalized.noticeId) {
@@ -170,7 +182,7 @@ export async function upsertOpportunityFromSam(prisma, opportunity) {
 };
 
 
-export async function upsertIndustryDayFromSam(
+async function upsertIndustryDayFromSam(
   prisma,
   opportunity,
   opportunityId,
@@ -211,6 +223,232 @@ export async function upsertIndustryDayFromSam(
       ...data,
     },
   });
-}
+};
+
+
+// router functions
+export const getCurrentOpportunitiesFromSam = async (req, res) => {
+  try {
+        const query  = req.query;
+            const response = await axios.get(ENV.SAMGOV_BASE_URL, {
+              params: {
+                api_key: ENV.SAMGOV_API_KEY,
+                ...query,
+              },
+              timeout: 75000,
+            });
+
+        const data = response.data;
+
+        const opportunities =
+          data.response?.opportunitiesData ||
+          data?.opportunitiesData ||
+          data?.opportunities ||
+          data?.data ||
+          [];
+
+        const filteredOpportunities = opportunities.filter(
+          matchesOpportunitySolicitation,
+        );
+
+        let attempted = 0;
+        let upserted = 0;
+        let skipped = 0;
+        const errors = [];
+
+        for (const opp of filteredOpportunities) {
+          attempted += 1;
+          if (!opp?.noticeId && !opp?.id) {
+            skipped += 1;
+            continue;
+          }
+
+          try {
+            // No transaction wrapper needed here - upsert operations are atomic
+            await upsertOpportunityFromSam(prisma, opp);
+            upserted += 1;
+          } catch (e) {
+            skipped += 1;
+            errors.push({
+              noticeId: opp?.noticeId ?? opp?.id ?? null,
+              title: opp?.title ?? null,
+              message: e?.message ?? String(e),
+            });
+          }
+        }
+
+        return res.status(200).json({
+          meta: {
+            pulled: opportunities.length,
+            returned: filteredOpportunities.length,
+          },
+          db: { attempted, upserted, skipped, errors },
+          data: {
+            opportunities: filteredOpportunities,
+          },
+        });
+
+  } catch (error) {
+
+        console.error("Error in getCurrentOpportunitiesFromSam controller:", error);
+        res.status(500).json({
+          error: "Internal Server Error -- failed to fetch data from SAM.gov",
+          details: error?.response?.data,
+        });
+  }
+};
+
+export const getHistoricalOpportunitiesFromSam = async (req, res) => {
+  try {
+    const query = req.query;
+
+    console.log(ENV.SAMGOV_BASE_URL);
+    const response = await axios.get(ENV.SAMGOV_BASE_URL, {
+      params: {
+        api_key: ENV.SAMGOV_API_KEY,
+        ...query,
+      },
+      timeout: 75000,
+    });
+
+    const data = response.data;
+    const opportunities =
+      data.response?.opportunitiesData ||
+      data?.opportunitiesData ||
+      data?.opportunities ||
+      data?.data ||
+      [];
+
+    const filteredOpportunities = opportunities.filter(
+      matchesOpportunityHistorical,
+    );
+
+    let attempted = 0;
+    let upserted = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (const opp of filteredOpportunities) {
+      attempted += 1;
+
+      if (!opp?.noticeId && !opp?.id) {
+        skipped += 1;
+        continue;
+      }
+
+      try {
+        // No transaction wrapper needed here - upsert is atomic
+        await upsertHistoricalOpportunityFromSam(prisma, opp);
+        upserted += 1;
+      } catch (e) {
+        skipped += 1;
+        errors.push({
+          noticeId: opp?.noticeId ?? opp?.id ?? null,
+          title: opp?.title ?? null,
+          message: e?.message ?? String(e),
+        });
+      }
+    }
+
+    return res.status(200).json({ meta: {pulled: opportunities.length,
+       returned: filteredOpportunities.length},
+        db: {attempted, upserted, skipped, errors},
+        data: { opportunities: filteredOpportunities } });
+        
+  } catch (error) {
+    console.error("Error in getHistoricalOpportunitiesFromSam controller:", error);
+    res
+      .status(500)
+      .json({
+        error: "Internal Server Error -- failed to fetch data from SAM.gov",
+        details: error?.response?.data,
+      });
+  }
+};
+
+export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
+  try {
+    const query = req.query;
+
+    const response = await axios.get(ENV.SAMGOV_BASE_URL, {
+      params: {
+        api_key: ENV.SAMGOV_API_KEY,
+        ...query,
+      },
+      timeout: 75000,
+    });
+
+    const data = response.data;
+
+    const opportunities =
+      data.response?.opportunitiesData ||
+      data?.opportunitiesData ||
+      data?.opportunities ||
+      data?.data ||
+      [];
+
+    const filteredOpportunities = opportunities.filter(
+      matchesOpportunityIndustryDay,
+    );
+
+      let attempted = 0;
+      let upserted = 0;
+      let skipped = 0;
+      const errors = [];
+
+      for (const opp of filteredOpportunities) {
+        attempted += 1;
+
+        if (!opp?.noticeId && !opp?.id) {
+          skipped += 1;
+          continue;
+        }
+
+        try {
+          await prisma.$transaction(async (tx) => {
+            const savedOpp = await upsertOpportunityFromSam(tx, opp);
+            await upsertIndustryDayFromSam(tx, opp, savedOpp.id);
+          }, {timeout: 30000});
+          upserted += 1;
+        } catch (e) {
+
+          skipped += 1;
+          errors.push({
+            noticeId: opp?.noticeId ?? opp?.id ?? null,
+            title: opp?.title ?? null,
+            message: e?.message ?? String(e),
+          });
+        }
+      }
+
+    return res.status(200).json({
+      meta: {
+        pulled: opportunities.length,
+        returned: filteredOpportunities.length,
+      },
+      db: {attempted, upserted, skipped, errors},
+      data: {
+        opportunities: filteredOpportunities,
+      },
+    });
+  } catch (error) {
+    console.error("Error in getIndustryDayOpportunitiesFromSam controller:", error);
+
+    const detailsRaw = error?.response?.data;
+    const details =
+      typeof detailsRaw === "string"
+        ? detailsRaw.slice(0, 2000)
+        : (detailsRaw ?? null);
+
+    return res.status(500).json({
+      error: "Internal Server Error -- failed to fetch data from SAM.gov",
+      details,
+    });
+  }
+};
 
 // todo: take opportunities marked as "AWARDED" and fill in award data in the awards table
+// TODO: implement pagination handling for large result sets
+// TODO: Cache description into db --> 
+// description: https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid=ab59e24aa7a143378601cee95947dd64&api_key=YOUR_API_KEY
+// and capture details that match our criteria
