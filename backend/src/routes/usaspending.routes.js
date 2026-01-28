@@ -1,6 +1,5 @@
 import express from "express";
 import { searchCategoryFromUsaspending, searchCountFromUsaspending, searchAwardFromUsaspending, getAwardByIdFromUsaspending } from "../controllers/usaspending.controller.js";  
-import { get } from "http";
 
 const router = express.Router();
 // todo: implement USAspending routes

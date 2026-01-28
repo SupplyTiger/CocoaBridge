@@ -14,3 +14,17 @@ export const ENV = {
   SAMGOV_API_KEY: process.env.SAMGOV_API_KEY,
 };
 
+const required = [
+  "DATABASE_URL",
+  "CLERK_PUBLISHABLE_KEY",
+  "CLERK_SECRET_KEY",
+  "INNGEST_EVENT_KEY",
+  "INNGEST_SIGNING_KEY",
+  "SAMGOV_API_KEY",
+];
+
+const missing = required.filter((key) => !ENV[key]);
+
+if (missing.length) {
+  throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+}

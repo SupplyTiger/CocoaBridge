@@ -12,7 +12,6 @@ const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({
   log: ["error", "warn"], // add "query" only in dev if neededcls
-
   adapter,
 });
 

@@ -119,4 +119,4 @@ Open DB browser:
 
 ```bash
 npx prisma studio
-```
+``
