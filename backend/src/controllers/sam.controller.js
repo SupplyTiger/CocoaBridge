@@ -516,6 +516,59 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
   }
 };
 
+export const getOpportunityDescriptionFromSam = async (req, res) => {
+  try {
+    const { noticeId } = req.params;
+    if (!noticeId) {
+      return res.status(400).json({ error: "Missing noticeId parameter" });
+    }
+
+    const response = await axios.get(ENV.SAMGOV_NOTICE_DESC_URL, {
+      params: {
+        api_key: ENV.SAMGOV_API_KEY,
+        noticeid: noticeId,
+      },
+      timeout: 30000,
+    });
+
+    const data = response.data;
+    const description = response.data?.description || null;
+
+    // TODO: implement description parsing logic (remove html, etc.)
+    // const filteredDescription = parseDescription(description);
+
+    // Cache the description in the database
+    // given that caching is requested
+    const cacheInDB = req.query.cache === 'true';
+    if (cacheInDB && description) {
+      await prisma.opportunity.updateMany({
+        where: { noticeId },
+        data: { description },
+      });
+    }
+
+    return res.status(200).json({
+      noticeId,
+      description,
+      cached: cacheInDB && description ? true : false, 
+    });
+
+  } catch (error) {
+    console.error("Error in getOpportunityDescriptionFromSam controller:", error);
+    
+    if (error.response?.status === 404) {
+      return res.status(404).json({
+        error: "Opportunity not found",
+        noticeId,
+      });
+    }
+    
+    return res.status(500).json({
+      error: "Internal Server Error -- failed to fetch description from SAM.gov",
+      details: error?.response?.data,
+    });
+  }
+};
 // todo: take opportunities marked as "AWARDED" and fill in award data in the awards table
 // TODO: implement pagination handling for large result sets
 // TODO: Cache description into db --> 

@@ -12,6 +12,7 @@ export const ENV = {
   INNGEST_EVENT_KEY: process.env.INNGEST_EVENT_KEY,
   INNGEST_SIGNING_KEY: process.env.INNGEST_SIGNING_KEY,
   SAMGOV_API_KEY: process.env.SAMGOV_API_KEY,
+  SAMGOV_NOTICE_DESC_URL: process.env.SAMGOV_NOTICE_DESC_URL,
 };
 
 const required = [

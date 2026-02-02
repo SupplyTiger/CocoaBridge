@@ -102,7 +102,6 @@ export const extractTag = (opportunity) => {
 export const toDateOrNull = (value) => {
   if (value === null || value === undefined || value === "") return null;
   const d = new Date(value);
-  console.log("toDateOrNull input:", value, "output:", d);
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
