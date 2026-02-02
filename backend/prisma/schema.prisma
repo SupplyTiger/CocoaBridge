@@ -57,6 +57,13 @@ enum SourceSystem {
   MANUAL
 }
 
+enum OrgLevel {
+  AGENCY
+  SUBAGENCY
+  OFFICE
+  OTHER
+}
+
 model Contact {
   id String @id @default(cuid())
 
@@ -96,8 +103,8 @@ model ContactLink {
   inboxItemId String?
   inboxItem   InboxItem? @relation(fields: [inboxItemId], references: [id], onDelete: Cascade)
 
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  buyingOrganizationId String?
+  buyingOrganization   BuyingOrganization? @relation(fields: [buyingOrganizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -106,22 +113,27 @@ model ContactLink {
   @@unique([opportunityId, externalId])
   @@unique([industryDayId, externalId])
   @@unique([inboxItemId, externalId])
-  @@unique([organizationId, externalId])
+  @@unique([buyingOrganizationId, externalId])
   @@index([opportunityId])
   @@index([industryDayId])
   @@index([inboxItemId])
-  @@index([organizationId])
+  @@index([buyingOrganizationId])
 }
 
-model Organization {
-  id       String  @id @default(cuid())
-  name     String
-  uei      String? @unique
-  cageCode String?
-  website  String?
+model BuyingOrganization {
+  id      String  @id @default(cuid())
+  name    String
+  website String?
 
-  contactLinks ContactLink[]
+  level    OrgLevel             @default(OTHER)
+  parentId String?
+  parent   BuyingOrganization?  @relation("BuyingOrgTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children BuyingOrganization[] @relation("BuyingOrgTree")
 
+  externalId String? // Office/org identifier or code
+  pathName   String? // cached full path for fast display
+
+  contactLinks  ContactLink[]
   inboxItems    InboxItem[]
   awards        Award[]
   industryDay   IndustryDay[]
@@ -131,69 +143,24 @@ model Organization {
   updatedAt DateTime @updatedAt
 
   @@index([name])
-  @@index([cageCode])
+  @@index([parentId])
+  @@index([level])
+  @@index([name, externalId])
 }
 
-model Award {
-  id     String       @id @default(cuid())
-  source SourceSystem @default(USASPENDING)
+model Recipient {
+  id      String  @id @default(cuid())
+  name    String
+  website String?
+  uei     String? @unique
 
-  externalAwardId String? @unique
-  awardingAgency  String?
-  awardingOffice  String?
-
-  naicsCodes String[] @default([])
-  pscCode    String?
-
-  obligatedAmount Decimal?  @db.Decimal(18, 2)
-  startDate       DateTime?
-  endDate         DateTime?
-
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-
-  inboxItems InboxItem[]
+  awards Award[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([startDate])
-  @@index([endDate])
-  @@index([naicsCodes], type: Gin)
-  @@index([pscCode])
-}
-
-model IndustryDay {
-  id     String       @id @default(cuid())
-  source SourceSystem @default(SAM)
-
-  // Deduplication check
-  externalEventId String? @unique
-  title           String
-  summary         String?
-
-  location  String?
-  eventDate DateTime?
-
-  host String?
-
-  status IndustryDayStatus @default(OPEN)
-
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-
-  opportunityId String?      @unique
-  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  contactLinks ContactLink[]
-
-  inboxItems InboxItem[]
-
-  @@index([eventDate])
-  @@index([status])
+  @@index([name])
+  @@index([uei])
 }
 
 model Opportunity {
@@ -220,14 +187,15 @@ model Opportunity {
 
   // Org / office metadata
   fullParentPathName String?
-  city               String?
-  state              String?
-  zip                String?
-  countryCode        String?
+
+  city        String?
+  state       String?
+  zip         String?
+  countryCode String?
 
   // Relationships
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  buyingOrganizationId String?
+  buyingOrganization   BuyingOrganization? @relation(fields: [buyingOrganizationId], references: [id], onDelete: SetNull)
 
   // Inbox workflow
   inboxItems InboxItem[]
@@ -238,6 +206,7 @@ model Opportunity {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   industryDay IndustryDay?
+  awards      Award[]
 
   @@index([postedDate])
   @@index([responseDeadline])
@@ -246,6 +215,74 @@ model Opportunity {
   @@index([type])
   @@index([solicitationNumber])
   @@index([title])
+}
+
+model Award {
+  id     String       @id @default(cuid())
+  source SourceSystem @default(USASPENDING)
+
+  externalId String? @unique
+
+  naicsCodes String[] @default([])
+  pscCode    String?
+
+  obligatedAmount Decimal?  @db.Decimal(18, 2)
+  startDate       DateTime?
+  endDate         DateTime?
+
+  opportunityId String?
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  buyingOrganizationId String?
+  buyingOrganization   BuyingOrganization? @relation(fields: [buyingOrganizationId], references: [id], onDelete: SetNull)
+
+  recipientId String?
+  recipient   Recipient? @relation(fields: [recipientId], references: [id], onDelete: SetNull)
+
+  inboxItems InboxItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([startDate])
+  @@index([endDate])
+  @@index([naicsCodes], type: Gin)
+  @@index([pscCode])
+  @@index([buyingOrganizationId])
+  @@index([recipientId])
+}
+
+model IndustryDay {
+  id     String       @id @default(cuid())
+  source SourceSystem @default(SAM)
+
+  // Deduplication check
+  externalId String? @unique
+  title      String
+  summary    String?
+
+  location  String?
+  eventDate DateTime?
+
+  host String?
+
+  status IndustryDayStatus @default(OPEN)
+
+  buyingOrganizationId String?
+  buyingOrganization   BuyingOrganization? @relation(fields: [buyingOrganizationId], references: [id], onDelete: SetNull)
+
+  opportunityId String?      @unique
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contactLinks ContactLink[]
+
+  inboxItems InboxItem[]
+
+  @@index([eventDate])
+  @@index([status])
 }
 
 model InboxItem {
@@ -264,8 +301,8 @@ model InboxItem {
   reviewedBy   String?
   reviewedAt   DateTime?
 
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  buyingOrganizationId String?
+  buyingOrganization   BuyingOrganization? @relation(fields: [buyingOrganizationId], references: [id], onDelete: SetNull)
 
   awardId String?
   award   Award?  @relation(fields: [awardId], references: [id], onDelete: SetNull)
@@ -286,7 +323,7 @@ model InboxItem {
   @@index([type])
   @@index([tag])
   @@index([createdAt])
-  @@index([organizationId])
+  @@index([buyingOrganizationId])
   @@index([awardId])
   @@index([opportunityId])
   @@index([industryDayId])

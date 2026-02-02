@@ -70,6 +70,22 @@ export const extractType = (opportunity) => {
   return Type.OTHER;
 };
 
+export const extractAwardAndRelatedFields = (opportunity) => {
+    const awardItem = opportunity?.award || null;
+    if(!awardItem) return null;
+
+    const award = {
+      externalId: awardItem.number || null,
+      obligatedAmount: awardItem.amount ? Number(awardItem.amount) : 0,
+      startDate: toDateOrNull(awardItem.date),
+      // end date is not available in the current data structure
+    }
+
+    const recipient = awardItem.awardee;
+
+    return { award, recipient };
+  };
+
 // todo: implement description extraction logic with api call later
 export const extractDescription = (opportunity) => {
     return opportunity?.description || null;
@@ -82,6 +98,7 @@ export const extractTag = (opportunity) => {
   return OppTag.GENERAL;
 };
 
+// Convert various date formats to Date object or null
 export const toDateOrNull = (value) => {
   if (value === null || value === undefined || value === "") return null;
   const d = new Date(value);

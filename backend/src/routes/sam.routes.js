@@ -1,5 +1,5 @@
 import express from "express";
-import { getCurrentOpportunitiesFromSam, getHistoricalOpportunitiesFromSam, getIndustryDayOpportunitiesFromSam} from "../controllers/sam.controller.js";
+import { getCurrentOpportunitiesFromSam, getHistoricalOpportunitiesFromSam, getIndustryDayOpportunitiesFromSam, getOpportunityDescriptionFromSam} from "../controllers/sam.controller.js";
 
 // Fields of interest:
 /**
@@ -54,6 +54,10 @@ router.get("/opportunities/historical", getHistoricalOpportunitiesFromSam);
 */
 router.get("/opportunities/event", getIndustryDayOpportunitiesFromSam);
 
-
+/*
+  This endpoint fetches the detailed description for a specific opportunity from SAM.gov
+  Query parameter: cache=true to save description to database
+*/
+router.get("/opportunities/:noticeId/description", getOpportunityDescriptionFromSam);
 
 export default router;

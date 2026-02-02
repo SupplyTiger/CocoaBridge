@@ -24,6 +24,7 @@ export const searchAwardFromUsaspending = async (req, res) => {
       count: response.data.page_metadata?.total || 0,
       data: response.data.results,
     });
+    
   } catch (error) {
     console.error(
       "Error in searchAwardFromUsaspending controller:",

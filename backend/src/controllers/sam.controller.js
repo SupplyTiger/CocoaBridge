@@ -14,6 +14,8 @@ import {
   normalizeSamIndustryDay,
   normalizeOpportunity,
   normalizeSamHistoricalOpportunity,
+  normalizeSamAward,
+  normalizeSamRecipient,
 } from "../utils/normalizeSAM.js";
 
 
@@ -92,13 +94,59 @@ async function upsertContactsForOpportunity(db, samOpportunity, opportunityId) {
 }
 };
 
+async function upsertAwardAndRecipientFromSam(db, samOpportunity, opportunityId) {
+  const award = normalizeSamAward(samOpportunity);
+  if(!award) return null;
 
+  const awardeeRaw = samOpportunity?.award?.awardee || null;
+  const recipientNormalized = normalizeSamRecipient(awardeeRaw);
+
+  // 1) Upsert Recipient (UEI)
+  let recipient = null;
+
+  if(recipientNormalized) {
+    if(recipientNormalized.uei) {
+      recipient = await db.recipient.upsert({
+        where: {uei: recipientNormalized.uei},
+        update: {name: recipientNormalized.name},
+        create: {name: recipientNormalized.name, uei: recipientNormalized.uei},
+      });
+  }
+}
+  // 2) Upsert Award, link to Recipient
+  const awardRecord = await db.award.upsert({
+    where: { externalId: award.externalId },
+    update: {
+      obligatedAmount: award.obligatedAmount,
+      startDate: award.startDate,
+      endDate: award.endDate,
+      naicsCodes: award.naicsCodes,
+      pscCode: award.pscCode,
+      opportunityId,
+      recipientId: recipient ? recipient.id : null,
+      source: SourceSystem.SAM,
+    },
+    create: {
+      source: SourceSystem.SAM,
+      externalId: award.externalId,
+      obligatedAmount: award.obligatedAmount,
+      startDate: award.startDate,
+      endDate: award.endDate,
+      naicsCodes: award.naicsCodes,
+      pscCode: award.pscCode,
+      opportunityId,
+      recipientId: recipient ? recipient.id : null,
+    },
+  });
+  return awardRecord;
+};
 async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
   const normalized = normalizeSamHistoricalOpportunity(opportunity);
 
   if (!normalized.noticeId) {
     throw new Error("Missing noticeId for Historical Opportunity upsert");
   }
+
 
   const data = {
     source: SourceSystem.SAM,
@@ -124,22 +172,31 @@ async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
     state: normalized.state ?? null,
     zip: normalized.zip ?? null,
     countryCode: normalized.countryCode ?? null,
-};
+  };
 
   // with historical opportunities, we do not upsert contacts
-  return prisma.opportunity.upsert({
+  const opp = await prisma.opportunity.upsert({
     where: { noticeId: normalized.noticeId },
     update: data,
     create: data,
   });
+
+  if (opportunity?.award?.number) {
+    // IMPORTANT: don't upsert if you don't have a unique key
+    if (!opportunity?.award?.number) return null;
+    await upsertAwardAndRecipientFromSam(prisma, opportunity, opp.id);
+  }
+  return opp;
 };
 
 async function upsertOpportunityFromSam(prisma, opportunity) {
   const normalized = normalizeOpportunity(opportunity);
 
+
   if (!normalized.noticeId) {
     throw new Error("Missing noticeId for Opportunity upsert");
   }
+
 
   const data = {
     source: SourceSystem.SAM,
@@ -176,6 +233,13 @@ async function upsertOpportunityFromSam(prisma, opportunity) {
     create: data,
   });
 
+  // NEW: Upsert award and recipient associated with this opportunity
+  if (opportunity?.award?.number) {
+    // IMPORTANT: don't upsert if you don't have a unique key
+    if (!opportunity?.award?.number) return null;
+    await upsertAwardAndRecipientFromSam(prisma, opportunity, opp.id);
+  }
+
   // Upsert contacts associated with this opportunity
   await upsertContactsForOpportunity(prisma, opportunity, opp.id);
   return opp;
@@ -189,8 +253,8 @@ async function upsertIndustryDayFromSam(
 ) {
   const normalized = normalizeSamIndustryDay(opportunity);
 
-  if (!normalized.externalEventId) {
-    throw new Error("Missing externalEventId (noticeId/id)");
+  if (!normalized.externalId) {
+    throw new Error("Missing externalId (noticeId/id)");
   }
 
   // Ensure the opportunityId unique constraint won't be violated
@@ -198,7 +262,7 @@ async function upsertIndustryDayFromSam(
     await prisma.industryDay.updateMany({
       where: {
         opportunityId,
-        externalEventId: { not: normalized.externalEventId },
+        externalId: { not: normalized.externalId },
       },
       data: { opportunityId: null },
     });
@@ -216,10 +280,10 @@ async function upsertIndustryDayFromSam(
   };
 
   return prisma.industryDay.upsert({
-    where: { externalEventId: normalized.externalEventId },
+    where: { externalId: normalized.externalId },
     update: data,
     create: {
-      externalEventId: normalized.externalEventId,
+      externalId: normalized.externalId,
       ...data,
     },
   });
@@ -447,6 +511,59 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
   }
 };
 
+export const getOpportunityDescriptionFromSam = async (req, res) => {
+  try {
+    const { noticeId } = req.params;
+    if (!noticeId) {
+      return res.status(400).json({ error: "Missing noticeId parameter" });
+    }
+
+    const response = await axios.get(ENV.SAMGOV_NOTICE_DESC_URL, {
+      params: {
+        api_key: ENV.SAMGOV_API_KEY,
+        noticeid: noticeId,
+      },
+      timeout: 30000,
+    });
+
+    const data = response.data;
+    const description = response.data?.description || null;
+
+    // TODO: implement description parsing logic (remove html, etc.)
+    // const filteredDescription = parseDescription(description);
+
+    // Cache the description in the database
+    // given that caching is requested
+    const cacheInDB = req.query.cache === 'true';
+    if (cacheInDB && description) {
+      await prisma.opportunity.updateMany({
+        where: { noticeId },
+        data: { description },
+      });
+    }
+
+    return res.status(200).json({
+      noticeId,
+      description,
+      cached: cacheInDB && description ? true : false, 
+    });
+
+  } catch (error) {
+    console.error("Error in getOpportunityDescriptionFromSam controller:", error);
+    
+    if (error.response?.status === 404) {
+      return res.status(404).json({
+        error: "Opportunity not found",
+        noticeId,
+      });
+    }
+    
+    return res.status(500).json({
+      error: "Internal Server Error -- failed to fetch description from SAM.gov",
+      details: error?.response?.data,
+    });
+  }
+};
 // todo: take opportunities marked as "AWARDED" and fill in award data in the awards table
 // TODO: implement pagination handling for large result sets
 // TODO: Cache description into db --> 
