@@ -111,11 +111,6 @@ async function upsertAwardAndRecipientFromSam(db, samOpportunity, opportunityId)
         update: {name: recipientNormalized.name},
         create: {name: recipientNormalized.name, uei: recipientNormalized.uei},
       });
-    } else {
-      recipient = await db.recipient.create({
-        data: {name: recipientNormalized.name, uei: null
-        },
-      });
   }
 }
   // 2) Upsert Award, link to Recipient
@@ -180,7 +175,7 @@ async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
   };
 
   // with historical opportunities, we do not upsert contacts
-  const opp = prisma.opportunity.upsert({
+  const opp = await prisma.opportunity.upsert({
     where: { noticeId: normalized.noticeId },
     update: data,
     create: data,

@@ -22,6 +22,7 @@ const required = [
   "INNGEST_EVENT_KEY",
   "INNGEST_SIGNING_KEY",
   "SAMGOV_API_KEY",
+  "SAMGOV_NOTICE_DESC_URL",
 ];
 
 const missing = required.filter((key) => !ENV[key]);

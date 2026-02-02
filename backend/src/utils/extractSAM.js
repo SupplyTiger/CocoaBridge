@@ -83,7 +83,7 @@ export const extractAwardAndRelatedFields = (opportunity) => {
 
     const recipient = awardItem.awardee;
 
-    return { award: awardItem, recipient };
+    return { award, recipient };
   };
 
 // todo: implement description extraction logic with api call later
