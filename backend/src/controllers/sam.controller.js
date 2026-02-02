@@ -25,7 +25,7 @@ import {
 // Pagination helper function
 async function fetchAllOpportunitiesFromSam(baseQuery = {}, maxPages = 10) {
   const allOpportunities = [];
-  let currentPage = 1; // SAM.gov pages start at 1
+  let currentPage = 0; // SAM.gov pages start at 0
   let hasMorePages = true;
   const limit = 1000; // SAM.gov max limit
 
@@ -66,6 +66,17 @@ async function fetchAllOpportunitiesFromSam(baseQuery = {}, maxPages = 10) {
     } catch (error) {
       console.error(`Error fetching page ${currentPage}:`, error.message);
       hasMorePages = false; // Stop pagination on error
+
+      // return partial data fetched so far
+      return {
+        opportunities: allOpportunities,
+        pagination: {
+          totalPagesFetched: currentPage - 1,
+          totalOpportunities: allOpportunities.length,
+          incomplete: true,
+          error: error.message,
+        }
+      }
     }
   }
 
@@ -612,13 +623,42 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
   try {
     const query = req.query;
 
-    const response = await axios.get(ENV.SAMGOV_BASE_URL, {
-      params: {
-        api_key: ENV.SAMGOV_API_KEY,
-        ...query,
-      },
-      timeout: 75000,
-    });
+    // pull out pagination params
+    const {
+      fullSync,
+      maxPages = 10,
+      page,
+      limit = 1000,
+      ...samQuery
+      } = query;
+
+    let opportunities = [];
+    let paginationInfo = null;
+
+    // Fetch opportunities with pagination support
+    if (fullSync === 'true') {
+      // Fetch all pages (for complete sync)
+      const result = await fetchAllOpportunitiesFromSam(samQuery, parseInt(maxPages));
+      opportunities = result.opportunities || [];
+      paginationInfo = result.pagination;
+    } else if (page !== undefined) {
+      // Single page fetch
+      const result = await fetchOpportunitiesFromSamWithPagination(
+        samQuery, 
+        parseInt(page) || 1, // SAM.gov pages start at 1, not 0
+        parseInt(limit)
+      );
+      opportunities = result.opportunities;
+      paginationInfo = result.pagination;
+    } else {
+      // Legacy single request (no pagination)
+      const response = await axios.get(ENV.SAMGOV_BASE_URL, {
+        params: {
+          api_key: ENV.SAMGOV_API_KEY,
+          ...samQuery,
+        },
+        timeout: 75000,
+      });
 
     const data = response.data;
 
@@ -628,6 +668,7 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
       data?.opportunities ||
       data?.data ||
       [];
+    }
 
     // Ensure opportunities is always an array
     if (!Array.isArray(opportunities)) {
@@ -669,16 +710,20 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
         }
       }
 
-    return res.status(200).json({
-      meta: {
-        pulled: opportunities.length,
-        returned: filteredOpportunities.length,
-      },
-      db: {attempted, upserted, skipped, errors},
-      data: {
-        opportunities: filteredOpportunities,
-      },
-    });
+
+      const responseData = {
+        meta: {
+          pulled: opportunities.length,
+          returned: filteredOpportunities.length,
+          ...(paginationInfo && { pagination: paginationInfo }),
+        },
+        db: { attempted, upserted, skipped, errors },
+        data: {
+          opportunities: filteredOpportunities,
+        },
+      };
+    return res.status(200).json(responseData);
+    
   } catch (error) {
     console.error("Error in getIndustryDayOpportunitiesFromSam controller:", error);
 
