@@ -222,17 +222,15 @@ async function upsertAwardAndRecipientFromSam(
   // 1) Upsert Recipient (UEI)
   let recipient = null;
 
-  if (recipientNormalized) {
-    if (recipientNormalized.uei) {
-      recipient = await db.recipient.upsert({
-        where: { uei: recipientNormalized.uei },
-        update: { name: recipientNormalized.name },
-        create: {
-          name: recipientNormalized.name,
-          uei: recipientNormalized.uei,
-        },
-      });
-    }
+  if (recipientNormalized?.uei) {
+    recipient = await db.recipient.upsert({
+      where: { uei: recipientNormalized.uei },
+      update: { name: recipientNormalized.name },
+      create: {
+        name: recipientNormalized.name,
+        uei: recipientNormalized.uei,
+      },
+    });
   }
   // 2) Upsert Award, link to Recipient
   const awardRecord = await db.award.upsert({
@@ -690,7 +688,7 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
 
       const data = response.data;
 
-      const opportunities =
+      opportunities =
         data.response?.opportunitiesData ||
         data?.opportunitiesData ||
         data?.opportunities ||

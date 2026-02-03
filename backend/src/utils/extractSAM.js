@@ -83,22 +83,6 @@ export const extractType = (opportunity) => {
   return Type.OTHER;
 };
 
-export const extractAwardAndRelatedFields = (opportunity) => {
-  const awardItem = opportunity?.award || null;
-  if (!awardItem) return null;
-
-  const award = {
-    externalId: awardItem.number || null,
-    obligatedAmount: awardItem.amount ? Number(awardItem.amount) : 0,
-    startDate: toDateOrNull(awardItem.date),
-    // end date is not available in the current data structure
-  };
-
-  const recipient = awardItem.awardee;
-
-  return { award, recipient };
-};
-
 export const stripHTML = (htmlString) => {
   if (!htmlString) return null;
   const dom = new JSDOM(htmlString);

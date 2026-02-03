@@ -6,7 +6,6 @@ import {
   extractNaicsCodes,
   extractType,
   extractTag,
-  extractAwardAndRelatedFields,
 } from "./extractSAM.js";
 
 export const normalizeOpportunity = (opportunity) => {
@@ -88,7 +87,7 @@ export const normalizeSamAward = (opportunity) => {
     externalId: award.number,
     startDate: toDateOrNull(award.date),
     endDate: toDateOrNull(award.date), // sam.gov usually doesn't provide endDate
-    obligatedAmount: award.amount ? Number(award.amount) : 0,
+    obligatedAmount: award.amount ? Number(award.amount) : null,
     naicsCodes: extractNaicsCodes(opportunity) ?? [],
     pscCode: opportunity?.classificationCode || null,
   };
