@@ -32,18 +32,22 @@ const upsertRecipient = async (recipientData) => {
   }
 
   // No UEI - try to find by exact name match, or create new
-  const existing = await prisma.recipient.findFirst({
-    where: { name },
-  });
 
-  if (existing) {
-    return existing.id;
+  try {
+    const newReceipient = await prisma.recipient.create({
+      data: { name, website },
+    });
+    return newReceipient.id;
+  } catch (error) {
+    // handle unique constraint violation for name
+    if (error.code === "P2002") {
+      const existing = await prisma.recipient.findFirst({
+        where: { name },
+      });
+      return existing?.id ?? null;
+    }
+    throw error;
   }
-
-  const newRecipient = await prisma.recipient.create({
-    data: { name, website },
-  });
-  return newRecipient.id;
 };
 
 /**

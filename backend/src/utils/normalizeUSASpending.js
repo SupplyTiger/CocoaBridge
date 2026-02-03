@@ -1,4 +1,5 @@
 import { SourceSystem, OrgLevel } from "@prisma/client";
+import { parse } from "path";
 
 /**
  * Extracts and combines description from USASpending award.
@@ -51,10 +52,13 @@ export const normalizeUSASpendingAward = (usaAward) => {
     usaAward.generated_internal_id || usaAward["Award ID"] || null;
 
   // Parse dates
-  const startDate = usaAward["Start Date"]
-    ? new Date(usaAward["Start Date"])
-    : null;
-  const endDate = usaAward["End Date"] ? new Date(usaAward["End Date"]) : null;
+  const parseDate = (dateStr) => {
+    if (!dateStr) return null;
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? null : date;
+  };
+  const startDate = parseDate(usaAward["Start Date"]);
+  const endDate = parseDate(usaAward["End Date"]);
 
   // Parse obligated amount - handle currency format like "$1,234.56"
   let obligatedAmount = null;
@@ -142,7 +146,9 @@ export const extractAwardingOrgsFromUSASpending = (usaAward) => {
   if (subAgencyName && subAgencyName !== agencyName) {
     // Generate a pseudo-externalId for sub-agency if not available
     // This helps with deduplication
-    const subAgencyExternalId = agencyId ? `${agencyId}-SUB` : null;
+    const subAgencyExternalId = agencyId
+      ? `${agencyId}-SUB-${subAgencyName.replace(/\s+/g, "_")}`
+      : null;
 
     orgs.push({
       name: subAgencyName,
