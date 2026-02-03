@@ -41,31 +41,29 @@ export const extractContact = (opportunity) => {
             ? ContactType.SECONDARY
             : ContactType.OTHER;
 
-      if (type === ContactType.PRIMARY || type === ContactType.SECONDARY) {
-        const fullName = contact?.fullName
-          ? String(contact.fullName).trim()
-          : null;
-        const title = contact?.title ? String(contact.title).trim() : null;
-        const email = contact?.email
-          ? String(contact.email).trim().toLowerCase()
-          : null;
-        const phone = contact?.phone ? String(contact.phone).trim() : null;
+      const fullName = contact?.fullName
+        ? String(contact.fullName).trim()
+        : null;
+      const title = contact?.title ? String(contact.title).trim() : null;
+      const email = contact?.email
+        ? String(contact.email).trim().toLowerCase()
+        : null;
+      const phone = contact?.phone ? String(contact.phone).trim() : null;
 
-        if (fullName || email || phone) {
-          const externalId = `SAM:${noticeId}:${type}:${email || phone || fullName || "unknown"}`;
+      if (fullName || email || phone) {
+        const externalId = `SAM:${noticeId}:${type}:${email || phone || fullName || "unknown"}`;
 
-          contacts.push({
-            fullName,
-            title,
-            email,
-            phone,
+        contacts.push({
+          fullName,
+          title,
+          email,
+          phone,
 
-            // link
-            externalId,
-            type,
-            source: SourceSystem.SAM,
-          });
-        }
+          // link
+          externalId,
+          type,
+          source: SourceSystem.SAM,
+        });
       }
     });
   }
@@ -186,6 +184,7 @@ export const extractLocation = (opportunity) => {
   return locationParts.length ? locationParts.join(", ") : null;
 };
 
+// todo: filter further
 export const matchesOpportunityIndustryDay = (item) => {
   const titleMatch = titleMatchesKeyword(item?.title, industryDayTitleKeywords);
 

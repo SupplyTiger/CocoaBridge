@@ -135,6 +135,14 @@ async function fetchOpportunitiesFromSamWithPagination(
 
 async function upsertContactsForOpportunity(db, samOpportunity, opportunityId) {
   const contacts = extractContact(samOpportunity);
+
+  if (contacts.length === 0) {
+    console.warn(
+      `[ContactLink Debug] No contacts extracted for opportunity ${opportunityId}`,
+    );
+    return;
+  }
+
   // 1) Upsert/create the PERSON (Contact)
   // Dedupe strategy: Email-first
   // If email missing, fall back to phone, else just create.
@@ -293,7 +301,6 @@ async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
     countryCode: normalized.countryCode ?? null,
   };
 
-  // with historical opportunities, we do not upsert contacts
   const opp = await prisma.opportunity.upsert({
     where: { noticeId: normalized.noticeId },
     update: data,
@@ -301,10 +308,12 @@ async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
   });
 
   if (opportunity?.award?.number) {
-    // IMPORTANT: don't upsert if you don't have a unique key
-    if (!opportunity?.award?.number) return null;
     await upsertAwardAndRecipientFromSam(prisma, opportunity, opp.id);
   }
+
+  // Upsert contacts for historical opportunities too
+  await upsertContactsForOpportunity(prisma, opportunity, opp.id);
+
   return opp;
 }
 
