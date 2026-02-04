@@ -1,11 +1,5 @@
 // Global constants and variables that pertain to SUPPLY TIGER
 
-export const adminEmails = [
-  "divya@supplytiger.com",
-  "ryan@supplytiger.com",
-  "john@supplytiger.com",
-];
-
 // Used for SAM.gov filtering
 export const industryDayTitleKeywords = [
   "industry day",

@@ -21,6 +21,12 @@ export const protectRoute = [
         });
       }
 
+      if (!user.isActive) {
+        return res.status(403).json({
+          message: "Forbidden: User is inactive",
+        });
+      }
+
       // attach user to request object
       req.user = user; // Attach user to request object
 
