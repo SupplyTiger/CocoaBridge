@@ -14,7 +14,11 @@ const app = express();
 const __dirname = path.resolve();
 
 // Configure CORS to allow multiple origins
-const allowedOrigins = ["http://localhost:5173", ENV.CLIENT_URL];
+const allowedOrigins = [
+  "http://localhost:5173",
+  `http://localhost:${ENV.PORT}`,
+  ENV.CLIENT_URL,
+].filter(Boolean);
 
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true })); // for parsing application/x-www-form-urlencoded
@@ -55,18 +59,17 @@ if (ENV.NODE_ENV !== "development") {
   // The "catchall" handler: for any request that doesn't
   // match one above, send back React's index.html file.
   app.get("/{*any}", (req, res) => {
-    res.sendFile(path.join(__dirname, "../admin", "dist", "index.html"));
+    res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
   });
 }
 
 const startServer = async () => {
   try {
     // await connectDB();
-    if (ENV.NODE_ENV !== "production") {
-      app.listen(ENV.PORT, () => {
-        console.log(`Server is running on http://localhost:${ENV.PORT}`);
-      });
-    }
+    app.listen(ENV.PORT, () => { 
+        console.log(`Server is running on http://localhost:${ENV.PORT}`); 
+    });
+    
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
