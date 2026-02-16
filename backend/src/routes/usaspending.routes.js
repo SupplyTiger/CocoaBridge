@@ -8,8 +8,6 @@ import {
 } from "../controllers/usaspending.controller.js";
 
 const router = express.Router();
-// todo: implement USAspending routes
-// Endpoints:
 
 /**
  * PING endpoint for testing
