@@ -24,7 +24,6 @@ export const solicitationTitleKeywords = [
   "rations",
   "morale",
   "candy",
-  "bar",
   "chocolate",
   "concessions",
   "confectionery",
@@ -39,18 +38,26 @@ export const solicitationTitleKeywords = [
   "family",
   "appreciation",
   "holiday",
-  "supplies",
   "commodities",
   "miscellaneous",
   "consumables",
-  "support",
   "general items",
   "choc"
 ];
 
 // NAICS and Classification codes relevant to Supply Tiger's focus
 export const classificationPrefixes = ["89"]; // 89: Subsistence (8925)
-export const naicsPrefixes = ["445", "424", "311340", "311351", "311352"]; // 445: Grocery Stores, 424: Grocery and Related Product Merchant Wholesalers, 311340: Nonchocolate Confectionery Manufacturing
+export const naicsPrefixes = [
+  "445",
+  "424",
+  "311340",
+  "311351",
+  "311352",
+  "424450",
+  "424490",
+  "445292",
+  "455219",
+]; // 445: Grocery Stores, 424: Grocery and Related Product Merchant Wholesalers, 311340: Nonchocolate Confectionery Manufacturing
 export const validCountries = ["USA", "US"];
 
 // USASpending filter presets for common searches

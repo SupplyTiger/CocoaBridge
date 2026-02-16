@@ -1034,7 +1034,7 @@ export const getOpportunityDescriptionFromSam = async (req, res) => {
 
     // Cache the description in the database
     // given that caching is requested
-    const cacheInDB = req.query.cache === "true";
+    const cacheInDB = req.query.cacheInDB === "true";
     if (cacheInDB && description) {
       await prisma.opportunity.updateMany({
         where: { noticeId },
