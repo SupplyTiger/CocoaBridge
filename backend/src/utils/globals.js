@@ -188,3 +188,6 @@ export const usaSpendingPresetNames = [
   "microtransactions",
   "smallBusiness",
 ];
+
+export const samGovIndustryDayPTypes = ["s", "r", "p", "k"];
+export const samGovSolicitationPTypes = ["r", "k", "o"];

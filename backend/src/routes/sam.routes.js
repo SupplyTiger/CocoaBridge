@@ -1,5 +1,11 @@
 import express from "express";
-import { getCurrentOpportunitiesFromSam, getHistoricalOpportunitiesFromSam, getIndustryDayOpportunitiesFromSam, getOpportunityDescriptionFromSam} from "../controllers/sam.controller.js";
+import {
+  getCurrentOpportunitiesFromSam,
+  getHistoricalOpportunitiesFromSam,
+  getIndustryDayOpportunitiesFromSam,
+  getOpportunityDescriptionFromSam,
+  syncCurrentOpportunitiesFromSam,
+} from "../controllers/sam.controller.js";
 
 // Fields of interest:
 /**
@@ -40,6 +46,7 @@ router.get("/ping", (req, res) => {
   Endpoints to get opportunities from SAM.gov
 */
 router.get("/opportunities/current", getCurrentOpportunitiesFromSam);
+router.get("/opportunities/current/sync", syncCurrentOpportunitiesFromSam);
 
 /*
   This endpoint fetches historical opportunities from SAM.gov

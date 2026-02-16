@@ -20,8 +20,10 @@ import {
   normalizeSamHistoricalOpportunity,
   normalizeSamAward,
   normalizeSamRecipient,
+  toYYYYMMDD,
 } from "../utils/normalizeSAM.js";
 
+import { samGovSolicitationPTypes } from "../utils/globals.js";
 /*
   Helper functions to fetch opportunities from SAM.gov with pagination
 
@@ -478,6 +480,160 @@ async function upsertIndustryDayFromSam(prisma, opportunity, opportunityId) {
     },
   });
 }
+
+export async function runCurrentOpportunitiesSyncFromSam({
+  pType,
+  fromDate,
+  toDate,
+  fullSync = "true",
+  maxPages = 10,
+  page,
+  limit = 1000,
+  cacheInDB = "true",
+} = {}) {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+
+  const resolvedPType = pType ?? samGovSolicitationPTypes.join(",");
+  const resolvedFromDate = fromDate ?? toYYYYMMDD(yesterday);
+  const resolvedToDate = toDate ?? toYYYYMMDD(now);
+
+  const samQuery = {
+    pType: resolvedPType,
+    fromDate: resolvedFromDate,
+    toDate: resolvedToDate,
+  };
+
+  let opportunities = [];
+  let paginationInfo = null;
+
+  if (String(fullSync) === "true") {
+    const result = await fetchAllOpportunitiesFromSam(
+      samQuery,
+      Number.parseInt(maxPages, 10) || 10,
+    );
+    opportunities = Array.isArray(result?.opportunities)
+      ? result.opportunities
+      : [];
+    paginationInfo = result?.pagination ?? null;
+  } else if (page !== undefined) {
+    const paged = await fetchOpportunitiesFromSamWithPagination(
+      samQuery,
+      Number.parseInt(page, 10) || 1,
+      Number.parseInt(limit, 10) || 1000,
+    );
+    opportunities = Array.isArray(paged?.opportunities)
+      ? paged.opportunities
+      : [];
+    paginationInfo = paged?.pagination ?? null;
+  } else {
+    const response = await axios.get(ENV.SAMGOV_BASE_URL, {
+      params: {
+        api_key: ENV.SAMGOV_API_KEY,
+        ...samQuery,
+      },
+      timeout: 75000,
+    });
+
+    const data = response.data;
+    opportunities =
+      data.response?.opportunitiesData ||
+      data?.opportunitiesData ||
+      data?.opportunities ||
+      data?.data ||
+      [];
+  }
+
+  if (!Array.isArray(opportunities)) {
+    opportunities = [];
+  }
+
+  const filteredOpportunities = opportunities.filter(
+    matchesOpportunitySolicitation,
+  );
+
+  let attempted = 0;
+  let upserted = 0;
+  let skipped = 0;
+  const errors = [];
+
+  if (String(cacheInDB) === "true") {
+    for (const opp of filteredOpportunities) {
+      attempted += 1;
+
+      if (!opp?.noticeId && !opp?.id) {
+        skipped += 1;
+        continue;
+      }
+
+      try {
+        await upsertOpportunityFromSam(prisma, opp);
+        upserted += 1;
+      } catch (e) {
+        skipped += 1;
+        errors.push({
+          noticeId: opp?.noticeId ?? opp?.id ?? null,
+          title: opp?.title ?? null,
+          message: e?.message ?? String(e),
+        });
+      }
+    }
+  }
+
+  return {
+    query: samQuery,
+    meta: {
+      pulled: opportunities.length,
+      returned: filteredOpportunities.length,
+      ...(paginationInfo && { pagination: paginationInfo }),
+    },
+    db: {
+      attempted,
+      upserted,
+      skipped,
+      errors,
+    },
+  };
+}
+
+export const syncCurrentOpportunitiesFromSam = async (req, res) => {
+  try {
+    const {
+      pType,
+      fromDate,
+      toDate,
+      fullSync = "true",
+      maxPages = 10,
+      page,
+      limit = 1000,
+      cacheInDB = "true",
+    } = req.query;
+
+    const syncResult = await runCurrentOpportunitiesSyncFromSam({
+      pType,
+      fromDate,
+      toDate,
+      fullSync,
+      maxPages,
+      page,
+      limit,
+      cacheInDB,
+    });
+
+    return res.status(200).json({
+      ok: true,
+      ...syncResult,
+    });
+  } catch (error) {
+    console.error("Error in syncCurrentOpportunitiesFromSam controller:", error);
+    return res.status(500).json({
+      ok: false,
+      error: "Internal Server Error -- failed to sync current SAM opportunities",
+      details: error?.response?.data ?? error?.message,
+    });
+  }
+};
 
 /* ROUTER FUNCTIONS */
 export const getCurrentOpportunitiesFromSam = async (req, res) => {

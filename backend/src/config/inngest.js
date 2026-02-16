@@ -1,6 +1,7 @@
 import { Inngest } from "inngest";
 import {ENV } from "../config/env.js";
 import { createUser, updateUser, deleteUser, changeExpiredOpportunitiesToInactive } from "../controllers/db.controller.js";
+import { runCurrentOpportunitiesSyncFromSam } from "../controllers/sam.controller.js";
 // Initialize Inngest with your account's unique identifier to link events and functions
 export const inngest = new Inngest({
   name: "SupplyTigerGOA Inngest Client",
@@ -64,4 +65,33 @@ export const deactivateExpiredOpportunities = inngest.createFunction(
     await changeExpiredOpportunitiesToInactive();
   },
 );
-export const functions = [syncUser, updateUserInDB, deleteUserInDB, deactivateExpiredOpportunities];
+
+// TODO: SYNC OPPORTUNITIES FROM SAM.GOV TO DB (Current Opportunities)
+export const syncCurrentSamOpportunitiesDaily = inngest.createFunction(
+  {
+    id: "sync-current-sam-opportunities-daily",
+    name: "Sync Current SAM Opportunities Daily",
+    description:
+      "Daily cron to sync SAM current opportunities using pType/fromDate/toDate window",
+  },
+  { cron: "15 5 * * *" }, // 12:15am EST / 5:15am UTC
+  async () => {
+    const result = await runCurrentOpportunitiesSyncFromSam();
+    return {
+      synced: true,
+      ...result,
+    };
+  },
+);
+
+// TODO: SYNC OPPORTUNITIES FROM SAM.GOV TO DB (Industry Day Opportunities)
+
+// TODO: SYNC AWARDS FROM USASPENDING TO DB
+
+export const functions = [
+  syncUser,
+  updateUserInDB,
+  deleteUserInDB,
+  deactivateExpiredOpportunities,
+  syncCurrentSamOpportunitiesDaily,
+];
