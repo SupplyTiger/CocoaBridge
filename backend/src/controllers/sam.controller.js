@@ -148,6 +148,7 @@ async function upsertOrganizationChainFromSam(db, samOpportunity) {
 
   for (const org of chain) {
     // Use name as primary key since SAM codes can be inconsistent
+
     const upserted = await db.buyingOrganization.upsert({
       where: { name: org.name },
       update: {

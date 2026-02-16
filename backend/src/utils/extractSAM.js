@@ -35,8 +35,16 @@ export const extractOrganizationChain = (opportunity) => {
     .filter(Boolean);
   const codes = pathCode ? pathCode.split(".").map((s) => s.trim()) : [];
 
+  const normalizeForId = (value) =>
+    String(value)
+      .trim()
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .toUpperCase();
+
   const chain = names.map((name, index) => {
     const code = codes[index] || null;
+    const parentCode = index > 0 ? codes[index - 1] || null : null;
 
     // Determine org level based on position in hierarchy
     let level;
@@ -54,11 +62,20 @@ export const extractOrganizationChain = (opportunity) => {
     // Build cumulative path for this level
     const cumulativePath = names.slice(0, index + 1).join(".");
 
+    let externalId;
+    if (code) {
+      externalId = `SAM:${code}`;
+    } else if (level === OrgLevel.SUBAGENCY && parentCode) {
+      // Generate deterministic pseudo-ID for sub-agencies when SAM does not provide a code
+      // Similar pattern to USAspending child-org normalization
+      externalId = `SAM-${parentCode}-SUB-${normalizeForId(name)}`;
+    } else {
+      externalId = `SAM:${normalizeForId(cumulativePath)}`;
+    }
+
     return {
       name,
-      externalId: code
-        ? `SAM:${code}`
-        : `SAM:${name.replace(/\s+/g, "_").toUpperCase()}`,
+      externalId,
       level,
       pathName: cumulativePath,
     };
