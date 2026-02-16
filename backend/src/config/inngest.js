@@ -1,7 +1,6 @@
 import { Inngest } from "inngest";
 import {ENV } from "../config/env.js";
 import { createUser, updateUser, deleteUser, changeExpiredOpportunitiesToInactive } from "../controllers/db.controller.js";
-import prisma from "./db.js";
 // Initialize Inngest with your account's unique identifier to link events and functions
 export const inngest = new Inngest({
   name: "SupplyTigerGOA Inngest Client",
@@ -57,10 +56,12 @@ export const deactivateExpiredOpportunities = inngest.createFunction(
   {
     id: "deactivate-expired-opportunities",
     name: "Deactivate Expired Opportunities",
-    description: "Cron job to deactivate expired opportunities every day at midnight",
-    cron: "0 5 * * *", // Every day at midnight EST (5 am UTC)
-}, {}, async () => {
+    description:
+      "Cron job to deactivate expired opportunities every day at midnight",
+  },
+  { cron: "0 5 * * *" }, // Every day at midnight EST (5 am UTC)
+  async () => {
     await changeExpiredOpportunitiesToInactive();
-}
+  },
 );
 export const functions = [syncUser, updateUserInDB, deleteUserInDB, deactivateExpiredOpportunities];
