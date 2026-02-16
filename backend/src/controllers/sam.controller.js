@@ -181,12 +181,12 @@ async function upsertContactsForOpportunity(
 ) {
   const contacts = extractContact(samOpportunity);
 
-  if (contacts.length === 0) {
+  /* if (contacts.length === 0) {
     console.warn(
       `[ContactLink Debug] No contacts extracted for opportunity ${opportunityId}`,
     );
     return;
-  }
+  } */
 
   // 1) Upsert/create the PERSON (Contact)
   // Dedupe strategy: Email-first
