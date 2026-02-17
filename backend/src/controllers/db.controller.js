@@ -1,6 +1,7 @@
 import prisma from "../config/db.js";
 import { ENV } from "../config/env.js";
 import { UserRole } from "@prisma/client";
+import {fetchOpportunityDescriptionFromSam} from "./sam.controller.js";
 
 const normalizeClerkUserPayload = (event) => {
   const input = Array.isArray(event) ? event[0] : event;
