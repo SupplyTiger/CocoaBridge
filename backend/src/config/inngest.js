@@ -62,10 +62,32 @@ export const deactivateExpiredOpportunities = inngest.createFunction(
   },
   { cron: "0 5 * * *" }, // Every day at midnight EST (5 am UTC)
   async () => {
-    await changeExpiredOpportunitiesToInactive();
+    const result = await changeExpiredOpportunitiesToInactive();
+    return {
+      success: true,
+      ...result,
+    };
   },
 );
 
+// TODO: GET OPPORTUNITY DESCRIPTIONS FROM SAM.GOV (DAILY CRON)
+export const getOpportunityDescriptionsFromSamDaily = inngest.createFunction(
+  {
+    id: "get-opportunity-descriptions-from-sam-daily",
+    name: "Get Opportunity Descriptions from SAM Daily",
+    description: "Cron job to update null opportunity descriptions from SAM.gov every day",
+  
+  },
+  { cron: "30 5 * * *" }, // Every day at 12:30am EST (5:30am UTC) --- after the sync job runs to give it time to update the db with new opportunities
+  async () => {
+    // Call the controller function to backfill null descriptions
+    const result = await backfillNullOpportunityDescriptionsFromSam();
+    return {
+      success: true,
+      ...result,
+    };
+  },
+);
 // TODO: SYNC OPPORTUNITIES FROM SAM.GOV TO DB (Current Opportunities)
 export const syncCurrentSamOpportunitiesDaily = inngest.createFunction(
   {
