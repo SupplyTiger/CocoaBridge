@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  backfillNullOpportunityDescriptionsFromSam,
   getCurrentOpportunitiesFromSam,
   getHistoricalOpportunitiesFromSam,
   getIndustryDayOpportunitiesFromSam,
@@ -60,6 +61,11 @@ router.get("/opportunities/historical", getHistoricalOpportunitiesFromSam);
   It filters opportunities based on predefined criteria in the matchesOpportunityIndustryDay function
 */
 router.get("/opportunities/event", getIndustryDayOpportunitiesFromSam);
+
+router.get(
+  "/opportunities/description/backfill",
+  backfillNullOpportunityDescriptionsFromSam,
+);
 
 /*
   This endpoint fetches the detailed description for a specific opportunity from SAM.gov

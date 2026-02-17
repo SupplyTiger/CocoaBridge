@@ -147,7 +147,7 @@ export const extractAwardingOrgsFromUSASpending = (usaAward) => {
     // Generate a pseudo-externalId for sub-agency if not available
     // This helps with deduplication
     const subAgencyExternalId = agencyId
-      ? `USASPENDING-${agencyId}-SUB-${subAgencyName.replace(/\s+/g, "_")}`
+      ? `USASPENDING:${agencyId}-SUB-${subAgencyName.replace(/\s+/g, "_")}`
       : null;
     orgs.push({
       name: subAgencyName,

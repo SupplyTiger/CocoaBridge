@@ -209,7 +209,20 @@ export const startsWithAny = (value, prefixes = []) => {
 export const titleMatchesKeyword = (title, keywords) => {
   if (!title) return false;
   const t = String(title).toLowerCase();
-  const matches = keywords.some((kw) => t.includes(String(kw).toLowerCase()));
+  const escapeRegex = (value) =>
+    String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  const matches = keywords.some((kw) => {
+    const normalizedKeyword = String(kw || "").trim().toLowerCase();
+    if (!normalizedKeyword) return false;
+
+    const pattern = new RegExp(
+      `(^|[^a-z0-9])${escapeRegex(normalizedKeyword)}([^a-z0-9]|$)`,
+      "i",
+    );
+
+    return pattern.test(t);
+  });
   return matches;
 };
 
@@ -266,23 +279,17 @@ export const extractLocation = (opportunity) => {
 
 // todo: filter further
 export const matchesOpportunityIndustryDay = (item) => {
-  const titleMatch = titleMatchesKeyword(item?.title, industryDayTitleKeywords);
-
+  const industryDayTitleMatch = titleMatchesKeyword(
+    item?.title,
+    industryDayTitleKeywords,
+  );
   const countryCodes = extractCountry(item);
   const countryMatch =
     countryCodes.length === 0 ? true : countryCodes.some(isValidCountry);
 
-  const naicsCodes = extractNaicsCodes(item);
-  const naicsMatch = naicsCodes.some((code) =>
-    startsWithAny(code, naicsPrefixes),
-  );
-  const classificiationMatch = startsWithAny(
-    item?.classificationCode,
-    classificationPrefixes,
-  );
-
-  // Return true if any criteria match
-  return (titleMatch || naicsMatch || classificiationMatch) && countryMatch;
+  // Industry-day endpoint should include explicit industry-day style notices,
+  // regardless of Supply-Tiger solicitation keywords/codes.
+  return industryDayTitleMatch && countryMatch;
 };
 
 export const matchesOpportunitySolicitation = (item) => {

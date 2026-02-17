@@ -19,17 +19,22 @@ export const industryDayTitleKeywords = [
 
 export const solicitationTitleKeywords = [
   "snack",
+  "snacks",
   "food",
+  "foods",
   "subsistence",
   "rations",
   "morale",
   "candy",
+  "nuts",
+  "PB&J",
   "chocolate",
   "concessions",
   "confectionery",
   "gratuities",
   "pantry",
   "meals",
+  "meal",
   "consumables",
   "ceremony",
   "exercise",
@@ -41,18 +46,19 @@ export const solicitationTitleKeywords = [
   "commodities",
   "miscellaneous",
   "consumables",
-  "general items",
   "choc"
 ];
 
 // NAICS and Classification codes relevant to Supply Tiger's focus
 export const classificationPrefixes = ["89"]; // 89: Subsistence (8925)
 export const naicsPrefixes = [
-  "445",
-  "424",
   "311340",
   "311351",
   "311352",
+  "311999",
+  "311991",
+  "311812",
+  "424410",
   "424450",
   "424490",
   "445292",
@@ -61,6 +67,7 @@ export const naicsPrefixes = [
 export const validCountries = ["USA", "US"];
 
 // USASpending filter presets for common searches
+const UPPER_BOUND = 10000000;
 export const usaSpendingFilters = {
   searchByAward: {
     link: "/api/v2/search/spending_by_award/",
@@ -73,7 +80,7 @@ export const usaSpendingFilters = {
           },
         ],
         award_type_codes: ["A", "B", "C"],
-        naics_codes: ["424450", "424490"],
+        naics_codes: naicsPrefixes,
         psc_codes: {
           require: [["Product", "89", "8925"]],
         },
@@ -112,9 +119,9 @@ export const usaSpendingFilters = {
             end_date: "2026-09-30",
           },
         ],
-        award_amounts: [{ upper_bound: 10000 }],
+        award_amounts: [{ upper_bound: UPPER_BOUND }],
         award_type_codes: ["A", "B", "C"],
-        naics_codes: ["424450", "424490", "455219", "445292"],
+        naics_codes: naicsPrefixes,
         psc_codes: {
           require: [["Product", "89", "8925"]],
         },
@@ -154,7 +161,7 @@ export const usaSpendingFilters = {
           },
         ],
         award_type_codes: ["A", "B", "C"],
-        naics_codes: ["424450", "424490"],
+        naics_codes: naicsPrefixes,
         recipient_type_names: ["small_business"],
         psc_codes: {
           require: [["Product", "89", "8925"]],

@@ -23,7 +23,7 @@ import {
   toYYYYMMDD,
 } from "../utils/normalizeSAM.js";
 
-import { samGovSolicitationPTypes } from "../utils/globals.js";
+import { samGovIndustryDayPTypes, samGovSolicitationPTypes } from "../utils/globals.js";
 /*
   Helper functions to fetch opportunities from SAM.gov with pagination
 
@@ -341,7 +341,7 @@ async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
     tag: normalized.tag,
     active: normalized.active,
 
-    description: normalized.description ?? null,
+    description: null,
 
     postedDate: normalized.postedDate,
     responseDeadline: normalized.responseDeadline,
@@ -402,7 +402,7 @@ async function upsertOpportunityFromSam(prisma, opportunity) {
     tag: normalized.tag,
     active: normalized.active,
 
-    description: normalized.description ?? null,
+    description: null,
 
     // Dates (still derived from raw SAM payload)
     postedDate: normalized.postedDate,
@@ -881,6 +881,7 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
 
     // pull out pagination params
     const {
+      pType,
       fullSync,
       maxPages = 10,
       page,
@@ -889,6 +890,14 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
       ...samQuery
     } = query;
 
+    const resolvedSamQuery = {
+      ...samQuery,
+      pType:
+        typeof pType === "string" && pType.trim()
+          ? pType
+          : samGovIndustryDayPTypes.join(","),
+    };
+
     let opportunities = [];
     let paginationInfo = null;
 
@@ -896,7 +905,7 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
     if (fullSync === "true") {
       // Fetch all pages (for complete sync)
       const result = await fetchAllOpportunitiesFromSam(
-        samQuery,
+        resolvedSamQuery,
         parseInt(maxPages),
       );
       opportunities = result.opportunities || [];
@@ -904,7 +913,7 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
     } else if (page !== undefined) {
       // Single page fetch
       const result = await fetchOpportunitiesFromSamWithPagination(
-        samQuery,
+        resolvedSamQuery,
         parseInt(page) || 1, // SAM.gov pages start at 1, not 0
         parseInt(limit),
       );
@@ -915,7 +924,7 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
       const response = await axios.get(ENV.SAMGOV_BASE_URL, {
         params: {
           api_key: ENV.SAMGOV_API_KEY,
-          ...samQuery,
+          ...resolvedSamQuery,
         },
         timeout: 75000,
       });
@@ -1011,22 +1020,14 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
 };
 
 export const getOpportunityDescriptionFromSam = async (req, res) => {
+  let noticeId;
   try {
-    const { noticeId } = req.params;
+    ({ noticeId } = req.params);
     if (!noticeId) {
       return res.status(400).json({ error: "Missing noticeId parameter" });
     }
 
-    const response = await axios.get(ENV.SAMGOV_NOTICE_DESC_URL, {
-      params: {
-        api_key: ENV.SAMGOV_API_KEY,
-        noticeid: noticeId,
-      },
-      timeout: 30000,
-    });
-
-    const data = response.data;
-    const description = response.data?.description || null;
+    const description = await fetchOpportunityDescriptionFromSam(noticeId);
 
     // TODO: implement description parsing logic (remove html, etc.)
     const filteredDescription = stripHTML(description);
@@ -1064,6 +1065,118 @@ export const getOpportunityDescriptionFromSam = async (req, res) => {
       error:
         "Internal Server Error -- failed to fetch description from SAM.gov",
       details: error?.response?.data,
+    });
+  }
+};
+
+const fetchOpportunityDescriptionFromSam = async (noticeId) => {
+  const response = await axios.get(ENV.SAMGOV_NOTICE_DESC_URL, {
+    params: {
+      api_key: ENV.SAMGOV_API_KEY,
+      noticeid: noticeId,
+    },
+    timeout: 30000,
+  });
+
+  return response.data?.description || null;
+};
+
+export const backfillNullOpportunityDescriptionsFromSam = async (req, res) => {
+  try {
+    const cacheInDB = req.query.cacheInDB !== "false";
+    // Fetch opportunities with null or empty descriptions, with pagination
+    const limit = Math.max(
+      1,
+      Math.min(Number.parseInt(req.query.limit, 10) || 100, 1000),
+    );
+
+    const opportunities = await prisma.opportunity.findMany({
+      where: {
+        noticeId: { not: null },
+        OR: [{ description: null }, { description: "" }],
+      },
+      select: {
+        id: true,
+        noticeId: true,
+        title: true,
+      },
+      take: limit,
+      orderBy: { postedDate: "desc" },
+    });
+
+    let fetched = 0;
+    let updated = 0;
+    let noDescription = 0;
+    let failed = 0;
+    const failures = [];
+
+    for (const opp of opportunities) {
+      if (!opp.noticeId) {
+        failed += 1;
+        failures.push({
+          id: opp.id,
+          noticeId: null,
+          title: opp.title,
+          message: "Missing noticeId",
+        });
+        continue;
+      }
+
+      try {
+        const description = await fetchOpportunityDescriptionFromSam(opp.noticeId);
+        fetched += 1;
+
+        if (!description) {
+          noDescription += 1;
+          continue;
+        }
+
+        const filteredDescription = stripHTML(description);
+
+        if (cacheInDB && filteredDescription) {
+          await prisma.opportunity.update({
+            where: { id: opp.id },
+            data: { description: filteredDescription },
+          });
+          updated += 1;
+        }
+      } catch (error) {
+        failed += 1;
+        failures.push({
+          id: opp.id,
+          noticeId: opp.noticeId,
+          title: opp.title,
+          message: error?.message ?? String(error),
+        });
+      }
+    }
+
+    return res.status(200).json({
+      ok: true,
+      cacheInDB,
+      meta: {
+        selected: opportunities.length,
+        limit,
+      },
+      results: {
+        fetched,
+        updated,
+        noDescription,
+        failed,
+      },
+      failures,
+    });
+  } catch (error) {
+    console.error(
+      "Error in backfillNullOpportunityDescriptionsFromSam controller:",
+      error,
+    );
+
+    return res.status(500).json({
+      ok: false,
+      error:
+        "Internal Server Error -- failed to backfill null opportunity descriptions",
+      details: error?.response?.data ?? error?.message,
     });
   }
 };
