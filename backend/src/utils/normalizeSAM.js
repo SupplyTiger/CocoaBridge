@@ -141,3 +141,11 @@ export const toYYYYMMDD = (date) => {
   const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+// SAM.gov requires MM/DD/YYYY format for postedFrom/postedTo
+export const toMMDDYYYY = (date) => {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${month}/${day}/${year}`;
+};

@@ -21,6 +21,7 @@ import {
   normalizeSamAward,
   normalizeSamRecipient,
   toYYYYMMDD,
+  toMMDDYYYY,
 } from "../utils/normalizeSAM.js";
 
 import { samGovIndustryDayPTypes, samGovSolicitationPTypes } from "../utils/globals.js";
@@ -511,15 +512,15 @@ export async function runCurrentOpportunitiesSyncFromSam({
     const computedToDate = new Date(fromDate);
     computedToDate.setUTCDate(computedToDate.getUTCDate() + lookbackDays);
     resolvedFromDate = fromDate;
-    resolvedToDate = toYYYYMMDD(computedToDate);
+    resolvedToDate = toMMDDYYYY(computedToDate);
   } else if (!fromDate && toDate) {
     const computedFromDate = new Date(toDate);
     computedFromDate.setUTCDate(computedFromDate.getUTCDate() - lookbackDays);
-    resolvedFromDate = toYYYYMMDD(computedFromDate);
+    resolvedFromDate = toMMDDYYYY(computedFromDate);
     resolvedToDate = toDate;
   } else {
-    resolvedFromDate = toYYYYMMDD(lookbackDate);
-    resolvedToDate = toYYYYMMDD(now);
+    resolvedFromDate = toMMDDYYYY(lookbackDate);
+    resolvedToDate = toMMDDYYYY(now);
   }
 
   // Loop over each ptype individually (SAM.gov only allows one at a time)
