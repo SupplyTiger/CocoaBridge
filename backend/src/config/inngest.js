@@ -1,7 +1,7 @@
 import { Inngest } from "inngest";
 import {ENV } from "../config/env.js";
 import { createUser, updateUser, deleteUser, changeExpiredOpportunitiesToInactive } from "../controllers/db.controller.js";
-import { runCurrentOpportunitiesSyncFromSam } from "../controllers/sam.controller.js";
+import { runCurrentOpportunitiesSyncFromSam, backfillNullOpportunityDescriptionsFromSam } from "../controllers/sam.controller.js";
 // Initialize Inngest with your account's unique identifier to link events and functions
 export const inngest = new Inngest({
   name: "SupplyTigerGOA Inngest Client",
