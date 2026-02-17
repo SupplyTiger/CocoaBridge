@@ -492,12 +492,31 @@ export async function runCurrentOpportunitiesSyncFromSam({
   cacheInDB = "true",
 } = {}) {
   const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const lookbackDays = 364;
+  const lookbackDate = new Date(now);
+  lookbackDate.setUTCDate(lookbackDate.getUTCDate() - lookbackDays);
 
   const resolvedPType = pType ?? samGovSolicitationPTypes.join(",");
-  const resolvedFromDate = fromDate ?? toYYYYMMDD(yesterday);
-  const resolvedToDate = toDate ?? toYYYYMMDD(now);
+  let resolvedFromDate;
+  let resolvedToDate;
+
+  if (fromDate && toDate) {
+    resolvedFromDate = fromDate;
+    resolvedToDate = toDate;
+  } else if (fromDate && !toDate) {
+    const computedToDate = new Date(fromDate);
+    computedToDate.setUTCDate(computedToDate.getUTCDate() + lookbackDays);
+    resolvedFromDate = fromDate;
+    resolvedToDate = toYYYYMMDD(computedToDate);
+  } else if (!fromDate && toDate) {
+    const computedFromDate = new Date(toDate);
+    computedFromDate.setUTCDate(computedFromDate.getUTCDate() - lookbackDays);
+    resolvedFromDate = toYYYYMMDD(computedFromDate);
+    resolvedToDate = toDate;
+  } else {
+    resolvedFromDate = toYYYYMMDD(lookbackDate);
+    resolvedToDate = toYYYYMMDD(now);
+  }
 
   const samQuery = {
     pType: resolvedPType,
