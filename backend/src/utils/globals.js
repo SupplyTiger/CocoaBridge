@@ -156,7 +156,7 @@ export const usaSpendingFilters = {
       filters: {
         time_period: [
           {
-            start_date: "2007-10-01",
+            start_date: "2010-10-01",
             end_date: "2026-09-30",
           },
         ],
