@@ -1,5 +1,6 @@
 import {useUser} from "@clerk/clerk-react";
 import {Link, useLocation} from "react-router";
+import {Search} from "lucide-react";
 import {NAVIGATION_LINKS} from "./NavigationLinks.jsx";
 
 const Sidebar = () => {
@@ -30,6 +31,20 @@ const Sidebar = () => {
                         <span className="font-bold text-lg is-drawer-close:hidden">SupplyTiger</span>
                     </div>
                 </div>
+
+                {/* search bar placeholder */}
+                <div className="px-4 py-2 is-drawer-close:hidden">
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            className="input input-sm w-full pl-8"
+                            readOnly
+                        />
+                        <Search className="size-4 absolute left-2 top-1/2 transform -translate-y-1/2" />
+                    </div>
+                </div>
+
 
                 {/* main navigation links */}
                 <ul className="menu w-full grow flex flex-col gap-2">

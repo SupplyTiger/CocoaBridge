@@ -3,6 +3,7 @@ import { ENV } from "../config/env.js";
 import axios from "axios";
 import prisma from "../config/db.js";
 import { inngestClient, emitInternalEventSafe } from "../config/inngestClient.js";
+import { buildInboxSummary, buildInboxTitle } from "../utils/inboxText.js";
 import {
   extractContact,
   extractOrganizationChain,
@@ -276,6 +277,8 @@ async function upsertAwardAndRecipientFromSam(
   const award = normalizeSamAward(samOpportunity);
   if (!award) return null;
 
+  const normalizedOpp = normalizeOpportunity(samOpportunity);
+
   const awardeeRaw = samOpportunity?.award?.awardee || null;
   const recipientNormalized = normalizeSamRecipient(awardeeRaw);
 
@@ -327,13 +330,21 @@ async function upsertAwardAndRecipientFromSam(
 
 
   if (!existingAward) {
+    const title = buildInboxTitle({
+      entityLabel: "Award",
+      naicsCodes: award.naicsCodes,
+      pscCode: award.pscCode,
+      // SAM awards don't have a distinct title; use the parent opportunity title.
+      text: normalizedOpp?.title ?? null,
+      maxLen: 160,
+    });
     await emitInternalEventSafe("internal/award.upserted", {
       source: awardRecord.source,
       awardId: awardRecord.id,
       opportunityId,
       op: "CREATED",
-      title: null,
-      summary: null,
+      title,
+      summary: buildInboxSummary(normalizedOpp?.description ?? null, 250),
       buyingOrganizationId: awardRecord.buyingOrganizationId ?? null,
       // Default acquisition path for awards until classification rules are added.
       acquisitionPath: isMicrosaction
@@ -457,12 +468,20 @@ async function upsertOpportunityFromSam(prisma, opportunity) {
   });
 
   if (!existingOpportunity) {
+    const title = buildInboxTitle({
+      entityLabel: "Opportunity",
+      naicsCodes: normalized.naicsCodes,
+      pscCode: normalized.pscCode,
+      text: normalized.title ?? null,
+      maxLen: 160,
+    });
+
   await emitInternalEventSafe("internal/opportunity.upserted", {
     source: opp.source,
     opportunityId: opp.id,
     op: "CREATED",
-    title: opp.title ?? null,
-    summary: opp.description ?? null,
+    title: title,
+    summary: buildInboxSummary(normalized.description ?? null, 250),
     type: opp.type ?? "OTHER",
     tag: opp.tag ?? "GENERAL",
     buyingOrganizationId: opp.buyingOrganizationId ?? null,
@@ -1268,7 +1287,6 @@ export const getOpportunityDescriptionFromSam = async (req, res) => {
 
     const description = await fetchOpportunityDescriptionFromSam(noticeId);
 
-    // TODO: implement description parsing logic (remove html, etc.)
     const filteredDescription = stripHTML(description);
     // and capture details that match our criteria
 

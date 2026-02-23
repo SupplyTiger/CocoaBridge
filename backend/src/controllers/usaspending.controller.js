@@ -10,6 +10,7 @@ import {
 } from "../utils/normalizeUSASpending.js";
 
 import { usaSpendingFilters, MICROPURCHASE_THRESHOLD } from "../utils/globals.js";
+import { buildInboxSummary, buildInboxTitle } from "../utils/inboxText.js";
 
 /* 
 HELPER FUNCTIONS TO UPSERT DATA
@@ -156,13 +157,21 @@ export const upsertAwardFromUSASpending = async (usaAward) => {
   const isMicrosaction = award.obligatedAmount && award.obligatedAmount < MICROPURCHASE_THRESHOLD;
 
   if (!existingAward) {
-    // todo: title function to generate title from award data
+    // capture every thing from the description before the first pipe dividor
+    const titleText = award.description?.split("|")[0]?.trim() ?? null;
+    const title = buildInboxTitle({
+      entityLabel: "Award",
+      naicsCodes: award.naicsCodes,
+      pscCode: award.pscCode,
+      text: titleText,
+      maxLen: 160,
+    });
   await emitInternalEventSafe("internal/award.upserted", {
     source: award.source,
     awardId: award.id,
     op: "CREATED",
-    title: null,
-    summary: award.description ?? null,
+    title,
+    summary: buildInboxSummary(award.description ?? null, 250),
     buyingOrganizationId: award.buyingOrganizationId ?? null,
     // Default acquisition path for awards until classification rules are added.
     acquisitionPath: isMicrosaction ? AcquisitionPath.MICROPURCHASE : AcquisitionPath.OPEN_MARKET,
