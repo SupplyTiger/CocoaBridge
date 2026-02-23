@@ -298,3 +298,277 @@ export const markPastIndustryDays = async () => {
     throw error;
   }
 };
+
+// ---------------------------------------------------------------------------
+// HTTP Route Controllers
+// ---------------------------------------------------------------------------
+
+const parsePagination = (query) => {
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(query.limit, 10) || 50));
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+};
+
+// --- InboxItem controllers ---
+
+export const listInboxItems = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const where = {};
+    if (req.query.status) where.reviewStatus = req.query.status;
+
+    const [total, items] = await Promise.all([
+      prisma.inboxItem.count({ where }),
+      prisma.inboxItem.findMany({
+        where,
+        include: { opportunity: true, award: true, industryDay: true },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return res.json({
+      meta: { total, page, limit, returned: items.length },
+      data: items,
+    });
+  } catch (error) {
+    console.error("listInboxItems error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const getInboxItem = async (req, res) => {
+  try {
+    const item = await prisma.inboxItem.findUnique({
+      where: { id: req.params.id },
+      include: { opportunity: true, award: true, industryDay: true, contactLinks: true },
+    });
+    if (!item) return res.status(404).json({ error: "InboxItem not found" });
+    return res.json({ data: item });
+  } catch (error) {
+    console.error("getInboxItem error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const updateInboxItem = async (req, res) => {
+  try {
+    const { reviewStatus, notes } = req.body;
+    const data = {
+      reviewedBy: req.user.name,
+      reviewedAt: new Date(),
+    };
+    if (reviewStatus !== undefined) data.reviewStatus = reviewStatus;
+    if (notes !== undefined) data.notes = notes;
+
+    const item = await prisma.inboxItem.update({
+      where: { id: req.params.id },
+      data,
+    });
+    return res.json({ data: item });
+  } catch (error) {
+    if (error?.code === "P2025") return res.status(404).json({ error: "InboxItem not found" });
+    console.error("updateInboxItem error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const deleteInboxItem = async (req, res) => {
+  try {
+    await prisma.inboxItem.delete({ where: { id: req.params.id } });
+    return res.json({ data: { id: req.params.id } });
+  } catch (error) {
+    if (error?.code === "P2025") return res.status(404).json({ error: "InboxItem not found" });
+    console.error("deleteInboxItem error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+// --- Opportunity controllers ---
+
+export const listOpportunities = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const where = {};
+    if (req.query.active !== undefined) where.active = req.query.active === "true";
+    if (req.query.naics) where.naicsCodes = { has: req.query.naics };
+
+    const [total, items] = await Promise.all([
+      prisma.opportunity.count({ where }),
+      prisma.opportunity.findMany({
+        where,
+        orderBy: { postedDate: "desc" },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return res.json({
+      meta: { total, page, limit, returned: items.length },
+      data: items,
+    });
+  } catch (error) {
+    console.error("listOpportunities error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const getOpportunity = async (req, res) => {
+  try {
+    const item = await prisma.opportunity.findUnique({
+      where: { id: req.params.id },
+      include: { buyingOrganization: true, inboxItems: true, contactLinks: true },
+    });
+    if (!item) return res.status(404).json({ error: "Opportunity not found" });
+    return res.json({ data: item });
+  } catch (error) {
+    console.error("getOpportunity error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+// --- Award controllers ---
+
+export const listAwards = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+
+    const [total, items] = await Promise.all([
+      prisma.award.count(),
+      prisma.award.findMany({
+        orderBy: { startDate: "desc" },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return res.json({
+      meta: { total, page, limit, returned: items.length },
+      data: items,
+    });
+  } catch (error) {
+    console.error("listAwards error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const getAward = async (req, res) => {
+  try {
+    const item = await prisma.award.findUnique({
+      where: { id: req.params.id },
+      include: { recipient: true, buyingOrganization: true, inboxItems: true },
+    });
+    if (!item) return res.status(404).json({ error: "Award not found" });
+    return res.json({ data: item });
+  } catch (error) {
+    console.error("getAward error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+// --- IndustryDay controllers ---
+
+export const listIndustryDays = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const where = {};
+    if (req.query.status) where.status = req.query.status;
+
+    const [total, items] = await Promise.all([
+      prisma.industryDay.count({ where }),
+      prisma.industryDay.findMany({
+        where,
+        orderBy: { eventDate: "asc" },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return res.json({
+      meta: { total, page, limit, returned: items.length },
+      data: items,
+    });
+  } catch (error) {
+    console.error("listIndustryDays error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const getIndustryDay = async (req, res) => {
+  try {
+    const item = await prisma.industryDay.findUnique({
+      where: { id: req.params.id },
+      include: { opportunity: true, buyingOrganization: true, contactLinks: true },
+    });
+    if (!item) return res.status(404).json({ error: "IndustryDay not found" });
+    return res.json({ data: item });
+  } catch (error) {
+    console.error("getIndustryDay error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const updateIndustryDay = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!status) return res.status(400).json({ error: "status is required" });
+
+    const item = await prisma.industryDay.update({
+      where: { id: req.params.id },
+      data: { status },
+    });
+    return res.json({ data: item });
+  } catch (error) {
+    if (error?.code === "P2025") return res.status(404).json({ error: "IndustryDay not found" });
+    console.error("updateIndustryDay error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+// --- BuyingOrganization controllers ---
+
+export const listBuyingOrgs = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const where = {};
+    if (req.query.level) where.level = req.query.level;
+
+    const [total, items] = await Promise.all([
+      prisma.buyingOrganization.count({ where }),
+      prisma.buyingOrganization.findMany({
+        where,
+        include: { children: true },
+        orderBy: { name: "asc" },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return res.json({
+      meta: { total, page, limit, returned: items.length },
+      data: items,
+    });
+  } catch (error) {
+    console.error("listBuyingOrgs error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const getBuyingOrg = async (req, res) => {
+  try {
+    const item = await prisma.buyingOrganization.findUnique({
+      where: { id: req.params.id },
+      include: {
+        children: true,
+        opportunities: { take: 20, orderBy: { postedDate: "desc" } },
+      },
+    });
+    if (!item) return res.status(404).json({ error: "BuyingOrganization not found" });
+    return res.json({ data: item });
+  } catch (error) {
+    console.error("getBuyingOrg error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};

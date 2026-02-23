@@ -6,6 +6,7 @@ import { ENV } from "./config/env.js";
 import { clerkMiddleware } from "@clerk/express";
 import samRoutes from "./routes/sam.routes.js";
 import USASpendingRoutes from "./routes/usaspending.routes.js";
+import { router as dbRoutes } from "./routes/db.routes.js";
 import prisma from "./config/db.js";
 import { inngest, functions } from "./config/inngest.js";
 import { serve } from "inngest/express";
@@ -46,6 +47,7 @@ app.use(
 app.use("/api/inngest", serve({ client: inngest, functions }));
 app.use("/api/samgov", samRoutes);
 app.use("/api/usaspending", USASpendingRoutes);
+app.use("/api/db", dbRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({ message: "API success" });
