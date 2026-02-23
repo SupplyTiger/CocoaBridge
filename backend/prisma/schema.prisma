@@ -10,7 +10,14 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  READ_ONLY
   USER
+}
+
+enum SyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
 }
 
 enum AcquisitionPath {
@@ -305,6 +312,20 @@ model IndustryDay {
 
   @@index([eventDate])
   @@index([status])
+}
+
+model SyncLog {
+  id              String     @id @default(cuid())
+  jobId           String
+  jobName         String
+  startedAt       DateTime   @default(now())
+  completedAt     DateTime?
+  status          SyncStatus @default(RUNNING)
+  recordsAffected Int?
+  errorMessage    String?
+
+  @@index([jobId])
+  @@index([startedAt])
 }
 
 model InboxItem {

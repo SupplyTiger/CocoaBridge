@@ -51,3 +51,15 @@ export const adminOnly = (req, res, next) => {
   }
   next();
 };
+
+// Allows READ_ONLY and ADMIN roles; blocks USER role from data endpoints
+export const readOnlyOrAbove = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized: User not found" });
+  }
+
+  if (req.user.role === UserRole.USER) {
+    return res.status(403).json({ message: "Forbidden: Insufficient access level" });
+  }
+  next();
+};

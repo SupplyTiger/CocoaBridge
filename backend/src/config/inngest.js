@@ -15,6 +15,7 @@ import {
 } from "../controllers/db.controller.js";
 import { runCurrentOpportunitiesSyncFromSam, runIndustryDaySyncFromSam } from "../controllers/sam.controller.js";
 import { runAwardsSyncFromUsaspending } from "../controllers/usaspending.controller.js";
+import { withSyncLog } from "../controllers/admin.controller.js";
 
 // Public export consumed by server route registration.
 export const inngest = inngestClient;
@@ -187,11 +188,12 @@ export const deactivateExpiredOpportunitiesDaily = inngest.createFunction(
   },
   { cron: "15 5 * * *" }, // Every day at 12:15 AM EST (5:15 am UTC)
   async () => {
-    const result = await changeExpiredOpportunitiesToInactive();
-    return {
-      success: true,
-      ...result,
-    };
+    return await withSyncLog(
+      "deactivate-expired-opportunities",
+      "Deactivate Expired Opportunities",
+      () => changeExpiredOpportunitiesToInactive(),
+      (r) => r?.count ?? null,
+    );
   },
 );
 
@@ -200,17 +202,18 @@ export const getOpportunityDescriptionsFromSamDaily = inngest.createFunction(
     id: "get-opportunity-descriptions-from-sam-daily",
     name: "Get Opportunity Descriptions from SAM Daily",
     description: "Cron job to update null opportunity descriptions from SAM.gov every day at 12:30 AM EST",
-  
   },
-  { cron: "30 5 * * *" }, // Every day at 12:30am EST (5:30am UTC) --- after the sync job runs to give it time to update the db with new opportunities
+  { cron: "30 5 * * *" }, // Every day at 12:30am EST (5:30am UTC)
   async () => {
-    const result = await runBackfillNullOpportunityDescriptionsFromSam();
-    return {
-      success: true,
-      ...result,
-    };
+    return await withSyncLog(
+      "backfill-opportunity-descriptions",
+      "Backfill Opportunity Descriptions",
+      () => runBackfillNullOpportunityDescriptionsFromSam(),
+      (r) => r?.updated ?? null,
+    );
   },
 );
+
 export const syncCurrentSamOpportunitiesDaily = inngest.createFunction(
   {
     id: "sync-current-sam-opportunities-daily",
@@ -220,11 +223,12 @@ export const syncCurrentSamOpportunitiesDaily = inngest.createFunction(
   },
   { cron: "0 5 * * *" }, // 12:00am EST / 5:00am UTC
   async () => {
-    const result = await runCurrentOpportunitiesSyncFromSam();
-    return {
-      synced: true,
-      ...result,
-    };
+    return await withSyncLog(
+      "sync-current-sam-opportunities",
+      "Sync SAM Opportunities",
+      () => runCurrentOpportunitiesSyncFromSam(),
+      (r) => r?.db?.upserted ?? null,
+    );
   },
 );
 
@@ -238,11 +242,12 @@ export const syncIndustryDaysFromSamDaily = inngest.createFunction(
   },
   { cron: "45 5 * * *" }, // 12:45am EST / 5:45am UTC
   async () => {
-    const result = await runIndustryDaySyncFromSam();
-    return {
-      synced: true,
-      ...result,
-    };
+    return await withSyncLog(
+      "sync-sam-industry-days",
+      "Sync SAM Industry Days",
+      () => runIndustryDaySyncFromSam(),
+      (r) => r?.db?.upserted ?? null,
+    );
   },
 );
 
@@ -256,11 +261,12 @@ export const markPastIndustryDaysDaily = inngest.createFunction(
   },
   { cron: "20 5 * * *" }, // 12:20am EST / 5:20am UTC
   async () => {
-    const result = await markPastIndustryDays();
-    return {
-      success: true,
-      ...result,
-    };
+    return await withSyncLog(
+      "mark-past-industry-days",
+      "Mark Past Industry Days",
+      () => markPastIndustryDays(),
+      (r) => r?.count ?? null,
+    );
   },
 );
 
@@ -274,11 +280,15 @@ export const syncAwardsFromUsaspendingBiWeekly = inngest.createFunction(
   },
   { cron: "0 6 */3 * *" }, // Every 3 days at 1:00am EST (6:00am UTC)
   async () => {
-    const result = await runAwardsSyncFromUsaspending();
-    return {
-      synced: true,
-      ...result,
-    };
+    return await withSyncLog(
+      "sync-usaspending-awards",
+      "Sync USASpending Awards",
+      () => runAwardsSyncFromUsaspending(),
+      (r) => {
+        if (!r?.presets) return null;
+        return Object.values(r.presets).reduce((sum, p) => sum + (p?.upserted ?? 0), 0);
+      },
+    );
   },
 );
 

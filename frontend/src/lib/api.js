@@ -60,3 +60,31 @@ export const dbApi = {
     return data;
   },
 };
+
+export const adminApi = {
+  // Current authenticated user's DB profile (all roles)
+  getCurrentUser: async () => {
+    const { data } = await axiosInstance.get("/db/me");
+    return data;
+  },
+  // User management (admin only)
+  listUsers: async () => {
+    const { data } = await axiosInstance.get("/admin/users");
+    return data;
+  },
+  updateUser: async (id, body) => {
+    const { data } = await axiosInstance.patch(`/admin/users/${id}`, body);
+    return data;
+  },
+  // System health (admin only)
+  getSystemHealth: async () => {
+    const { data } = await axiosInstance.get("/admin/system-health");
+    return data;
+  },
+  // Manual sync triggers (admin only)
+  // type: "sam-opportunities" | "usaspending-awards" | "sam-descriptions" | "sam-industry-days"
+  triggerSync: async (type) => {
+    const { data } = await axiosInstance.post(`/admin/sync/${type}`);
+    return data;
+  },
+};

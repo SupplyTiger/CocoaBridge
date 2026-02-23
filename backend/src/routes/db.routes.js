@@ -1,5 +1,5 @@
 import express from "express";
-import { protectRoute, adminOnly } from "../middleware/auth.middleware.js";
+import { protectRoute, adminOnly, readOnlyOrAbove } from "../middleware/auth.middleware.js";
 import {
   listInboxItems,
   getInboxItem,
@@ -18,33 +18,36 @@ import {
 
 export const router = express.Router();
 
-// Health check
+// Health check (no data — all authenticated users can ping)
 router.get("/ping", ...protectRoute, (_req, res) => res.json({ ok: true }));
 
+// Current authenticated user's DB profile (all roles can access)
+router.get("/me", ...protectRoute, (req, res) => res.json(req.user));
+
 // InboxItems
-router.get("/inbox-items", ...protectRoute, listInboxItems);
-router.get("/inbox-items/:id", ...protectRoute, getInboxItem);
+router.get("/inbox-items", ...protectRoute, readOnlyOrAbove, listInboxItems);
+router.get("/inbox-items/:id", ...protectRoute, readOnlyOrAbove, getInboxItem);
 router.patch("/inbox-items/:id", ...protectRoute, adminOnly, updateInboxItem);
 router.delete("/inbox-items/:id", ...protectRoute, adminOnly, deleteInboxItem);
 
 // Opportunities
-router.get("/opportunities", ...protectRoute, listOpportunities);
-router.get("/opportunities/:id", ...protectRoute, getOpportunity);
+router.get("/opportunities", ...protectRoute, readOnlyOrAbove, listOpportunities);
+router.get("/opportunities/:id", ...protectRoute, readOnlyOrAbove, getOpportunity);
 // TODO: delete opportunity
 
 // Awards
-router.get("/awards", ...protectRoute, listAwards);
-router.get("/awards/:id", ...protectRoute, getAward);
+router.get("/awards", ...protectRoute, readOnlyOrAbove, listAwards);
+router.get("/awards/:id", ...protectRoute, readOnlyOrAbove, getAward);
 // TODO: delete award
 
 // Industry Days
-router.get("/industry-days", ...protectRoute, listIndustryDays);
-router.get("/industry-days/:id", ...protectRoute, getIndustryDay);
+router.get("/industry-days", ...protectRoute, readOnlyOrAbove, listIndustryDays);
+router.get("/industry-days/:id", ...protectRoute, readOnlyOrAbove, getIndustryDay);
 router.patch("/industry-days/:id", ...protectRoute, adminOnly, updateIndustryDay);
 // TODO: delete industry day, create industry day
 
 // Buying Organizations
-router.get("/buying-orgs", ...protectRoute, listBuyingOrgs);
-router.get("/buying-orgs/:id", ...protectRoute, getBuyingOrg);
+router.get("/buying-orgs", ...protectRoute, readOnlyOrAbove, listBuyingOrgs);
+router.get("/buying-orgs/:id", ...protectRoute, readOnlyOrAbove, getBuyingOrg);
 
 // TODO: Contacts, Recipients

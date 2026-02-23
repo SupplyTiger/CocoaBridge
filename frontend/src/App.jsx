@@ -1,7 +1,6 @@
 import "./index.css";
-import {Navigate, Route, Routes} from "react-router";
-import {useAuth} from "@clerk/clerk-react";
-
+import { Navigate, Route, Routes } from "react-router";
+import { useAuth } from "@clerk/clerk-react";
 
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -19,35 +18,45 @@ import InboxItemDetail from "./pages/InboxItemDetail";
 import OpportunityDetail from "./pages/OpportunityDetail";
 import AwardDetail from "./pages/AwardDetail";
 import NotFoundPage from "./pages/NotFoundPage";
+import { useCurrentUser } from "./lib/CurrentUserContext.jsx";
+
+// Requires READ_ONLY or ADMIN role — USER role is redirected to dashboard
+const DataOnlyRoute = ({ children }) => {
+  const currentUser = useCurrentUser();
+  if (!currentUser) return <PageLoader />;
+  if (currentUser.role === "USER") return <Navigate to="/dashboard" replace />;
+  return children;
+};
+
+// Requires ADMIN role — all other roles are redirected to dashboard
+const AdminRoute = ({ children }) => {
+  const currentUser = useCurrentUser();
+  if (!currentUser) return <PageLoader />;
+  if (currentUser.role !== "ADMIN") return <Navigate to="/dashboard" replace />;
+  return children;
+};
 
 function App() {
   const { isSignedIn, isLoaded } = useAuth();
 
-  if(!isLoaded) return <PageLoader />;
+  if (!isLoaded) return <PageLoader />;
 
-  // Inbox
-// Market Intelligence
-// Analytics
-// Calendar
-// Contacts
-// Admin
   return (
     <Routes>
-      <Route path="/login"
-      element={isSignedIn? <Navigate to={"/dashboard"} /> : <LoginPage />} />
-      <Route path="/" element={isSignedIn ? <DashboardLayout /> : <Navigate to={"/login"} /> }>
-        <Route path = "dashboard" element = {<DashboardPage />} />
-        <Route path = "inbox" element = {<InboxPage />} />
-        <Route path="market-intelligence" element={<MarketIntelligencePage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="calendar" element={<CalendarPage />} />
-        <Route path="contacts" element={<ContactsPage />} />
-        <Route path="admin" element={<AdminPage />} />
-        <Route path="opportunities" element={<Opportunities />} />
-        <Route path="opportunities/:id" element={<OpportunityDetail />} />
-        <Route path="awards" element={<Awards />} />
-        <Route path="awards/:id" element={<AwardDetail />} />
-        <Route path="inbox/:id" element={<InboxItemDetail />} />
+      <Route path="/login" element={isSignedIn ? <Navigate to="/dashboard" /> : <LoginPage />} />
+      <Route path="/" element={isSignedIn ? <DashboardLayout /> : <Navigate to="/login" />}>
+        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="inbox" element={<DataOnlyRoute><InboxPage /></DataOnlyRoute>} />
+        <Route path="inbox/:id" element={<DataOnlyRoute><InboxItemDetail /></DataOnlyRoute>} />
+        <Route path="opportunities" element={<DataOnlyRoute><Opportunities /></DataOnlyRoute>} />
+        <Route path="opportunities/:id" element={<DataOnlyRoute><OpportunityDetail /></DataOnlyRoute>} />
+        <Route path="awards" element={<DataOnlyRoute><Awards /></DataOnlyRoute>} />
+        <Route path="awards/:id" element={<DataOnlyRoute><AwardDetail /></DataOnlyRoute>} />
+        <Route path="market-intelligence" element={<DataOnlyRoute><MarketIntelligencePage /></DataOnlyRoute>} />
+        <Route path="analytics" element={<DataOnlyRoute><AnalyticsPage /></DataOnlyRoute>} />
+        <Route path="calendar" element={<DataOnlyRoute><CalendarPage /></DataOnlyRoute>} />
+        <Route path="contacts" element={<DataOnlyRoute><ContactsPage /></DataOnlyRoute>} />
+        <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

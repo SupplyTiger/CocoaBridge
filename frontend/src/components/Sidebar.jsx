@@ -2,10 +2,12 @@ import {useUser} from "@clerk/clerk-react";
 import {Link, useLocation} from "react-router";
 import {Search} from "lucide-react";
 import {NAVIGATION_LINKS} from "./NavigationLinks.jsx";
+import {useCurrentUser} from "../lib/CurrentUserContext.jsx";
 
 const Sidebar = () => {
     const location = useLocation();
     const {user} = useUser();
+    const currentUser = useCurrentUser();
 
     const mainLinks = NAVIGATION_LINKS.filter(item => item.path !== "/admin");
     const adminLinks = NAVIGATION_LINKS.filter(item => item.path === "/admin");
@@ -65,27 +67,29 @@ const Sidebar = () => {
                     })}
                 </ul>
 
-                {/* admin link — visually separated */}
-                <div className="w-full px-2 pb-2">
-                    <div className="divider my-1 is-drawer-close:hidden"></div>
-                    <ul className="menu w-full">
-                        {adminLinks.map((item) => {
-                            const isActive = location.pathname === item.path;
-                            return (
-                                <li key={item.path}>
-                                    <Link
-                                        to={item.path}
-                                        data-tip={item.name}
-                                        className={`is-drawer-close:tooltip is-drawer-close:tooltip-right is-drawer-close:justify-center ${isActive ? "bg-primary text-primary-content" : ""}`}
-                                    >
-                                        {item.icon}
-                                        <span className="is-drawer-close:hidden">{item.name}</span>
-                                    </Link>
-                                </li>
-                            );
-                        })}
-                    </ul>
-                </div>
+                {/* admin link — only visible to ADMIN role */}
+                {currentUser?.role === "ADMIN" && (
+                    <div className="w-full px-2 pb-2">
+                        <div className="divider my-1 is-drawer-close:hidden"></div>
+                        <ul className="menu w-full">
+                            {adminLinks.map((item) => {
+                                const isActive = location.pathname === item.path;
+                                return (
+                                    <li key={item.path}>
+                                        <Link
+                                            to={item.path}
+                                            data-tip={item.name}
+                                            className={`is-drawer-close:tooltip is-drawer-close:tooltip-right is-drawer-close:justify-center ${isActive ? "bg-primary text-primary-content" : ""}`}
+                                        >
+                                            {item.icon}
+                                            <span className="is-drawer-close:hidden">{item.name}</span>
+                                        </Link>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </div>
+                )}
 
                 {/* user info */}
                 <div className="p-4 w-full border-t border-base-300">
