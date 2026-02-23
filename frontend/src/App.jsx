@@ -13,6 +13,11 @@ import CalendarPage from "./pages/CalendarPage";
 import ContactsPage from "./pages/ContactsPage";
 import AdminPage from "./pages/AdminPage";
 import PageLoader from "./components/PageLoader";
+import Opportunities from "./pages/OpportunitiesPage";
+import Awards from "./pages/AwardsPage";
+import InboxItemDetail from "./pages/InboxItemDetail";
+import OpportunityDetail from "./pages/OpportunityDetail";
+import AwardDetail from "./pages/AwardDetail";
 
 function App() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -37,6 +42,11 @@ function App() {
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="contacts" element={<ContactsPage />} />
         <Route path="admin" element={<AdminPage />} />
+        <Route path="opportunities" element={<Opportunities />} />
+        <Route path="opportunities/:id" element={<OpportunityDetail />} />
+        <Route path="awards" element={<Awards />} />
+        <Route path="awards/:id" element={<AwardDetail />} />
+        <Route path="inbox/:id" element={<InboxItemDetail />} />
       </Route>
     </Routes>
   );

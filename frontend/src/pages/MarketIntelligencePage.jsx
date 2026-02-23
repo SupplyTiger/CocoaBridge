@@ -5,7 +5,7 @@ const MarketIntelligencePage = () => {
     <div>
       Market Intelligence
     </div>
-  )
-}
+  );
+};
 
 export default MarketIntelligencePage;
