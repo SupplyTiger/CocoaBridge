@@ -327,7 +327,6 @@ async function upsertAwardAndRecipientFromSam(
 
 
   if (!existingAward) {
-    // todo: title function to generate title from award data
     await emitInternalEventSafe("internal/award.upserted", {
       source: awardRecord.source,
       awardId: awardRecord.id,

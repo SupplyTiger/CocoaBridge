@@ -5,6 +5,13 @@ import {useAuth} from "@clerk/clerk-react";
 
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import DashboardLayout from "./pages/DashboardLayout";
+import InboxPage from "./pages/InboxPage";
+import MarketIntelligencePage from "./pages/MarketIntelligencePage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import CalendarPage from "./pages/CalendarPage";
+import ContactsPage from "./pages/ContactsPage";
+import AdminPage from "./pages/AdminPage";
 import PageLoader from "./components/PageLoader";
 
 function App() {
@@ -12,12 +19,25 @@ function App() {
 
   if(!isLoaded) return <PageLoader />;
 
+  // Inbox
+// Market Intelligence
+// Analytics
+// Calendar
+// Contacts
+// Admin
   return (
     <Routes>
       <Route path="/login"
       element={isSignedIn? <Navigate to={"/dashboard"} /> : <LoginPage />} />
-      <Route path="/" element={isSignedIn ? <Navigate to={"/dashboard"} /> : <Navigate to={"/login"} />} />
-      <Route path = "dashboard" element = {<DashboardPage />} />
+      <Route path="/" element={isSignedIn ? <DashboardLayout /> : <Navigate to={"/login"} /> }>
+        <Route path = "dashboard" element = {<DashboardPage />} />
+        <Route path = "inbox" element = {<InboxPage />} />
+        <Route path="market-intelligence" element={<MarketIntelligencePage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
+        <Route path="contacts" element={<ContactsPage />} />
+        <Route path="admin" element={<AdminPage />} />
+      </Route>
     </Routes>
   );
 }
