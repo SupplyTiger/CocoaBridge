@@ -1,12 +1,11 @@
 import express from "express";
 import {
   backfillNullOpportunityDescriptionsFromSam,
-  getCurrentOpportunitiesFromSam,
-  getHistoricalOpportunitiesFromSam,
   getIndustryDayOpportunitiesFromSam,
   getOpportunityDescriptionFromSam,
   syncCurrentOpportunitiesFromSam,
 } from "../controllers/sam.controller.js";
+import { protectRoute } from "../middleware/auth.middleware.js";
 
 // Fields of interest:
 /**
@@ -37,33 +36,21 @@ import {
  */
 const router = express.Router();
 
-// PING endpoint for testing
-router.get("/ping", (req, res) => {
-  console.log("SAM PING HIT", req.body);
-  return res.status(200).json({ ok: true, body: req.body });
-});
-
-/* 
-  Endpoints to get opportunities from SAM.gov
-*/
-router.get("/opportunities/current", getCurrentOpportunitiesFromSam);
-router.get("/opportunities/current/sync", syncCurrentOpportunitiesFromSam);
+router.get("/opportunities/current/sync", protectRoute, syncCurrentOpportunitiesFromSam);
 
 /*
   This endpoint fetches historical opportunities from SAM.gov
   It can be filtered by year, department, agency, etc.
 */
-// get opportunities from SAM.gov by year, then get more specific with filters later
-router.get("/opportunities/historical", getHistoricalOpportunitiesFromSam);
 
 /*
   This endpoint fetches industry day opportunities from SAM.gov
   It filters opportunities based on predefined criteria in the matchesOpportunityIndustryDay function
 */
-router.get("/opportunities/event", getIndustryDayOpportunitiesFromSam);
+router.get("/opportunities/event", protectRoute, getIndustryDayOpportunitiesFromSam);
 
 router.get(
-  "/opportunities/description/backfill",
+  "/opportunities/description/backfill", protectRoute,
   backfillNullOpportunityDescriptionsFromSam,
 );
 
@@ -71,6 +58,6 @@ router.get(
   This endpoint fetches the detailed description for a specific opportunity from SAM.gov
   Query parameter: cache=true to save description to database
 */
-router.get("/opportunities/:noticeId/description", getOpportunityDescriptionFromSam);
+router.get("/opportunities/:noticeId/description", protectRoute, getOpportunityDescriptionFromSam);
 
 export default router;

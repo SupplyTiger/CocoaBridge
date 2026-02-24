@@ -209,7 +209,11 @@ export const getOpportunityDescriptionsFromSamDaily = inngest.createFunction(
       "backfill-opportunity-descriptions",
       "Backfill Opportunity Descriptions",
       () => runBackfillNullOpportunityDescriptionsFromSam(),
-      (r) => r?.updated ?? null,
+      (r) => r?.results?.updated ?? null,
+      (r) => {
+        const n = r?.results?.failed ?? 0;
+        return n > 0 ? `${n} description fetch error(s)` : null;
+      },
     );
   },
 );
@@ -228,6 +232,13 @@ export const syncCurrentSamOpportunitiesDaily = inngest.createFunction(
       "Sync SAM Opportunities",
       () => runCurrentOpportunitiesSyncFromSam(),
       (r) => r?.db?.upserted ?? null,
+      (r) => {
+        const msg = [];
+        if (r?.meta?.partial) msg.push("incomplete fetch (SAM.gov 504 errors)");
+        const dbErrors = r?.db?.errors?.length ?? 0;
+        if (dbErrors > 0) msg.push(`${dbErrors} opportunity upsert error(s)`);
+        return msg.length > 0 ? msg.join("; ") : null;
+      },
     );
   },
 );
@@ -247,6 +258,13 @@ export const syncIndustryDaysFromSamDaily = inngest.createFunction(
       "Sync SAM Industry Days",
       () => runIndustryDaySyncFromSam(),
       (r) => r?.db?.upserted ?? null,
+      (r) => {
+        const msg = [];
+        if (r?.meta?.partial) msg.push("incomplete fetch (SAM.gov 504 errors)");
+        const dbErrors = r?.db?.errors?.length ?? 0;
+        if (dbErrors > 0) msg.push(`${dbErrors} industry day upsert error(s)`);
+        return msg.length > 0 ? msg.join("; ") : null;
+      },
     );
   },
 );
@@ -264,6 +282,7 @@ export const markPastIndustryDaysDaily = inngest.createFunction(
     return await withSyncLog(
       "mark-past-industry-days",
       "Mark Past Industry Days",
+      // If there are errors, we want to know how many industry days failed to update, but the error structure can be variable so we defensively check for the length of the errors array in the db result
       () => markPastIndustryDays(),
       (r) => r?.count ?? null,
     );
@@ -287,6 +306,10 @@ export const syncAwardsFromUsaspendingBiWeekly = inngest.createFunction(
       (r) => {
         if (!r?.presets) return null;
         return Object.values(r.presets).reduce((sum, p) => sum + (p?.upserted ?? 0), 0);
+      },
+      (r) => {
+        const n = Object.values(r?.presets ?? {}).reduce((sum, p) => sum + (p?.db?.errors?.length ?? 0), 0);
+        return n > 0 ? `${n} award upsert error(s)` : null;
       },
     );
   },

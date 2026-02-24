@@ -111,3 +111,40 @@ These personas represent real stakeholder perspectives. When designing features 
   - "Are obligation amounts being summed correctly across transactions?"
   - "What happens if SAM.gov or USASpending is down during a scheduled sync?"
 - **Red flags:** Missing idempotency, no error logging on sync failures, unnormalized agency names creating duplicate records, no retry logic on transient API failures
+
+---
+
+## Workflows
+
+### Review Export
+When a full agent review session is completed (all relevant agents and/or personas have submitted their findings), save the consolidated report as a Markdown file under `.agent/agents/reviews/`.
+
+**Naming convention:** `YYYY-MM-DD-full-agent-review.md` (use today's date)
+
+**File structure:**
+```
+# SupplyTiger GOA — Full Agent Review
+**Date:** YYYY-MM-DD
+**Agents:** [list agents/personas that participated]
+
+---
+
+## `agent_name` — Role
+
+**Verdict:** [one-line summary]
+
+[findings]
+
+---
+
+## Consolidated Priority Matrix
+
+| Priority | Issue | Agent | Fix |
+|---|---|---|---|
+| 🔴 Critical | ... | ... | ... |
+| 🟠 High | ... | ... | ... |
+| 🟡 Medium | ... | ... | ... |
+| 🟢 Lower | ... | ... | ... |
+```
+
+**When to trigger:** After the user asks agents for their views and all responses have been received. Save without being asked if the session produced a full multi-agent review.

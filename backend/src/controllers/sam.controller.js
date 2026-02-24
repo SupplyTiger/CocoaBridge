@@ -13,16 +13,13 @@ import {
 import {
   matchesOpportunityIndustryDay,
   matchesOpportunitySolicitation,
-  matchesOpportunityHistorical,
 } from "../utils/extractSAM.js";
 
 import {
   normalizeSamIndustryDay,
   normalizeOpportunity,
-  normalizeSamHistoricalOpportunity,
   normalizeSamAward,
   normalizeSamRecipient,
-  toYYYYMMDD,
   toMMDDYYYY,
 } from "../utils/normalizeSAM.js";
 
@@ -356,65 +353,6 @@ async function upsertAwardAndRecipientFromSam(
   return awardRecord;
 }
 
-async function upsertHistoricalOpportunityFromSam(prisma, opportunity) {
-  const normalized = normalizeSamHistoricalOpportunity(opportunity);
-
-  if (!normalized.noticeId) {
-    throw new Error("Missing noticeId for Historical Opportunity upsert");
-  }
-
-  // Upsert organization hierarchy and get the leaf org ID
-  const buyingOrganizationId = await upsertOrganizationChainFromSam(
-    prisma,
-    opportunity,
-  );
-
-  const data = {
-    buyingOrganizationId,
-    source: SourceSystem.SAM,
-
-    noticeId: normalized.noticeId,
-    solicitationNumber: normalized.solicitationNumber ?? null,
-    title: normalized.title ?? null,
-    type: normalized.type ?? null,
-    tag: normalized.tag,
-    active: normalized.active,
-
-    postedDate: normalized.postedDate,
-    responseDeadline: normalized.responseDeadline,
-
-    naicsCodes: normalized.naicsCodes ?? [],
-    pscCode: normalized.pscCode ?? null,
-    setAside: normalized.setAside ?? null,
-
-    fullParentPathName: normalized.fullParentPathName ?? null,
-    city: normalized.city ?? null,
-    state: normalized.state ?? null,
-    zip: normalized.zip ?? null,
-    countryCode: normalized.countryCode ?? null,
-  };
-
-  const opp = await prisma.opportunity.upsert({
-    where: { noticeId: normalized.noticeId },
-    update: data,
-    create: { ...data, description: null },
-  });
-
-  if (opportunity?.award?.number) {
-    await upsertAwardAndRecipientFromSam(prisma, opportunity, opp.id);
-  }
-
-  // Upsert contacts for historical opportunities too
-  await upsertContactsForOpportunity(
-    prisma,
-    opportunity,
-    opp.id,
-    buyingOrganizationId,
-  );
-
-  return opp;
-}
-
 async function upsertOpportunityFromSam(prisma, opportunity) {
   const normalized = normalizeOpportunity(opportunity);
 
@@ -691,6 +629,7 @@ export async function runCurrentOpportunitiesSyncFromSam({
       pulled: allOpportunities.length,
       returned: filteredOpportunities.length,
       paginationByPType,
+      partial: Object.values(paginationByPType).some(p => p?.incomplete),
     },
     db: {
       attempted,
@@ -735,246 +674,6 @@ export const syncCurrentOpportunitiesFromSam = async (req, res) => {
       ok: false,
       error: "Internal Server Error -- failed to sync current SAM opportunities",
       details: error?.response?.data ?? error?.message,
-    });
-  }
-};
-
-/* ROUTER FUNCTIONS */
-export const getCurrentOpportunitiesFromSam = async (req, res) => {
-  try {
-    const query = req.query;
-
-    // pull out pagination params and cache options
-    const {
-      fullSync,
-      maxPages = 10,
-      page,
-      limit = 1000,
-      cacheInDB = "true", // Default to caching in DB
-      ...samQuery
-    } = query;
-
-    let opportunities = [];
-    let paginationInfo = null;
-
-    // Fetch opportunities with pagination support
-    if (fullSync === "true") {
-      // Fetch all pages (for complete sync)
-      const result = await fetchAllOpportunitiesFromSam(
-        samQuery,
-        parseInt(maxPages),
-      );
-      opportunities = result.opportunities || [];
-      paginationInfo = result.pagination;
-    } else if (page !== undefined) {
-      // Single page fetch
-      const result = await fetchOpportunitiesFromSamWithPagination(
-        samQuery,
-        parseInt(page) || 1, // SAM.gov pages start at 1, not 0
-        parseInt(limit),
-      );
-      opportunities = result.opportunities;
-      paginationInfo = result.pagination;
-    } else {
-      // Legacy single request (no pagination)
-      const response = await axios.get(ENV.SAMGOV_BASE_URL, {
-        params: {
-          api_key: ENV.SAMGOV_API_KEY,
-          ...samQuery,
-        },
-        timeout: 75000,
-      });
-
-      const data = response.data;
-      opportunities =
-        data.response?.opportunitiesData ||
-        data?.opportunitiesData ||
-        data?.opportunities ||
-        data?.data ||
-        [];
-    }
-
-    // Ensure opportunities is always an array
-    if (!Array.isArray(opportunities)) {
-      console.warn(
-        "Opportunities is not an array:",
-        typeof opportunities,
-        opportunities,
-      );
-      opportunities = [];
-    }
-
-    const filteredOpportunities = opportunities.filter(
-      matchesOpportunitySolicitation,
-    );
-
-    let attempted = 0;
-    let upserted = 0;
-    let skipped = 0;
-    const errors = [];
-
-    // Only upsert to DB if cacheInDB is true
-    if (cacheInDB === "true") {
-      for (const opp of filteredOpportunities) {
-        attempted += 1;
-        if (!opp?.noticeId && !opp?.id) {
-          skipped += 1;
-          continue;
-        }
-
-        try {
-          await upsertOpportunityFromSam(prisma, opp);
-          upserted += 1;
-        } catch (e) {
-          skipped += 1;
-          errors.push({
-            noticeId: opp?.noticeId ?? opp?.id ?? null,
-            title: opp?.title ?? null,
-            message: e?.message ?? String(e),
-          });
-        }
-      }
-    }
-
-    const responseData = {
-      meta: {
-        pulled: opportunities.length,
-        returned: filteredOpportunities.length,
-        ...(paginationInfo && { pagination: paginationInfo }),
-      },
-      db: { attempted, upserted, skipped, errors },
-      data: {
-        opportunities: filteredOpportunities,
-      },
-    };
-
-    return res.status(200).json(responseData);
-  } catch (error) {
-    console.error("Error in getCurrentOpportunitiesFromSam controller:", error);
-    res.status(500).json({
-      error: "Internal Server Error -- failed to fetch data from SAM.gov",
-      details: error?.response?.data,
-    });
-  }
-};
-
-export const getHistoricalOpportunitiesFromSam = async (req, res) => {
-  try {
-    const query = req.query;
-
-    const {
-      fullSync,
-      maxPages = 10,
-      page,
-      limit = 1000,
-      cacheInDB = "true", // Default to caching in DB
-      ...samQuery
-    } = query;
-
-    let opportunities = [];
-    let paginationInfo = null;
-
-    // fetch opportunities with pagination support
-    if (fullSync === "true") {
-      // fetch all  pages (for complete sync)
-      const result = await fetchAllOpportunitiesFromSam(
-        samQuery,
-        parseInt(maxPages),
-      );
-      opportunities = result.opportunities || [];
-      paginationInfo = result.pagination;
-    } else if (page !== undefined) {
-      // single page fetch
-
-      const result = await fetchOpportunitiesFromSamWithPagination(
-        samQuery,
-        parseInt(page) || 1, // SAM.gov pages start at 1, not 0
-        parseInt(limit),
-      );
-      opportunities = result.opportunities;
-      paginationInfo = result.pagination;
-    } else {
-      // legacy single request (no pagination)
-      const response = await axios.get(ENV.SAMGOV_BASE_URL, {
-        params: {
-          api_key: ENV.SAMGOV_API_KEY,
-          ...samQuery,
-        },
-        timeout: 75000,
-      });
-      const data = response.data;
-      opportunities =
-        data.response?.opportunitiesData ||
-        data?.opportunitiesData ||
-        data?.opportunities ||
-        data?.data ||
-        [];
-    }
-
-    // Ensure opportunities is always an array
-    if (!Array.isArray(opportunities)) {
-      console.warn(
-        "Opportunities is not an array:",
-        typeof opportunities,
-        opportunities,
-      );
-      opportunities = [];
-    }
-
-    const filteredOpportunities = opportunities.filter(
-      matchesOpportunityHistorical,
-    );
-
-    let attempted = 0;
-    let upserted = 0;
-    let skipped = 0;
-    const errors = [];
-
-    // Only upsert to DB if cacheInDB is true
-    if (cacheInDB === "true") {
-      for (const opp of filteredOpportunities) {
-        attempted += 1;
-
-        if (!opp?.noticeId && !opp?.id) {
-          skipped += 1;
-          continue;
-        }
-
-        try {
-          await upsertHistoricalOpportunityFromSam(prisma, opp);
-          upserted += 1;
-        } catch (e) {
-          skipped += 1;
-          errors.push({
-            noticeId: opp?.noticeId ?? opp?.id ?? null,
-            title: opp?.title ?? null,
-            message: e?.message ?? String(e),
-          });
-        }
-      }
-    }
-
-    const responseData = {
-      meta: {
-        pulled: opportunities.length,
-        returned: filteredOpportunities.length,
-        ...(paginationInfo && { pagination: paginationInfo }),
-      },
-      db: { attempted, upserted, skipped, errors },
-      data: {
-        opportunities: filteredOpportunities,
-      },
-    };
-
-    return res.status(200).json(responseData);
-  } catch (error) {
-    console.error(
-      "Error in getHistoricalOpportunitiesFromSam controller:",
-      error,
-    );
-    res.status(500).json({
-      error: "Internal Server Error -- failed to fetch data from SAM.gov",
-      details: error?.response?.data,
     });
   }
 };
@@ -1118,6 +817,7 @@ export async function runIndustryDaySyncFromSam({
       pulled: allOpportunities.length,
       returned: filteredOpportunities.length,
       paginationByPType,
+      partial: Object.values(paginationByPType).some(p => p?.incomplete),
     },
     db: { attempted, upserted, skipped, errors },
   };

@@ -17,6 +17,7 @@ enum UserRole {
 enum SyncStatus {
   RUNNING
   SUCCESS
+  PARTIAL
   FAILED
 }
 

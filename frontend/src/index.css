@@ -2,3 +2,15 @@
 @plugin "daisyui" {
   themes: luxury, cupcake, valentine, retro;
 }
+
+@font-face {
+  font-family: 'Harlekin';
+  src: url('/fonts/Harlekin.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+.harletitle {
+  font-family: 'Harlekin', cursive;
+}

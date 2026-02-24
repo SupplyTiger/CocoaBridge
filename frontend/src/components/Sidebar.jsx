@@ -30,7 +30,7 @@ const Sidebar = () => {
                             alt="SupplyTiger Logo"
                             className="size-10 bg-primary rounded-xl flex items-center justify-center shrink-0"
                         />
-                        <span className="font-bold text-lg is-drawer-close:hidden">SupplyTiger</span>
+                        <span className="text-3xl harletitle is-drawer-close:hidden">SupplyTiger</span>
                     </div>
                 </div>
 

@@ -1,21 +1,12 @@
 import express from "express";
 import {
-  searchCategoryFromUsaspending,
   searchCountFromUsaspending,
   searchAwardFromUsaspending,
-  getAwardByIdFromUsaspending,
   syncAwardsFromUsaspending,
 } from "../controllers/usaspending.controller.js";
+import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
-
-/**
- * PING endpoint for testing
- */
-router.post("/ping", (req, res) => {
-  console.log("USASPENDING PING HIT", req.body);
-  return res.status(200).json({ ok: true, body: req.body });
-});
 
 // Endpoint A: /api/v2/search/spending_by_award/
 /*
@@ -76,7 +67,7 @@ router.post("/ping", (req, res) => {
     "spending_level": "awards"
   }
 */
-router.post("/search-award", searchAwardFromUsaspending);
+router.post("/search-award", protectRoute, searchAwardFromUsaspending);
 
 // Endpoint B: /api/v2/search/spending_by_award_count/
 /*
@@ -96,46 +87,9 @@ router.post("/search-award", searchAwardFromUsaspending);
  * }
  *
  */
-router.post("/search-count", searchCountFromUsaspending);
+router.post("/search-count", protectRoute, searchCountFromUsaspending);
 
-// Endpoint C: /api/v2/search/spending_by_category/
-/*
- * POST /api/usaspending/search-category
- * /
- *
- * Purpose:
- * - Returns aggregated spending grouped by a specific category
- * - Used for geographic, organizational, and categorical analysis
- * - Supports high-level market sizing and trend exploration
- *
- *  Notes:
- * - `category` is removed from the payload and used in the URL path
- * - Filters follow the standard USAspending Advanced Search schema
- * - Response is returned verbatim from USAspending
- *
- * Example Body:
- * {
- *   "category": "state_territory",
- *   "filters": {
- *     "time_period": [
- *       { "start_date": "2019-09-28", "end_date": "2020-09-28" }
- *     ],
- *     "naics_codes": ["424450"],        // optional
- *     "psc_codes": ["8925"]             // optional
- *   },
- *   "spending_level": "transactions",   // or "awards" (default)
- *   "limit": 100,
- *   "page": 1
- * }
- *
- *
- * */
-router.post("/search-category", searchCategoryFromUsaspending);
-
-// Endpoint D: /api/v2/awards/{award_id}/
-router.get("/award/:award_id", getAwardByIdFromUsaspending);
-
-// Endpoint E: Sync Awards to Database
+// Endpoint C: Sync Awards to Database
 /**
  * POST /api/usaspending/sync-awards
  *
@@ -165,6 +119,6 @@ router.get("/award/:award_id", getAwardByIdFromUsaspending);
  *   "spending_level": "awards"
  * }
  */
-router.post("/sync-awards", syncAwardsFromUsaspending);
+router.post("/sync-awards", protectRoute, syncAwardsFromUsaspending);
 
 export default router;

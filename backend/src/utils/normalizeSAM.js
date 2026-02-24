@@ -92,22 +92,6 @@ export const normalizeSamAward = (opportunity) => {
     pscCode: opportunity?.classificationCode || null,
   };
 };
-export const normalizeSamHistoricalOpportunity = (opportunity) => {
-  // For now, reuse the same normalization as regular opportunities
-  // but set active to false if the opportunity is past its response deadline
-  const normalized = normalizeOpportunity(opportunity);
-
-  const responseDeadline = normalized.responseDeadline;
-
-  if (!responseDeadline) {
-    normalized.active = false;
-    return normalized;
-  }
-  const now = new Date();
-
-  normalized.active = now <= responseDeadline;
-  return normalized;
-};
 
 // Normalize SAM Industry Day opportunity data from SAM API
 export const normalizeSamIndustryDay = (opportunity) => {

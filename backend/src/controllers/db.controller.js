@@ -174,15 +174,29 @@ export const deleteUser = async (event) => {
 
 export const changeExpiredOpportunitiesToInactive = async () => {
   const now = new Date();
+  const BATCH_SIZE = 500;
+  let totalDeactivated = 0;
+
   try {
-    const result = await prisma.opportunity.updateMany({
-      where: {
-        responseDeadline: { lt: now },
-        active: true,
-      },
-      data: { active: false },
-    });
-    return { message: `Deactivated ${result.count} expired opportunities` };
+    while (true) {
+      const expired = await prisma.opportunity.findMany({
+        where: { responseDeadline: { lt: now }, active: true },
+        select: { id: true },
+        take: BATCH_SIZE,
+      });
+
+      if (expired.length === 0) break;
+
+      const result = await prisma.opportunity.updateMany({
+        where: { id: { in: expired.map((o) => o.id) } },
+        data: { active: false },
+      });
+
+      totalDeactivated += result.count;
+      if (expired.length < BATCH_SIZE) break;
+    }
+
+    return { count: totalDeactivated, message: `Deactivated ${totalDeactivated} expired opportunities` };
   } catch (error) {
     console.error("Error deactivating expired opportunities:", {
       message: error?.message ?? "Unknown error",

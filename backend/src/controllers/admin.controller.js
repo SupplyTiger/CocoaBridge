@@ -12,7 +12,7 @@ import { runBackfillNullOpportunityDescriptionsFromSam } from "./db.controller.j
  * @param {Function} fn - async function to run
  * @param {Function} countFn - optional function to extract recordsAffected from result
  */
-export async function withSyncLog(jobId, jobName, fn, countFn = null) {
+export async function withSyncLog(jobId, jobName, fn, countFn = null, failFn = null) {
   const log = await prisma.syncLog.create({
     data: { jobId, jobName, status: "RUNNING" },
   });
@@ -20,13 +20,15 @@ export async function withSyncLog(jobId, jobName, fn, countFn = null) {
   try {
     const result = await fn();
     const recordsAffected = countFn ? countFn(result) : null;
+    const partialError = failFn ? failFn(result) : null;
 
     await prisma.syncLog.update({
       where: { id: log.id },
       data: {
-        status: "SUCCESS",
+        status: partialError ? "PARTIAL" : "SUCCESS",
         completedAt: new Date(),
         recordsAffected: recordsAffected ?? null,
+        errorMessage: partialError ?? null,
       },
     });
 
@@ -152,6 +154,13 @@ const SYNC_JOBS = {
     jobName: "Sync SAM Opportunities",
     fn: () => runCurrentOpportunitiesSyncFromSam(),
     countFn: (r) => r?.db?.upserted ?? null,
+    failFn: (r) => {
+      const msg = [];
+      if (r?.meta?.partial) msg.push("incomplete fetch (SAM.gov 504 errors)");
+      const dbErrors = r?.db?.errors?.length ?? 0;
+      if (dbErrors > 0) msg.push(`${dbErrors} opportunity upsert error(s)`);
+      return msg.length > 0 ? msg.join("; ") : null;
+    },
   },
   "usaspending-awards": {
     jobId: "sync-usaspending-awards",
@@ -161,18 +170,33 @@ const SYNC_JOBS = {
       if (!r?.presets) return null;
       return Object.values(r.presets).reduce((sum, p) => sum + (p?.upserted ?? 0), 0);
     },
+    failFn: (r) => {
+      const n = Object.values(r?.presets ?? {}).reduce((sum, p) => sum + (p?.db?.errors?.length ?? 0), 0);
+      return n > 0 ? `${n} award upsert error(s)` : null;
+    },
   },
   "sam-descriptions": {
     jobId: "backfill-opportunity-descriptions",
     jobName: "Backfill Opportunity Descriptions",
     fn: () => runBackfillNullOpportunityDescriptionsFromSam(),
-    countFn: (r) => r?.updated ?? null,
+    countFn: (r) => r?.results?.updated ?? null,
+    failFn: (r) => {
+      const n = r?.results?.failed ?? 0;
+      return n > 0 ? `${n} description fetch error(s)` : null;
+    },
   },
   "sam-industry-days": {
     jobId: "sync-sam-industry-days",
     jobName: "Sync SAM Industry Days",
     fn: () => runIndustryDaySyncFromSam(),
     countFn: (r) => r?.db?.upserted ?? null,
+    failFn: (r) => {
+      const msg = [];
+      if (r?.meta?.partial) msg.push("incomplete fetch (SAM.gov 504 errors)");
+      const dbErrors = r?.db?.errors?.length ?? 0;
+      if (dbErrors > 0) msg.push(`${dbErrors} industry day upsert error(s)`);
+      return msg.length > 0 ? msg.join("; ") : null;
+    },
   },
 };
 
@@ -185,7 +209,7 @@ export const triggerSync = async (req, res) => {
   }
 
   try {
-    const result = await withSyncLog(job.jobId, job.jobName, job.fn, job.countFn);
+    const result = await withSyncLog(job.jobId, job.jobName, job.fn, job.countFn, job.failFn ?? null);
     const recordsAffected = job.countFn ? job.countFn(result) : null;
     return res.json({
       ok: true,

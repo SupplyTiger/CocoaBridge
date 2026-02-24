@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react";
+import { RefreshCw, AlertCircle, CheckCircle, XCircle, Clock, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { adminApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
@@ -34,6 +34,7 @@ function timeAgo(dateStr) {
 
 function StatusBadge({ status }) {
   if (!status) return <span className="badge badge-ghost badge-sm">Never run</span>;
+  if (status === "PARTIAL") return <span className="badge badge-warning badge-sm gap-1"><AlertCircle className="size-3" />Partial</span>;
   if (status === "SUCCESS") return <span className="badge badge-success badge-sm gap-1"><CheckCircle className="size-3" />Success</span>;
   if (status === "FAILED") return <span className="badge badge-error badge-sm gap-1"><XCircle className="size-3" />Failed</span>;
   return <span className="badge badge-warning badge-sm gap-1"><Clock className="size-3" />Running</span>;
