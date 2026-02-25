@@ -77,7 +77,7 @@ const RelatedRecordsCard = ({
             <ul className="flex flex-col gap-1">
               {opportunityLinks.map((link) => (
                 <li key={link.id}>
-                  <Link to={link.to} className="link text-sm opacity-90 hover:opacity-100">
+                  <Link to={link.to} className="link link-primary text-sm opacity-90 hover:opacity-100">
                     {link.label}
                   </Link>
                 </li>
@@ -95,7 +95,7 @@ const RelatedRecordsCard = ({
             <ul className="flex flex-col gap-1">
               {industryDayLinks.map((link) => (
                 <li key={link.id}>
-                  <Link to={link.to} className="link text-sm opacity-90 hover:opacity-100">
+                  <Link to={link.to} className="link link-accent text-sm opacity-90 hover:opacity-100">
                     {link.label}
                   </Link>
                 </li>
@@ -113,7 +113,7 @@ const RelatedRecordsCard = ({
             <ul className="flex flex-col gap-1">
               {buyingOrgLinks.map((link) => (
                 <li key={link.id}>
-                  <Link to={link.to} className="link text-sm opacity-90 hover:opacity-100">
+                  <Link to={link.to} className="link link-secondary text-sm opacity-90 hover:opacity-100">
                     {link.label}
                   </Link>
                 </li>
@@ -131,7 +131,11 @@ const RelatedRecordsCard = ({
                 <Link
                   key={link.id}
                   to={link.to}
-                  className={`btn btn-sm ${link.type === "PRIMARY" ? "btn-neutral" : "btn-ghost"}`}
+                  className={`btn btn-sm ${
+                    link.type === "PRIMARY" ? "btn-primary" :
+                    link.type === "SECONDARY" ? "btn-secondary" :
+                    "btn-accent"
+                  }`}
                 >
                   {TYPE_LABEL[link.type] ?? link.type}
                 </Link>
