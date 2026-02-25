@@ -171,17 +171,28 @@ SupplyTigerGOA/
         ├── main.jsx              # React entry point (Clerk + React Query)
         ├── components/
         │   ├── Navbar.jsx
-        │   ├── Sidebar.jsx       # Role-aware nav (hides Admin for non-admins)
+        │   ├── Sidebar.jsx               # Role-aware nav (hides Admin for non-admins)
         │   ├── NavigationLinks.jsx
-        │   └── ...
+        │   ├── SearchBar.jsx             # Debounced search input (300ms), shared across pages
+        │   ├── Table.jsx                 # Paginated data table with clickable rows
+        │   ├── Row.jsx                   # Single table row
+        │   ├── ItemDetail.jsx            # Shared detail card (title, badges, fields, children)
+        │   └── RelatedRecordsCard.jsx    # Linked records panel (opps, awards, orgs, contacts)
         ├── pages/
-        │   ├── AdminPage.jsx     # User mgmt, sync controls, system health
+        │   ├── AdminPage.jsx             # User mgmt, sync controls, system health
         │   ├── DashboardLayout.jsx
-        │   ├── DashboardPage.jsx # Access-denied state for USER role
-        │   ├── InboxPage.jsx
+        │   ├── DashboardPage.jsx         # Access-denied state for USER role
+        │   ├── InboxPage.jsx             # Inbox list; admin status dropdown + delete
+        │   ├── InboxItemDetail.jsx       # Inbox detail; admin notes + status edit
         │   ├── OpportunitiesPage.jsx
+        │   ├── OpportunityDetail.jsx
         │   ├── AwardsPage.jsx
-        │   └── ...
+        │   ├── AwardDetail.jsx
+        │   ├── ContactsPage.jsx          # Contacts list with debounced search
+        │   ├── ContactDetail.jsx         # Contact detail; links to opps/industry days/buying orgs
+        │   ├── MarketIntelligencePage.jsx # Tabbed view: Recipients | Buying Agencies
+        │   ├── RecipientDetail.jsx       # Recipient detail with linked awards
+        │   └── BuyingOrgDetail.jsx       # Buying org detail; child orgs + linked opportunities
         └── lib/
             ├── api.js            # dbApi + adminApi fetch functions
             ├── axios.js          # Axios instance with base URL
@@ -239,8 +250,12 @@ All endpoints under `/api/db` and `/api/admin` require authentication via Clerk 
 | GET | `/api/db/industry-days` | READ_ONLY+ | List industry days |
 | GET | `/api/db/industry-days/:id` | READ_ONLY+ | Get industry day |
 | PATCH | `/api/db/industry-days/:id` | ADMIN | Update industry day |
-| GET | `/api/db/buying-orgs` | READ_ONLY+ | List buying organizations |
-| GET | `/api/db/buying-orgs/:id` | READ_ONLY+ | Get buying organization |
+| GET | `/api/db/buying-orgs` | READ_ONLY+ | List buying organizations (filter by `level`) |
+| GET | `/api/db/buying-orgs/:id` | READ_ONLY+ | Get buying organization with child orgs + opportunities |
+| GET | `/api/db/recipients` | READ_ONLY+ | List recipients (search by name/UEI) |
+| GET | `/api/db/recipients/:id` | READ_ONLY+ | Get recipient with linked awards |
+| GET | `/api/db/contacts` | READ_ONLY+ | List contacts (search by name/email) |
+| GET | `/api/db/contacts/:id` | READ_ONLY+ | Get contact with linked opps/industry days/buying orgs |
 
 ### Admin Endpoints (`/api/admin`)
 

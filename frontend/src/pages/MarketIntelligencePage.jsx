@@ -104,20 +104,18 @@ const MarketIntelligencePage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" className="tabs tabs-boxed w-fit">
+      <div className="join">
         <button
-          role="tab"
-          className={`tab ${activeTab === "recipients" ? "tab-active" : ""}`}
+          className={`join-item btn btn-sm ${activeTab === "recipients" ? "btn-primary" : "btn-ghost border border-base-300"}`}
           onClick={() => setActiveTab("recipients")}
         >
           Recipients
         </button>
         <button
-          role="tab"
-          className={`tab ${activeTab === "buying-orgs" ? "tab-active" : ""}`}
+          className={`join-item btn btn-sm ${activeTab === "buying-orgs" ? "btn-primary" : "btn-ghost border border-base-300"}`}
           onClick={() => setActiveTab("buying-orgs")}
         >
-          Buying Organizations
+          Buying Agencies
         </button>
       </div>
 

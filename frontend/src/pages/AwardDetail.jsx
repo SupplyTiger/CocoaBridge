@@ -15,6 +15,12 @@ const AwardDetail = () => {
   const item = result?.data;
 
   const fields = [
+  {
+        label: "Award ID", 
+        value: item?.externalId, 
+        render: (val) => val ? <span className="font-mono">{val.split("_")[4]}</span> : "—",
+
+  },
     {
       label: "Recipient",
       value: item?.recipient,

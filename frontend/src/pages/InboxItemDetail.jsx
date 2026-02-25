@@ -87,7 +87,6 @@ const InboxItemDetail = () => {
         backLabel="Back to Inbox"
         title={item?.title ?? "Untitled"}
         badges={badges}
-        description={item?.summary}
         fields={fields}
       >
         {isAdmin && item && (

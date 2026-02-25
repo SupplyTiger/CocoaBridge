@@ -31,6 +31,7 @@ const OpportunityDetail = () => {
   );
 
   const fields = [
+    {label: "Notice ID", value: item?.noticeId, render: (val) => val ? <span className="font-mono">{val}</span> : "—"},
     { label: "Agency", value: <Link to={`/buying-orgs/${item?.buyingOrganization?.id}`} className="link link-primary-content">{item?.buyingOrganization?.name}</Link> },
     { label: "NAICS", value: item?.naicsCodes, render: (val) => val?.length > 0 ? val.join(", ") : "—" },
     { label: "PSC", value: item?.pscCode },
