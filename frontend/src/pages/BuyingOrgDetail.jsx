@@ -1,10 +1,8 @@
 import { useParams } from 'react-router';
 import { useQuery } from "@tanstack/react-query";
-import { Link } from 'react-router';
 import { dbApi } from "../lib/api.js";
 import ItemDetail from "../components/ItemDetail.jsx";
-
-const truncate = (str, n) => str && str.length > n ? `${str.slice(0, n)}…` : (str ?? "—");
+import RelatedRecordsCard from "../components/RelatedRecordsCard.jsx";
 
 const BuyingOrgDetail = () => {
   const { id } = useParams();
@@ -17,7 +15,7 @@ const BuyingOrgDetail = () => {
   const item = result?.data;
 
   const badges = item?.level ? (
-    <span className="badge badge-primary badge-outline">{item.level}</span>
+    <span className="badge badge-primary">{item.level}</span>
   ) : null;
 
   const fields = [
@@ -26,6 +24,20 @@ const BuyingOrgDetail = () => {
     { label: "External ID", value: item?.externalId },
     { label: "Full Path", value: item?.pathName },
   ];
+
+  const buyingOrgLinks = (item?.children ?? []).map((c) => ({
+    id: c.id,
+    to: `/buying-orgs/${c.id}`,
+    label: c.name,
+    badge: c.level,
+  }));
+
+  const opportunityLinks = (item?.opportunities ?? []).map((o) => ({
+    id: o.id,
+    to: `/opportunities/${o.id}`,
+    label: o.title ?? "Untitled Opportunity",
+    meta: o.postedDate ? new Date(o.postedDate).toLocaleDateString() : undefined,
+  }));
 
   return (
     <div>
@@ -40,54 +52,7 @@ const BuyingOrgDetail = () => {
         badges={badges}
         fields={fields}
       />
-      {item?.children?.length > 0 && (
-        <div className="collapse collapse-arrow bg-secondary text-secondary-content rounded-box mt-2">
-          <input type="checkbox" />
-          <div className="collapse-title font-semibold card-title border-b border-secondary-content">
-            Sub-Organizations ({item.children.length})
-          </div>
-          <div className="collapse-content pt-2">
-            <ul className="flex flex-col gap-1">
-              {item.children.map((child) => (
-                <li key={child.id}>
-                  <Link
-                    to={`/buying-orgs/${child.id}`}
-                    className="link link-primary text-sm opacity-90 hover:opacity-100"
-                  >
-                    {child.name}
-                  </Link>
-                  {child.level && (
-                    <span className="badge badge-xs badge-outline ml-2">{child.level}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
-      {item?.opportunities?.length > 0 && (
-        <div className="collapse collapse-arrow bg-secondary text-secondary-content rounded-box mt-2">
-          <input type="checkbox" />
-          <div className="collapse-title font-semibold card-title border-b border-secondary-content">
-            Recent Opportunities ({item.opportunities.length})
-          </div>
-          <div className="collapse-content pt-2">
-            <ul className="flex flex-col gap-2">
-              {item.opportunities.map((opp) => (
-                <li key={opp.id} className="flex flex-col gap-1 border-b border-secondary-content/20 pb-2 last:border-0">
-                  <span className="text-sm">{truncate(opp.title, 80)}</span>
-                  {opp.postedDate && (
-                    <span className="text-xs opacity-70">{new Date(opp.postedDate).toLocaleDateString()}</span>
-                  )}
-                  <Link to={`/opportunities/${opp.id}`} className="btn btn-xs btn-neutral w-fit mt-1">
-                    View Opportunity
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
+      {item && <RelatedRecordsCard buyingOrgLinks={buyingOrgLinks} opportunityLinks={opportunityLinks} />}
     </div>
   );
 };

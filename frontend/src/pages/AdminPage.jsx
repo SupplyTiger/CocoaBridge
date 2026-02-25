@@ -166,7 +166,7 @@ const SyncControls = () => {
         return (
           <button
             key={type}
-            className="btn btn-outline btn-sm gap-2"
+            className="btn btn-sm gap-2"
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending}
           >

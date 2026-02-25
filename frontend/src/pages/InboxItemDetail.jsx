@@ -63,8 +63,8 @@ const InboxItemDetail = () => {
   const badges = (
     <>
       <span className={`badge ${STATUS_BADGE[item?.reviewStatus] ?? "badge-neutral"}`}>{item?.reviewStatus}</span>
-      <span className="badge badge-outline">{item?.type}</span>
-      <span className="badge badge-outline">{item?.acquisitionPath}</span>
+      <span className="badge">{item?.type}</span>
+      <span className="badge">{item?.acquisitionPath}</span>
     </>
   );
 

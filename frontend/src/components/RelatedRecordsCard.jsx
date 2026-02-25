@@ -32,54 +32,59 @@ const RelatedRecordsCard = ({
   opportunity,
   award,
   // Multi-item list mode
+  // opportunityLinks: { id, to, label, meta? }   — meta shown as secondary text (e.g. a date)
   opportunityLinks = [],
   industryDayLinks = [],
+  // buyingOrgLinks: { id, to, label, badge? }     — badge shown as a small chip (e.g. org level)
   buyingOrgLinks = [],
+  // Award list mode: { id, to, description, obligatedAmount?, startDate? }
+  awardLinks = [],
   // Contact button mode
   contactLinks = [],
 }) => {
   const hasSingleItems = opportunity || award;
-  const hasListItems = opportunityLinks.length > 0 || industryDayLinks.length > 0 || buyingOrgLinks.length > 0;
+  const hasListItems = opportunityLinks.length > 0 || industryDayLinks.length > 0 || buyingOrgLinks.length > 0 || awardLinks.length > 0;
   const hasContactButtons = contactLinks.length > 0;
 
   if (!hasSingleItems && !hasListItems && !hasContactButtons) return null;
 
   return (
-    <div className="collapse collapse-arrow bg-secondary text-secondary-content rounded-box mt-2">
+    <div className="collapse collapse-arrow bg-base-100 text-accent-content shadow-sm rounded-box mt-4">
       <input type="checkbox" />
-      <div className="collapse-title font-semibold card-title border-b border-secondary-content">Related Records</div>
-      <div className="collapse-content flex flex-col gap-4 pt-2">
+      <div className="collapse-title font-semibold text-base border-b border-base-300">Related Records</div>
+      <div className="collapse-content flex flex-col gap-4 pt-4 px-2">
 
         {/* Single-item mode: one opportunity */}
         {opportunity && (
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase opacity-70">Opportunity</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Opportunity</span>
             <span className="text-sm">{truncate(opportunity.title, 80)}</span>
-            <Link to={`/opportunities/${opportunity.id}`} className="btn btn-sm btn-neutral mt-1">View</Link>
+            <Link to={`/opportunities/${opportunity.id}`} className="btn btn-sm btn-outline btn-primary w-fit mt-1">View</Link>
           </div>
         )}
 
         {/* Single-item mode: one award */}
         {award && (
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase opacity-70">Award</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Award</span>
             <span className="text-sm">{truncate(award.description, 80)}</span>
-            <Link to={`/awards/${award.id}`} className="btn btn-sm btn-neutral mt-1">View</Link>
+            <Link to={`/awards/${award.id}`} className="btn btn-sm btn-outline btn-primary w-fit mt-1">View</Link>
           </div>
         )}
 
         {/* Multi-item list mode: opportunities */}
         {opportunityLinks.length > 0 && (
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase opacity-70">
+            <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">
               Opportunities ({opportunityLinks.length})
             </span>
             <ul className="flex flex-col gap-1">
               {opportunityLinks.map((link) => (
                 <li key={link.id}>
-                  <Link to={link.to} className="link link-primary text-sm opacity-90 hover:opacity-100">
+                  <Link to={link.to} className="link link-primary-content text-sm">
                     {link.label}
                   </Link>
+                  {link.meta && <span className="block text-xs text-base-content/50">{link.meta}</span>}
                 </li>
               ))}
             </ul>
@@ -89,13 +94,13 @@ const RelatedRecordsCard = ({
         {/* Multi-item list mode: industry days */}
         {industryDayLinks.length > 0 && (
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase opacity-70">
+            <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">
               Industry Days ({industryDayLinks.length})
             </span>
             <ul className="flex flex-col gap-1">
               {industryDayLinks.map((link) => (
                 <li key={link.id}>
-                  <Link to={link.to} className="link link-accent text-sm opacity-90 hover:opacity-100">
+                  <Link to={link.to} className="link link-primary-content text-sm">
                     {link.label}
                   </Link>
                 </li>
@@ -107,15 +112,41 @@ const RelatedRecordsCard = ({
         {/* Multi-item list mode: buying organizations */}
         {buyingOrgLinks.length > 0 && (
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase opacity-70">
+            <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">
               Buying Organizations ({buyingOrgLinks.length})
             </span>
             <ul className="flex flex-col gap-1">
               {buyingOrgLinks.map((link) => (
-                <li key={link.id}>
-                  <Link to={link.to} className="link link-secondary text-sm opacity-90 hover:opacity-100">
+                <li key={link.id} className="flex items-center gap-2">
+                  <Link to={link.to} className="link link-primary-content text-sm">
                     {link.label}
                   </Link>
+                  {link.badge && <span className="badge badge-xs badge-outline">{link.badge}</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Award list mode: rich award items with amount and date */}
+        {awardLinks.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">
+              Awards ({awardLinks.length})
+            </span>
+            <ul className="flex flex-col gap-2">
+              {awardLinks.map((link) => (
+                <li key={link.id} className="flex flex-col gap-1 border-b border-base-300 pb-2 last:border-0">
+                  <span className="text-sm">{truncate(link.description, 60)}</span>
+                  <div className="flex gap-4 text-xs text-base-content/50">
+                    {link.obligatedAmount != null && (
+                      <span>${Number(link.obligatedAmount).toLocaleString()}</span>
+                    )}
+                    {link.startDate && (
+                      <span>{new Date(link.startDate).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                  <Link to={link.to} className="btn btn-xs btn-outline btn-primary w-fit mt-1">View Award</Link>
                 </li>
               ))}
             </ul>
@@ -125,7 +156,7 @@ const RelatedRecordsCard = ({
         {/* Contact button mode: role-labeled buttons */}
         {contactLinks.length > 0 && (
           <div className="flex flex-col gap-2">
-            <span className="text-xs font-semibold uppercase opacity-70">Contacts</span>
+            <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">Contacts</span>
             <div className="flex flex-wrap gap-2">
               {contactLinks.map((link) => (
                 <Link
@@ -134,7 +165,7 @@ const RelatedRecordsCard = ({
                   className={`btn btn-sm ${
                     link.type === "PRIMARY" ? "btn-primary" :
                     link.type === "SECONDARY" ? "btn-secondary" :
-                    "btn-accent"
+                    "btn-outline"
                   }`}
                 >
                   {TYPE_LABEL[link.type] ?? link.type}

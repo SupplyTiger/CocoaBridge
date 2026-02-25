@@ -19,14 +19,14 @@ const AwardDetail = () => {
       label: "Recipient",
       value: item?.recipient,
       render: (val) => val
-        ? <Link to={`/recipients/${val.id}`} className="link link-primary">{val.name}</Link>
+        ? <Link to={`/recipients/${val.id}`} className="link link-primary-content">{val.name}</Link>
         : "—",
     },
     {
       label: "Agency",
       value: item?.buyingOrganization,
       render: (val) => val
-        ? <Link to={`/buying-orgs/${val.id}`} className="link link-primary">{val.name}</Link>
+        ? <Link to={`/buying-orgs/${val.id}`} className="link link-primary-content">{val.name}</Link>
         : "—",
     },
     { label: "Amount", value: item?.obligatedAmount, render: (val) => val != null ? `$${Number(val).toLocaleString()}` : "—" },

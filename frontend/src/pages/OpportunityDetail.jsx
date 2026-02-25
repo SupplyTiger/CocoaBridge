@@ -1,4 +1,4 @@
-import { useParams } from 'react-router';
+import { useParams, Link } from 'react-router';
 import { useQuery } from "@tanstack/react-query";
 import { dbApi } from "../lib/api.js";
 import ItemDetail from "../components/ItemDetail.jsx";
@@ -22,16 +22,16 @@ const OpportunityDetail = () => {
 
   const badges = (
     <>
-      {item?.type && <span className="badge badge-info badge-outline">{item.type}</span>}
-      <span className={`badge badge-outline ${item?.active ? "badge-success" : "badge-error"}`}>
+      {item?.type && <span className="badge badge-info">{item.type}</span>}
+      <span className={`badge ${item?.active ? "badge-success" : "badge-error"}`}>
         {item?.active ? "Active" : "Inactive"}
       </span>
-      {item?.setAside && <span className="badge badge-warning badge-outline">{item.setAside}</span>}
+      {item?.setAside && <span className="badge badge-warning">{item.setAside}</span>}
     </>
   );
 
   const fields = [
-    { label: "Agency", value: item?.buyingOrganization?.name },
+    { label: "Agency", value: <Link to={`/buying-orgs/${item?.buyingOrganization?.id}`} className="link link-primary-content">{item?.buyingOrganization?.name}</Link> },
     { label: "NAICS", value: item?.naicsCodes, render: (val) => val?.length > 0 ? val.join(", ") : "—" },
     { label: "PSC", value: item?.pscCode },
     { label: "Posted", value: item?.postedDate, render: (val) => val ? new Date(val).toLocaleDateString() : "—" },

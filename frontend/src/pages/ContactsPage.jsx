@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { dbApi } from "../lib/api.js";
-import { Search } from "lucide-react";
 import Table from "../components/Table.jsx";
+import SearchBar from "../components/SearchBar.jsx";
 
 const columns = [
   {
@@ -34,18 +34,7 @@ const columns = [
 
 const ContactsPage = () => {
   const [page, setPage] = useState(1);
-  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  const handleSearchChange = useCallback((e) => {
-    const value = e.target.value;
-    setSearch(value);
-    clearTimeout(window._contactSearchTimer);
-    window._contactSearchTimer = setTimeout(() => {
-      setDebouncedSearch(value);
-      setPage(1);
-    }, 300);
-  }, []);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["contacts", page, debouncedSearch],
@@ -54,17 +43,10 @@ const ContactsPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-          <Search className="size-4" />
-        <input
-          type="text"
-          placeholder="Search by name or email..."
-          className="input input-bordered w-full max-w-sm"
-          value={search}
-          onChange={handleSearchChange}
-          />
-
-      </div>
+      <SearchBar
+        placeholder="Search by name or email..."
+        onSearch={(val) => { setDebouncedSearch(val); setPage(1); }}
+      />
       <Table
         columns={columns}
         data={result?.data ?? []}
