@@ -287,8 +287,6 @@ const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config }) => {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-semibold">{sectionLabel}</p>
-
       {/* Active list */}
       <div className="flex flex-wrap gap-1.5 min-h-8">
         {activeValues.map((v) => (
@@ -408,8 +406,6 @@ const FilterConfig = () => {
     );
   }
 
-  const current = FILTER_SECTIONS.find((s) => s.activeKey === activeSection);
-
   return (
     <div className="flex flex-col gap-4">
       <div className="join flex-wrap">
@@ -423,12 +419,16 @@ const FilterConfig = () => {
           </button>
         ))}
       </div>
-      <FilterListEditor
-        sectionLabel={current.label}
-        activeKey={current.activeKey}
-        bankKey={current.bankKey}
-        config={config}
-      />
+      {FILTER_SECTIONS.map(({ label, activeKey, bankKey }) => (
+        <div key={activeKey} className={activeSection === activeKey ? "" : "hidden"}>
+          <FilterListEditor
+            sectionLabel={label}
+            activeKey={activeKey}
+            bankKey={bankKey}
+            config={config}
+          />
+        </div>
+      ))}
     </div>
   );
 };

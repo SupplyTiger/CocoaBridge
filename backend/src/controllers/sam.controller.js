@@ -143,9 +143,15 @@ async function fetchOpportunitiesFromSamWithPagination(
  * Returns the leaf (most specific) organization ID to link to the opportunity.
  */
 async function upsertOrganizationChainFromSam(db, samOpportunity) {
-  const chain = extractOrganizationChain(samOpportunity);
+  const rawChain = extractOrganizationChain(samOpportunity);
 
-  if (chain.length === 0) return null;
+  if (rawChain.length === 0) return null;
+
+  // SAM.gov sometimes repeats the same name at consecutive levels
+  // (e.g. "VETERANS AFFAIRS, DEPARTMENT OF.VETERANS AFFAIRS, DEPARTMENT OF").
+  // Deduplicate by name to prevent a record from becoming its own parent.
+  const seenNames = new Set();
+  const chain = rawChain.filter(({ name }) => seenNames.has(name) ? false : seenNames.add(name));
 
   let parentId = null;
 
