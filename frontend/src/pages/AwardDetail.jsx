@@ -23,6 +23,8 @@ const AwardDetail = () => {
 
   const item = result?.data;
 
+  const awardLink = `https://www.usaspending.gov/award/${item?.externalId}`;
+  
   const { mutate: deleteItem, isPending: isDeleting } = useMutation({
     mutationFn: () => dbApi.deleteAward(id),
     onSuccess: () => {
@@ -40,7 +42,7 @@ const AwardDetail = () => {
     {
       label: "Award ID",
       value: item?.externalId,
-      render: (val) => val ? <span className="font-mono">{val.split("_")[4]}</span> : "—",
+      render: (val) => val ? <span className="font-mono">{val.split("_")[2]}</span> : "—",
     },
     {
       label: "Recipient",
@@ -55,6 +57,11 @@ const AwardDetail = () => {
       render: (val) => val
         ? <Link to={`/buying-orgs/${val.id}`} className="link link-primary-content">{val.name}</Link>
         : "—",
+    },
+    {
+      label: "Link",
+      value: awardLink,
+      render: (val) => val ? <Link to={val} target="_blank" rel="noopener noreferrer" className="link link-primary-content">External Link</Link> : "—",
     },
     { label: "Amount", value: item?.obligatedAmount, render: (val) => val != null ? `$${Number(val).toLocaleString()}` : "—" },
     { label: "NAICS", value: item?.naicsCodes, render: (val) => val?.length > 0 ? val.join(", ") : "—" },

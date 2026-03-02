@@ -43,6 +43,9 @@ const OpportunityDetail = () => {
     type: cl.type,
   })) ?? [];
 
+    const opportunityLink = `https://sam.gov/workspace/contract/opp/${item?.noticeId}/view`;
+
+
   const badges = (
     <>
       {item?.type && <span className="badge badge-info">{item.type}</span>}
@@ -54,8 +57,9 @@ const OpportunityDetail = () => {
   );
 
   const fields = [
-    {label: "Notice ID", value: item?.noticeId, render: (val) => val ? <span className="font-mono">{val}</span> : "—"},
+    {label: "Solicitation Number", value: item?.solicitationNumber, render: (val) => val ? <span className="font-mono">{val}</span> : "—"},
     { label: "Agency", value: <Link to={`/buying-orgs/${item?.buyingOrganization?.id}`} className="link link-primary-content">{item?.buyingOrganization?.name}</Link> },
+    {label: "Link", value: opportunityLink, render: (val) => val ? <a href={val} target="_blank" rel="noopener noreferrer" className="link link-primary-content">External Link</a> : "—"},
     { label: "NAICS", value: item?.naicsCodes, render: (val) => val?.length > 0 ? val.join(", ") : "—" },
     { label: "PSC", value: item?.pscCode },
     { label: "Posted", value: item?.postedDate, render: (val) => val ? new Date(val).toLocaleDateString() : "—" },

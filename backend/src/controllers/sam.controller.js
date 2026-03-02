@@ -206,8 +206,7 @@ async function upsertContactsForOpportunity(
           where: { email: c.email },
           update: {
             fullName: c.fullName,
-            title: c.title,
-            phone,
+            // title and phone are user-editable — not overwritten by sync
           },
           create: {
             fullName: c.fullName,

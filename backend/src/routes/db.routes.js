@@ -16,10 +16,13 @@ import {
   updateIndustryDay,
   listBuyingOrgs,
   getBuyingOrg,
+  updateBuyingOrg,
   listRecipients,
   getRecipient,
+  updateRecipient,
   listContacts,
   getContact,
+  updateContact,
 } from "../controllers/db.controller.js";
 
 export const router = express.Router();
@@ -55,11 +58,14 @@ router.patch("/industry-days/:id", ...protectRoute, adminOnly, updateIndustryDay
 // Buying Organizations
 router.get("/buying-orgs", ...protectRoute, readOnlyOrAbove, listBuyingOrgs);
 router.get("/buying-orgs/:id", ...protectRoute, readOnlyOrAbove, getBuyingOrg);
+router.patch("/buying-orgs/:id", ...protectRoute, adminOnly, updateBuyingOrg);
 
 // Recipients
 router.get("/recipients", ...protectRoute, readOnlyOrAbove, listRecipients);
 router.get("/recipients/:id", ...protectRoute, readOnlyOrAbove, getRecipient);
+router.patch("/recipients/:id", ...protectRoute, adminOnly, updateRecipient);
 
 // Contacts
 router.get("/contacts", ...protectRoute, readOnlyOrAbove, listContacts);
 router.get("/contacts/:id", ...protectRoute, readOnlyOrAbove, getContact);
+router.patch("/contacts/:id", ...protectRoute, adminOnly, updateContact);

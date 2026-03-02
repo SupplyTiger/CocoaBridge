@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useParams } from "react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import { dbApi } from "../lib/api.js";
+import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import ItemDetail from "../components/ItemDetail.jsx";
 import RelatedRecordsCard from "../components/RelatedRecordsCard.jsx";
 
@@ -14,6 +17,9 @@ const uniqueById = (arr) => {
 
 const ContactDetail = () => {
   const { id } = useParams();
+  const currentUser = useCurrentUser();
+  const isAdmin = currentUser?.role === "ADMIN";
+  const queryClient = useQueryClient();
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["contact", id],
@@ -21,6 +27,22 @@ const ContactDetail = () => {
   });
 
   const item = result?.data;
+
+  const [phone, setPhone] = useState(null);
+  const [title, setTitle] = useState(null);
+
+  // Initialize local state once item loads (only on first load)
+  const phoneValue = phone ?? (item?.phone ?? "");
+  const titleValue = title ?? (item?.title ?? "");
+
+  const { mutate: saveContact, isPending: isSaving } = useMutation({
+    mutationFn: () => dbApi.updateContact(id, { phone: phoneValue, title: titleValue }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contact", id] });
+      toast.success("Saved");
+    },
+    onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to save"),
+  });
 
   const opportunityLinks = uniqueById(
     item?.links
@@ -42,7 +64,12 @@ const ContactDetail = () => {
 
   const fields = [
     { label: "Email", value: item?.email },
-    { label: "Phone", value: item?.phone },
+    {
+      label: "Phone",
+      value: item?.phone
+        ? <a href={`tel:${item.phone}`} className="link link-primary">{item.phone}</a>
+        : null,
+    },
     { label: "Title", value: item?.title },
   ];
 
@@ -57,7 +84,40 @@ const ContactDetail = () => {
         backLabel="Back to Contacts"
         title={item?.fullName ?? "Contact"}
         fields={fields}
-      />
+      >
+        {isAdmin && item && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-semibold">Edit Contact</p>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm">Phone</label>
+              <input
+                type="text"
+                className="input input-bordered input-sm w-full max-w-xs"
+                placeholder="Add phone…"
+                value={phoneValue}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm">Title</label>
+              <input
+                type="text"
+                className="input input-bordered input-sm w-full max-w-xs"
+                placeholder="Add title…"
+                value={titleValue}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </div>
+            <button
+              className="btn btn-primary btn-sm w-fit"
+              onClick={() => saveContact()}
+              disabled={isSaving}
+            >
+              {isSaving ? <span className="loading loading-spinner loading-xs" /> : "Save"}
+            </button>
+          </div>
+        )}
+      </ItemDetail>
       {item && (
         <RelatedRecordsCard
           opportunityLinks={opportunityLinks}

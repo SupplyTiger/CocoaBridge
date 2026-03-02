@@ -643,6 +643,21 @@ export const getBuyingOrg = async (req, res) => {
   }
 };
 
+export const updateBuyingOrg = async (req, res) => {
+  try {
+    const { website } = req.body;
+    const data = {};
+    if (website !== undefined) data.website = website?.trim() || null;
+    if (Object.keys(data).length === 0) return res.status(400).json({ error: "No fields to update" });
+    const item = await prisma.buyingOrganization.update({ where: { id: req.params.id }, data });
+    return res.json({ data: item });
+  } catch (error) {
+    if (error?.code === "P2025") return res.status(404).json({ error: "BuyingOrganization not found" });
+    console.error("updateBuyingOrg error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
 // --- Recipient controllers ---
 
 export const listRecipients = async (req, res) => {
@@ -683,6 +698,21 @@ export const getRecipient = async (req, res) => {
     return res.json({ data: item });
   } catch (error) {
     console.error("getRecipient error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const updateRecipient = async (req, res) => {
+  try {
+    const { website } = req.body;
+    const data = {};
+    if (website !== undefined) data.website = website?.trim() || null;
+    if (Object.keys(data).length === 0) return res.status(400).json({ error: "No fields to update" });
+    const item = await prisma.recipient.update({ where: { id: req.params.id }, data });
+    return res.json({ data: item });
+  } catch (error) {
+    if (error?.code === "P2025") return res.status(404).json({ error: "Recipient not found" });
+    console.error("updateRecipient error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };
@@ -740,6 +770,22 @@ export const getContact = async (req, res) => {
     return res.json({ data: item });
   } catch (error) {
     console.error("getContact error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const updateContact = async (req, res) => {
+  try {
+    const { phone, title } = req.body;
+    const data = {};
+    if (phone !== undefined) data.phone = phone?.trim() || null;
+    if (title !== undefined) data.title = title?.trim() || null;
+    if (Object.keys(data).length === 0) return res.status(400).json({ error: "No fields to update" });
+    const item = await prisma.contact.update({ where: { id: req.params.id }, data });
+    return res.json({ data: item });
+  } catch (error) {
+    if (error?.code === "P2025") return res.status(404).json({ error: "Contact not found" });
+    console.error("updateContact error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };

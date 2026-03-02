@@ -67,6 +67,10 @@ export const dbApi = {
     const { data } = await axiosInstance.get(`/db/buying-orgs/${id}`);
     return data;
   },
+  updateBuyingOrg: async (id, body) => {
+    const { data } = await axiosInstance.patch(`/db/buying-orgs/${id}`, body);
+    return data;
+  },
   // Recipients
   listRecipients: async (params) => {
     const { data } = await axiosInstance.get("/db/recipients", { params });
@@ -76,6 +80,10 @@ export const dbApi = {
     const { data } = await axiosInstance.get(`/db/recipients/${id}`);
     return data;
   },
+  updateRecipient: async (id, body) => {
+    const { data } = await axiosInstance.patch(`/db/recipients/${id}`, body);
+    return data;
+  },
   // Contacts
   listContacts: async (params) => {
     const { data } = await axiosInstance.get("/db/contacts", { params });
@@ -83,6 +91,10 @@ export const dbApi = {
   },
   getContact: async (id) => {
     const { data } = await axiosInstance.get(`/db/contacts/${id}`);
+    return data;
+  },
+  updateContact: async (id, body) => {
+    const { data } = await axiosInstance.patch(`/db/contacts/${id}`, body);
     return data;
   },
 };

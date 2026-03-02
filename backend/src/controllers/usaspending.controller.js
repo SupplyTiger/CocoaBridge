@@ -31,7 +31,8 @@ const upsertRecipient = async (recipientData) => {
   if (uei) {
     const recipient = await prisma.recipient.upsert({
       where: { uei },
-      update: { name, website },
+      update: { name },
+      // website is user-editable — not overwritten by sync
       create: { name, uei, website },
     });
     return recipient.id;

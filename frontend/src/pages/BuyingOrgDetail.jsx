@@ -1,12 +1,18 @@
-import { useParams } from 'react-router';
-import { Link } from 'react-router';
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useParams } from "react-router";
+import { Link } from "react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import { dbApi } from "../lib/api.js";
+import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import ItemDetail from "../components/ItemDetail.jsx";
 import RelatedRecordsCard from "../components/RelatedRecordsCard.jsx";
 
 const BuyingOrgDetail = () => {
   const { id } = useParams();
+  const currentUser = useCurrentUser();
+  const isAdmin = currentUser?.role === "ADMIN";
+  const queryClient = useQueryClient();
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["buying-org", id],
@@ -23,6 +29,19 @@ const BuyingOrgDetail = () => {
 
   const parent = parentResult?.data;
 
+  const [website, setWebsite] = useState(null);
+
+  const websiteValue = website ?? (item?.website ?? "");
+
+  const { mutate: saveBuyingOrg, isPending: isSaving } = useMutation({
+    mutationFn: () => dbApi.updateBuyingOrg(id, { website: websiteValue }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["buying-org", id] });
+      toast.success("Saved");
+    },
+    onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to save"),
+  });
+
   const badges = item?.level ? (
     <span className="badge badge-primary">{item.level}</span>
   ) : null;
@@ -30,8 +49,12 @@ const BuyingOrgDetail = () => {
   const fields = [
     { label: "Level", value: item?.level },
     { label: "External ID", value: item?.externalId },
-    // TODO: Make the website an editable field (with a link to the website)
-    { label: "Website", value: item?.website },
+    {
+      label: "Website",
+      value: item?.website
+        ? <Link to={item.website} target="_blank" rel="noopener noreferrer" className="link link-primary">{item.website}</Link>
+        : null,
+    },
   ];
 
   const children = item?.children ?? [];
@@ -88,6 +111,28 @@ const BuyingOrgDetail = () => {
                 </ul>
               </div>
             )}
+          </div>
+        )}
+        {isAdmin && item && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-semibold">Edit Organization</p>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm">Website</label>
+              <input
+                type="text"
+                className="input input-bordered input-sm w-full max-w-xs"
+                placeholder="Add website…"
+                value={websiteValue}
+                onChange={(e) => setWebsite(e.target.value)}
+              />
+            </div>
+            <button
+              className="btn btn-primary btn-sm w-fit"
+              onClick={() => saveBuyingOrg()}
+              disabled={isSaving}
+            >
+              {isSaving ? <span className="loading loading-spinner loading-xs" /> : "Save"}
+            </button>
           </div>
         )}
       </ItemDetail>
