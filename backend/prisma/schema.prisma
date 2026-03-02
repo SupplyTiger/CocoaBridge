@@ -194,9 +194,9 @@ model Opportunity {
   id     String       @id @default(cuid())
   source SourceSystem @default(SAM)
 
-  // Dedup for SAM
+  // Dedup for SAM — upsert key is solicitationNumber when present, noticeId as fallback
   noticeId           String? @unique
-  solicitationNumber String?
+  solicitationNumber String? @unique
   title              String?
   type               Type?
   tag                OppTag  @default(GENERAL)
@@ -240,7 +240,6 @@ model Opportunity {
   @@index([naicsCodes], type: Gin)
   @@index([pscCode])
   @@index([type])
-  @@index([solicitationNumber])
   @@index([title])
 }
 

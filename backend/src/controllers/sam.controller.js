@@ -370,6 +370,7 @@ async function upsertOpportunityFromSam(prisma, opportunity) {
     buyingOrganizationId,
     source: SourceSystem.SAM,
 
+    // Always overwrite noticeId with the latest amendment's value
     noticeId: normalized.noticeId,
     solicitationNumber: normalized.solicitationNumber ?? null,
     title: normalized.title ?? null,
@@ -377,16 +378,13 @@ async function upsertOpportunityFromSam(prisma, opportunity) {
     tag: normalized.tag,
     active: normalized.active,
 
-    // Dates (still derived from raw SAM payload)
     postedDate: normalized.postedDate,
     responseDeadline: normalized.responseDeadline,
 
-    // Classification
     naicsCodes: normalized.naicsCodes ?? [],
     pscCode: normalized.pscCode ?? null,
     setAside: normalized.setAside ?? null,
 
-    // Org / office metadata
     fullParentPathName: normalized.fullParentPathName ?? null,
     city: normalized.city ?? null,
     state: normalized.state ?? null,
@@ -394,17 +392,35 @@ async function upsertOpportunityFromSam(prisma, opportunity) {
     countryCode: normalized.countryCode ?? null,
   };
 
-  const existingOpportunity = await prisma.opportunity.findUnique({
-    where: { noticeId: normalized.noticeId },
-    select: { id: true },
-  });
+  // Upsert by solicitationNumber when available (handles amendments without
+  // creating duplicate records or duplicate inbox items). Fall back to noticeId
+  // for opportunities that have no solicitation number.
+  let existingOpportunity;
+  let opp;
 
-  const opp = await prisma.opportunity.upsert({
-    where: { noticeId: normalized.noticeId },
-    update: data,
-    create: { ...data, description: null },
-  });
+  if (normalized.solicitationNumber) {
+    existingOpportunity = await prisma.opportunity.findUnique({
+      where: { solicitationNumber: normalized.solicitationNumber },
+      select: { id: true },
+    });
+    opp = await prisma.opportunity.upsert({
+      where: { solicitationNumber: normalized.solicitationNumber },
+      update: data,
+      create: { ...data, description: null },
+    });
+  } else {
+    existingOpportunity = await prisma.opportunity.findUnique({
+      where: { noticeId: normalized.noticeId },
+      select: { id: true },
+    });
+    opp = await prisma.opportunity.upsert({
+      where: { noticeId: normalized.noticeId },
+      update: data,
+      create: { ...data, description: null },
+    });
+  }
 
+  // Only emit inbox event for genuinely new opportunities — not amendments
   if (!existingOpportunity) {
     const title = buildInboxTitle({
       entityLabel: "Opportunity",
@@ -414,26 +430,23 @@ async function upsertOpportunityFromSam(prisma, opportunity) {
       maxLen: 160,
     });
 
-  await emitInternalEventSafe("internal/opportunity.upserted", {
-    source: opp.source,
-    opportunityId: opp.id,
-    op: "CREATED",
-    title: title,
-    summary: buildInboxSummary(normalized.description ?? null, 250),
-    type: opp.type ?? "OTHER",
-    tag: opp.tag ?? "GENERAL",
-    buyingOrganizationId: opp.buyingOrganizationId ?? null,
-    // TODOL Default acquisition path until opportunity classification is implemented.
-    acquisitionPath: AcquisitionPath.OPEN_MARKET,
-  });
+    await emitInternalEventSafe("internal/opportunity.upserted", {
+      source: opp.source,
+      opportunityId: opp.id,
+      op: "CREATED",
+      title,
+      summary: buildInboxSummary(normalized.description ?? null, 250),
+      type: opp.type ?? "OTHER",
+      tag: opp.tag ?? "GENERAL",
+      buyingOrganizationId: opp.buyingOrganizationId ?? null,
+      acquisitionPath: AcquisitionPath.OPEN_MARKET,
+    });
   }
 
-  // Upsert award and recipient associated with this opportunity
   if (opportunity?.award?.number) {
     await upsertAwardAndRecipientFromSam(prisma, opportunity, opp.id);
   }
 
-  // Upsert contacts associated with this opportunity
   await upsertContactsForOpportunity(
     prisma,
     opportunity,
