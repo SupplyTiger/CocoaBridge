@@ -179,7 +179,7 @@ SupplyTigerGOA/
         │   ├── ItemDetail.jsx            # Shared detail card (title, badges, fields, children)
         │   └── RelatedRecordsCard.jsx    # Linked records panel (opps, awards, orgs, contacts)
         ├── pages/
-        │   ├── AdminPage.jsx             # User mgmt, sync controls, system health
+        │   ├── AdminPage.jsx             # User mgmt, sync controls, system health, filter config
         │   ├── DashboardLayout.jsx
         │   ├── DashboardPage.jsx         # Access-denied state for USER role
         │   ├── InboxPage.jsx             # Inbox list; admin status dropdown + delete
@@ -189,10 +189,10 @@ SupplyTigerGOA/
         │   ├── AwardsPage.jsx
         │   ├── AwardDetail.jsx
         │   ├── ContactsPage.jsx          # Contacts list with debounced search
-        │   ├── ContactDetail.jsx         # Contact detail; links to opps/industry days/buying orgs
+        │   ├── ContactDetail.jsx         # Contact detail; admin inline edit (phone, title); phone as tel: link
         │   ├── MarketIntelligencePage.jsx # Tabbed view: Recipients | Buying Agencies
-        │   ├── RecipientDetail.jsx       # Recipient detail with linked awards
-        │   └── BuyingOrgDetail.jsx       # Buying org detail; child orgs + linked opportunities
+        │   ├── RecipientDetail.jsx       # Recipient detail; admin inline edit (website); website as external link
+        │   └── BuyingOrgDetail.jsx       # Buying org detail; child orgs + linked opps; admin inline edit (website)
         └── lib/
             ├── api.js            # dbApi + adminApi fetch functions
             ├── axios.js          # Axios instance with base URL
@@ -245,17 +245,22 @@ All endpoints under `/api/db` and `/api/admin` require authentication via Clerk 
 | DELETE | `/api/db/inbox-items/:id` | ADMIN | Delete inbox item |
 | GET | `/api/db/opportunities` | READ_ONLY+ | List opportunities |
 | GET | `/api/db/opportunities/:id` | READ_ONLY+ | Get opportunity |
+| DELETE | `/api/db/opportunities/:id` | ADMIN | Hard delete opportunity (preserves multi-parent contact links) |
 | GET | `/api/db/awards` | READ_ONLY+ | List awards |
 | GET | `/api/db/awards/:id` | READ_ONLY+ | Get award |
+| DELETE | `/api/db/awards/:id` | ADMIN | Hard delete award |
 | GET | `/api/db/industry-days` | READ_ONLY+ | List industry days |
 | GET | `/api/db/industry-days/:id` | READ_ONLY+ | Get industry day |
 | PATCH | `/api/db/industry-days/:id` | ADMIN | Update industry day |
 | GET | `/api/db/buying-orgs` | READ_ONLY+ | List buying organizations (filter by `level`) |
 | GET | `/api/db/buying-orgs/:id` | READ_ONLY+ | Get buying organization with child orgs + opportunities |
+| PATCH | `/api/db/buying-orgs/:id` | ADMIN | Update buying org (`website`) |
 | GET | `/api/db/recipients` | READ_ONLY+ | List recipients (search by name/UEI) |
 | GET | `/api/db/recipients/:id` | READ_ONLY+ | Get recipient with linked awards |
+| PATCH | `/api/db/recipients/:id` | ADMIN | Update recipient (`website`) |
 | GET | `/api/db/contacts` | READ_ONLY+ | List contacts (search by name/email) |
 | GET | `/api/db/contacts/:id` | READ_ONLY+ | Get contact with linked opps/industry days/buying orgs |
+| PATCH | `/api/db/contacts/:id` | ADMIN | Update contact (`phone`, `title`) |
 
 ### Admin Endpoints (`/api/admin`)
 
@@ -343,6 +348,11 @@ The `/admin` page (ADMIN role only) provides:
 - **User Management** — view all users, change their role via dropdown, toggle active/inactive status
 - **Manual Sync Controls** — trigger any of the 4 data sync jobs on demand with live feedback
 - **System Health** — status cards showing last run time, success/failure, and records affected for each sync job
+- **Filter Configuration** — tabbed keyword/code editor for the 4 sync filter types (Solicitation Keywords, NAICS Codes, PSC Prefixes, Industry Day Keywords); each filter has an active list and a word bank for quick re-adding
+
+## Admin Inline Editing
+
+Admins can manually enrich or correct data on detail pages without waiting for a sync.
 
 ---
 
@@ -350,6 +360,7 @@ The `/admin` page (ADMIN role only) provides:
 
 * Enhanced opportunity scoring (speed, size, friction)
 * Prime contractor intelligence & relationship tracking via MCP Server
+* Daily digest emails sent to admins
 * Quote / follow-up templates tied to opportunity records
 * GSA Advantage listing support
 * Analytics: response rates, conversion paths, win/loss tracking
