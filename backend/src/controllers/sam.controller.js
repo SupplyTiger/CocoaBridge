@@ -7,13 +7,13 @@ import { buildInboxSummary, buildInboxTitle } from "../utils/inboxText.js";
 import {
   extractContact,
   extractOrganizationChain,
+  extractTag,
+  matchesOpportunityIndustryDay,
+  matchesOpportunitySolicitation,
   stripHTML,
 } from "../utils/extractSAM.js";
 
-import {
-  matchesOpportunityIndustryDay,
-  matchesOpportunitySolicitation,
-} from "../utils/extractSAM.js";
+import { loadFilterConfig } from "../utils/filterConfig.js";
 
 import {
   normalizeSamIndustryDay,
@@ -353,7 +353,7 @@ async function upsertAwardAndRecipientFromSam(
   return awardRecord;
 }
 
-async function upsertOpportunityFromSam(prisma, opportunity) {
+async function upsertOpportunityFromSam(prisma, opportunity, filterConfig = null) {
   const normalized = normalizeOpportunity(opportunity);
 
   if (!normalized.noticeId) {
@@ -375,7 +375,7 @@ async function upsertOpportunityFromSam(prisma, opportunity) {
     solicitationNumber: normalized.solicitationNumber ?? null,
     title: normalized.title ?? null,
     type: normalized.type ?? null,
-    tag: normalized.tag,
+    tag: extractTag(opportunity, filterConfig),
     active: normalized.active,
 
     postedDate: normalized.postedDate,
@@ -505,6 +505,8 @@ export async function runCurrentOpportunitiesSyncFromSam({
   limit = 1000,
   cacheInDB = "true",
 } = {}) {
+  const filterConfig = await loadFilterConfig(prisma);
+
   const now = new Date();
   const lookbackDays = 7;
   const lookbackDate = new Date(now);
@@ -600,8 +602,8 @@ export async function runCurrentOpportunitiesSyncFromSam({
     }
   }
 
-  const filteredOpportunities = allOpportunities.filter(
-    matchesOpportunitySolicitation,
+  const filteredOpportunities = allOpportunities.filter((opp) =>
+    matchesOpportunitySolicitation(opp, filterConfig),
   );
 
   let attempted = 0;
@@ -619,7 +621,7 @@ export async function runCurrentOpportunitiesSyncFromSam({
       }
 
       try {
-        await upsertOpportunityFromSam(prisma, opp);
+        await upsertOpportunityFromSam(prisma, opp, filterConfig);
         upserted += 1;
       } catch (e) {
         skipped += 1;
@@ -701,6 +703,8 @@ export async function runIndustryDaySyncFromSam({
   limit = 1000,
   cacheInDB = "true",
 } = {}) {
+  const filterConfig = await loadFilterConfig(prisma);
+
   const now = new Date();
   const lookbackDays = 30; // Industry days are posted further in advance than solicitations
 
@@ -784,7 +788,9 @@ export async function runIndustryDaySyncFromSam({
     }
   }
 
-  const filteredOpportunities = allOpportunities.filter(matchesOpportunityIndustryDay);
+  const filteredOpportunities = allOpportunities.filter((opp) =>
+    matchesOpportunityIndustryDay(opp, filterConfig),
+  );
 
   let attempted = 0;
   let upserted = 0;
@@ -803,7 +809,7 @@ export async function runIndustryDaySyncFromSam({
       try {
         await prisma.$transaction(
           async (tx) => {
-            const savedOpp = await upsertOpportunityFromSam(tx, opp);
+            const savedOpp = await upsertOpportunityFromSam(tx, opp, filterConfig);
             await upsertIndustryDayFromSam(tx, opp, savedOpp.id);
           },
           { timeout: 30000 },

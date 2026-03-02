@@ -168,15 +168,12 @@ export const stripHTML = (htmlString) => {
   return text || null;
 };
 
-export const extractTag = (opportunity) => {
+export const extractTag = (opportunity, filterConfig = null) => {
   const title = opportunity?.title
     ? String(opportunity.title).toLowerCase()
     : "";
-  const industryDayKeywords = titleMatchesKeyword(
-    title,
-    industryDayTitleKeywords,
-  );
-  if (industryDayKeywords) return OppTag.INDUSTRY_DAY;
+  const keywords = filterConfig?.industryDayKeywords ?? industryDayTitleKeywords;
+  if (titleMatchesKeyword(title, keywords)) return OppTag.INDUSTRY_DAY;
   return OppTag.GENERAL;
 };
 
@@ -277,41 +274,32 @@ export const extractLocation = (opportunity) => {
   return locationParts.length ? locationParts.join(", ") : null;
 };
 
-export const matchesOpportunityIndustryDay = (item) => {
+export const matchesOpportunityIndustryDay = (item, filterConfig = null) => {
   const countryCodes = extractCountry(item);
   const countryMatch =
     countryCodes.length === 0 ? true : countryCodes.some(isValidCountry);
 
   if (!countryMatch) return false;
 
-  const industryDayTitleMatch = titleMatchesKeyword(
-    item?.title,
-    industryDayTitleKeywords,
-  );
+  const idKeywords = filterConfig?.industryDayKeywords ?? industryDayTitleKeywords;
+  const solKeywords = filterConfig?.solicitationKeywords ?? solicitationTitleKeywords;
+  const naicsFilter = filterConfig?.naicsCodes ?? naicsPrefixes;
+  const pscFilter = filterConfig?.pscPrefixes ?? classificationPrefixes;
+
+  const industryDayTitleMatch = titleMatchesKeyword(item?.title, idKeywords);
 
   // Must have an industry day keyword match in the title as a baseline for all criteria.
   if (!industryDayTitleMatch) return false;
 
   // Criteria 1: industry day title keyword match + solicitation keyword in title
-  const solicitationTitleMatch = titleMatchesKeyword(
-    item?.title,
-    solicitationTitleKeywords,
-  );
-  if (solicitationTitleMatch) return true;
+  if (titleMatchesKeyword(item?.title, solKeywords)) return true;
 
   // Criteria 2: industry day title keyword match + relevant NAICS code
   const naicsCodes = extractNaicsCodes(item);
-  const naicsMatch = naicsCodes.some((code) =>
-    startsWithAny(code, naicsPrefixes),
-  );
-  if (naicsMatch) return true;
+  if (naicsCodes.some((code) => startsWithAny(code, naicsFilter))) return true;
 
   // Criteria 3: industry day title keyword match + relevant PSC/classification code
-  const classificationMatch = startsWithAny(
-    item?.classificationCode,
-    classificationPrefixes,
-  );
-  if (classificationMatch) return true;
+  if (startsWithAny(item?.classificationCode, pscFilter)) return true;
 
   // Criteria 4: industry day title keyword match + org full path includes "food"
   const fullPath = (item?.fullParentPathName ?? "").toLowerCase();
@@ -320,46 +308,42 @@ export const matchesOpportunityIndustryDay = (item) => {
   return false;
 };
 
-export const matchesOpportunitySolicitation = (item) => {
-  const titleMatch = titleMatchesKeyword(
-    item?.title,
-    solicitationTitleKeywords,
-  );
+export const matchesOpportunitySolicitation = (item, filterConfig = null) => {
+  const solKeywords = filterConfig?.solicitationKeywords ?? solicitationTitleKeywords;
+  const naicsFilter = filterConfig?.naicsCodes ?? naicsPrefixes;
+  const pscFilter = filterConfig?.pscPrefixes ?? classificationPrefixes;
+
+  const titleMatch = titleMatchesKeyword(item?.title, solKeywords);
 
   const countryCodes = extractCountry(item);
   const countryMatch =
     countryCodes.length === 0 ? true : countryCodes.some(isValidCountry);
 
   const naicsCodes = extractNaicsCodes(item);
-  const naicsMatch = naicsCodes.some((code) =>
-    startsWithAny(code, naicsPrefixes),
-  );
-  const classificiationMatch = startsWithAny(
-    item?.classificationCode,
-    classificationPrefixes,
-  );
+  const naicsMatch = naicsCodes.some((code) => startsWithAny(code, naicsFilter));
+  const classificationMatch = startsWithAny(item?.classificationCode, pscFilter);
 
-  // Return true if any criteria match
-  return (titleMatch || naicsMatch || classificiationMatch) && countryMatch;
+  // Empty filter lists mean no filtering — match everything (per spec: "empty = no filter")
+  const noFilter = solKeywords.length === 0 && naicsFilter.length === 0 && pscFilter.length === 0;
+
+  return (noFilter || titleMatch || naicsMatch || classificationMatch) && countryMatch;
 };
 
-export const matchesOpportunityHistorical = (item) => {
-  const titleMatch = titleMatchesKeyword(
-    item?.title,
-    solicitationTitleKeywords,
-  );
+export const matchesOpportunityHistorical = (item, filterConfig = null) => {
+  const solKeywords = filterConfig?.solicitationKeywords ?? solicitationTitleKeywords;
+  const naicsFilter = filterConfig?.naicsCodes ?? naicsPrefixes;
+  const pscFilter = filterConfig?.pscPrefixes ?? classificationPrefixes;
+
+  const titleMatch = titleMatchesKeyword(item?.title, solKeywords);
   const countryCodes = extractCountry(item);
   const countryMatch =
     countryCodes.length === 0 ? true : countryCodes.some(isValidCountry);
 
   const naicsCodes = extractNaicsCodes(item);
-  const naicsMatch = naicsCodes.some((code) =>
-    startsWithAny(code, naicsPrefixes),
-  );
-  const classificiationMatch = startsWithAny(
-    item?.classificationCode,
-    classificationPrefixes,
-  );
+  const naicsMatch = naicsCodes.some((code) => startsWithAny(code, naicsFilter));
+  const classificationMatch = startsWithAny(item?.classificationCode, pscFilter);
 
-  return (titleMatch || naicsMatch || classificiationMatch) && countryMatch;
+  const noFilter = solKeywords.length === 0 && naicsFilter.length === 0 && pscFilter.length === 0;
+
+  return (noFilter || titleMatch || naicsMatch || classificationMatch) && countryMatch;
 };

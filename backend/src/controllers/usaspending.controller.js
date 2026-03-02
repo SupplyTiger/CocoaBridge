@@ -10,6 +10,7 @@ import {
 } from "../utils/normalizeUSASpending.js";
 
 import { usaSpendingFilters, MICROPURCHASE_THRESHOLD } from "../utils/globals.js";
+import { loadFilterConfig } from "../utils/filterConfig.js";
 import { buildInboxSummary, buildInboxTitle } from "../utils/inboxText.js";
 
 /* 
@@ -328,6 +329,7 @@ export const searchCountFromUsaspending = async (req, res) => {
  */
 export async function runAwardsSyncFromUsaspending({ preset, syncAll = true } = {}) {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const filterConfig = await loadFilterConfig(prisma);
 
   // Determine which presets to run
   const presetNames = preset
@@ -347,6 +349,16 @@ export async function runAwardsSyncFromUsaspending({ preset, syncAll = true } = 
 
     // Deep-clone filters so we don't mutate the global object
     const filters = JSON.parse(JSON.stringify(presetFilter));
+
+    // Inject DB-configured NAICS and PSC codes (if non-empty, override globals)
+    if (filterConfig.naicsCodes.length > 0 && filters.filters) {
+      filters.filters.naics_codes = filterConfig.naicsCodes;
+    }
+    if (filterConfig.pscPrefixes.length > 0 && filters.filters) {
+      filters.filters.psc_codes = {
+        require: filterConfig.pscPrefixes.map((p) => ["Product", p]),
+      };
+    }
 
     // Move end_date to today for each time_period entry
     if (filters.filters?.time_period) {

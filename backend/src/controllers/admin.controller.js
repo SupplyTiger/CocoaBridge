@@ -2,6 +2,7 @@ import prisma from "../config/db.js";
 import { runCurrentOpportunitiesSyncFromSam, runIndustryDaySyncFromSam } from "./sam.controller.js";
 import { runAwardsSyncFromUsaspending } from "./usaspending.controller.js";
 import { runBackfillNullOpportunityDescriptionsFromSam } from "./db.controller.js";
+import { loadFilterConfig } from "../utils/filterConfig.js";
 
 // ─── SyncLog helper ──────────────────────────────────────────────────────────
 
@@ -222,5 +223,57 @@ export const triggerSync = async (req, res) => {
     return res.status(500).json({
       message: `Sync failed: ${error.message ?? "Unknown error"}`,
     });
+  }
+};
+
+// ─── Filter Configuration ─────────────────────────────────────────────────────
+
+const VALID_CONFIG_KEYS = [
+  "solicitationKeywords",
+  "naicsCodes",
+  "pscPrefixes",
+  "industryDayKeywords",
+  "solicitationKeywordsBank",
+  "naicsCodesBank",
+  "pscPrefixesBank",
+  "industryDayKeywordsBank",
+];
+
+export const getFilterConfig = async (req, res) => {
+  try {
+    // loadFilterConfig seeds any missing keys; then we fetch all 8
+    await loadFilterConfig(prisma);
+    const rows = await prisma.appConfig.findMany({
+      where: { key: { in: VALID_CONFIG_KEYS } },
+    });
+    const config = Object.fromEntries(rows.map((r) => [r.key, r.values]));
+    return res.json(config);
+  } catch (error) {
+    console.error("Error fetching filter config:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateFilterConfig = async (req, res) => {
+  const { key } = req.params;
+  const { values } = req.body;
+
+  if (!VALID_CONFIG_KEYS.includes(key)) {
+    return res.status(400).json({ message: `Unknown config key: ${key}` });
+  }
+  if (!Array.isArray(values)) {
+    return res.status(400).json({ message: "values must be an array" });
+  }
+
+  try {
+    const updated = await prisma.appConfig.upsert({
+      where: { key },
+      update: { values },
+      create: { key, values },
+    });
+    return res.json({ key: updated.key, values: updated.values });
+  } catch (error) {
+    console.error(`Error updating filter config key ${key}:`, error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -5,6 +5,8 @@ import {
   updateUser,
   getSystemHealth,
   triggerSync,
+  getFilterConfig,
+  updateFilterConfig,
 } from "../controllers/admin.controller.js";
 
 export const router = express.Router();
@@ -18,3 +20,7 @@ router.get("/system-health", ...protectRoute, adminOnly, getSystemHealth);
 
 // Manual sync triggers — type: sam-opportunities | usaspending-awards | sam-descriptions | sam-industry-days
 router.post("/sync/:type", ...protectRoute, adminOnly, triggerSync);
+
+// Filter configuration
+router.get("/config", ...protectRoute, adminOnly, getFilterConfig);
+router.put("/config/:key", ...protectRoute, adminOnly, updateFilterConfig);

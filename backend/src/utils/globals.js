@@ -20,8 +20,6 @@ export const industryDayTitleKeywords = [
 export const solicitationTitleKeywords = [
   "snack",
   "snacks",
-  "food",
-  "foods",
   "subsistence",
   "rations",
   "morale",
