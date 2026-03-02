@@ -16,6 +16,7 @@ const RecipientDetail = () => {
 
   const fields = [
     { label: "UEI", value: item?.uei },
+    // todo: Make the website an editable field (with a link to the website)
     { label: "Website", value: item?.website },
   ];
 
