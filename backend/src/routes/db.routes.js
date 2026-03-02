@@ -7,8 +7,10 @@ import {
   deleteInboxItem,
   listOpportunities,
   getOpportunity,
+  deleteOpportunity,
   listAwards,
   getAward,
+  deleteAward,
   listIndustryDays,
   getIndustryDay,
   updateIndustryDay,
@@ -37,12 +39,12 @@ router.delete("/inbox-items/:id", ...protectRoute, adminOnly, deleteInboxItem);
 // Opportunities
 router.get("/opportunities", ...protectRoute, readOnlyOrAbove, listOpportunities);
 router.get("/opportunities/:id", ...protectRoute, readOnlyOrAbove, getOpportunity);
-// TODO: delete opportunity
+router.delete("/opportunities/:id", ...protectRoute, adminOnly, deleteOpportunity);
 
 // Awards
 router.get("/awards", ...protectRoute, readOnlyOrAbove, listAwards);
 router.get("/awards/:id", ...protectRoute, readOnlyOrAbove, getAward);
-// TODO: delete award
+router.delete("/awards/:id", ...protectRoute, adminOnly, deleteAward);
 
 // Industry Days
 router.get("/industry-days", ...protectRoute, readOnlyOrAbove, listIndustryDays);

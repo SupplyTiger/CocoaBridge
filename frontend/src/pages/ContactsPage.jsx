@@ -16,11 +16,6 @@ const columns = [
     render: (val) => val ?? "—",
   },
   {
-    accessor: "phone",
-    header: "Phone",
-    render: (val) => val ?? "—",
-  },
-  {
     accessor: "title",
     header: "Title",
     render: (val) => val ?? "—",

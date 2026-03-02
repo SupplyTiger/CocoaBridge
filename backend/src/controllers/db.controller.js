@@ -408,6 +408,13 @@ export const listOpportunities = async (req, res) => {
     const where = {};
     if (req.query.active !== undefined) where.active = req.query.active === "true";
     if (req.query.naics) where.naicsCodes = { has: req.query.naics };
+    if (req.query.psc) where.pscCode = { startsWith: req.query.psc, mode: "insensitive" };
+    if (req.query.search) {
+      where.OR = [
+        { title: { contains: req.query.search, mode: "insensitive" } },
+        { description: { contains: req.query.search, mode: "insensitive" } },
+      ];
+    }
 
     const [total, items] = await Promise.all([
       prisma.opportunity.count({ where }),
@@ -449,15 +456,47 @@ export const getOpportunity = async (req, res) => {
   }
 };
 
+export const deleteOpportunity = async (req, res) => {
+  const { id } = req.params;
+  try {
+    // ContactLinks that have a secondary parent (buyingOrg, industryDay, inboxItem) alongside
+    // the opportunity should not be fully deleted — just unlink from this opportunity.
+    // ContactLinks that are purely tied to this opportunity will cascade-delete normally.
+    await prisma.contactLink.updateMany({
+      where: {
+        opportunityId: id,
+        OR: [
+          { buyingOrganizationId: { not: null } },
+          { industryDayId: { not: null } },
+          { inboxItemId: { not: null } },
+        ],
+      },
+      data: { opportunityId: null },
+    });
+
+    await prisma.opportunity.delete({ where: { id } });
+    return res.json({ data: { id } });
+  } catch (error) {
+    if (error?.code === "P2025") return res.status(404).json({ error: "Opportunity not found" });
+    console.error("deleteOpportunity error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
 // --- Award controllers ---
 
 export const listAwards = async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
+    const where = {};
+    if (req.query.naics) where.naicsCodes = { has: req.query.naics };
+    if (req.query.psc) where.pscCode = { startsWith: req.query.psc, mode: "insensitive" };
+    if (req.query.search) where.description = { contains: req.query.search, mode: "insensitive" };
 
     const [total, items] = await Promise.all([
-      prisma.award.count(),
+      prisma.award.count({ where }),
       prisma.award.findMany({
+        where,
         orderBy: { startDate: "desc" },
         skip,
         take: limit,
@@ -484,6 +523,17 @@ export const getAward = async (req, res) => {
     return res.json({ data: item });
   } catch (error) {
     console.error("getAward error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const deleteAward = async (req, res) => {
+  try {
+    await prisma.award.delete({ where: { id: req.params.id } });
+    return res.json({ data: { id: req.params.id } });
+  } catch (error) {
+    if (error?.code === "P2025") return res.status(404).json({ error: "Award not found" });
+    console.error("deleteAward error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };

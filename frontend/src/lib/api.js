@@ -28,6 +28,10 @@ export const dbApi = {
     const { data } = await axiosInstance.get(`/db/opportunities/${id}`);
     return data;
   },
+  deleteOpportunity: async (id) => {
+    const { data } = await axiosInstance.delete(`/db/opportunities/${id}`);
+    return data;
+  },
   // Awards
   listAwards: async (params) => {
     const { data } = await axiosInstance.get("/db/awards", { params });
@@ -35,6 +39,10 @@ export const dbApi = {
   },
   getAward: async (id) => {
     const { data } = await axiosInstance.get(`/db/awards/${id}`);
+    return data;
+  },
+  deleteAward: async (id) => {
+    const { data } = await axiosInstance.delete(`/db/awards/${id}`);
     return data;
   },
   // Industry Days
