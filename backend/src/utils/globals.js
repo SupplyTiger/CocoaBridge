@@ -48,7 +48,7 @@ export const solicitationTitleKeywords = [
 ];
 
 // NAICS and Classification codes relevant to Supply Tiger's focus
-export const classificationPrefixes = ["89"]; // 89: Subsistence (8925)
+export const classificationPrefixes = ["8925"]; // 89: Subsistence (8925)
 export const naicsPrefixes = [
   "311340",
   "311351",

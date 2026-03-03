@@ -430,9 +430,15 @@ export async function runAwardsSyncFromUsaspending({ preset, syncAll = true } = 
     };
   }
 
+  // Clean up recipients that no longer have any linked awards
+  const { count: recipientsDeleted } = await prisma.recipient.deleteMany({
+    where: { awards: { none: {} } },
+  });
+
   return {
     syncedAt: today,
     presets: summaryByPreset,
+    recipientsDeleted,
   };
 }
 
@@ -468,9 +474,29 @@ export const syncAwardsFromUsaspending = async (req, res) => {
           availablePresets: Object.keys(usaSpendingFilters.searchByAward || {}),
         });
       }
-      filters = presetFilter;
-      limit = presetFilter.limit || 100;
-      page = presetFilter.page || 1;
+      // Deep-clone so we don't mutate the global object
+      filters = JSON.parse(JSON.stringify(presetFilter));
+      limit = filters.limit || 100;
+      page = filters.page || 1;
+
+      // Inject DB-configured NAICS and PSC codes (if non-empty, override globals)
+      const filterConfig = await loadFilterConfig(prisma);
+      if (filterConfig.naicsCodes.length > 0 && filters.filters) {
+        filters.filters.naics_codes = filterConfig.naicsCodes;
+      }
+      if (filterConfig.pscPrefixes.length > 0 && filters.filters) {
+        filters.filters.psc_codes = {
+          require: filterConfig.pscPrefixes.map((p) => ["Product", p]),
+        };
+      }
+
+      // Move end_date to today
+      const today = new Date().toISOString().slice(0, 10);
+      if (filters.filters?.time_period) {
+        for (const tp of filters.filters.time_period) {
+          tp.end_date = today;
+        }
+      }
     } else {
       // Use request body
       const {
