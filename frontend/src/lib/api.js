@@ -15,6 +15,10 @@ export const dbApi = {
     const { data } = await axiosInstance.patch(`/db/inbox-items/${id}`, body);
     return data;
   },
+  createInboxItem: async (body) => {
+    const { data } = await axiosInstance.post("/db/inbox-items", body);
+    return data;
+  },
   deleteInboxItem: async (id) => {
     const { data } = await axiosInstance.delete(`/db/inbox-items/${id}`);
     return data;

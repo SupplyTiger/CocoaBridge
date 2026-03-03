@@ -2,7 +2,9 @@ import prisma from "../config/db.js";
 import { ENV } from "../config/env.js";
 import { UserRole, IndustryDayStatus } from "@prisma/client";
 import {fetchOpportunityDescriptionFromSam} from "./sam.controller.js";
+
 import { stripHTML } from "../utils/extractSAM.js";
+import { buildInboxTitle } from "../utils/inboxText.js";
 
 const normalizeClerkUserPayload = (event) => {
   const input = Array.isArray(event) ? event[0] : event;
@@ -354,6 +356,40 @@ export const listInboxItems = async (req, res) => {
     });
   } catch (error) {
     console.error("listInboxItems error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const createInboxItem = async (req, res) => {
+  try {
+    const { source, acquisitionPath, type, tag, opportunityId, awardId } = req.body;
+    if (!source || !acquisitionPath || !type || !tag) {
+      return res.status(400).json({ error: "source, acquisitionPath, type, and tag are required" });
+    }
+
+    let inboxTitle = null;
+    if (opportunityId) {
+      const opp = await prisma.opportunity.findUnique({ where: { id: opportunityId }, select: { title: true, naicsCodes: true, pscCode: true } });
+      inboxTitle = buildInboxTitle({ entityLabel: "Opportunity", naicsCodes: opp?.naicsCodes, pscCode: opp?.pscCode, text: opp?.title });
+    } else if (awardId) {
+      const award = await prisma.award.findUnique({ where: { id: awardId }, select: { description: true, naicsCodes: true, pscCode: true } });
+      inboxTitle = buildInboxTitle({ entityLabel: "Award", naicsCodes: award?.naicsCodes, pscCode: award?.pscCode, text: award?.description?.split("|")[0]?.trim() ?? null });
+    }
+    const item = await prisma.inboxItem.create({
+      data: {
+        source,
+        acquisitionPath,
+        type,
+        tag,
+        opportunityId: opportunityId || null,
+        awardId: awardId || null,
+        title: inboxTitle,
+      },
+    });
+    return res.status(201).json({ data: item });
+  } catch (error) {
+    if (error?.code === "P2002") return res.status(409).json({ error: "Inbox item already exists for this record" });
+    console.error("createInboxItem error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };

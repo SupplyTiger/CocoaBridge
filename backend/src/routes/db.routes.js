@@ -3,6 +3,7 @@ import { protectRoute, adminOnly, readOnlyOrAbove } from "../middleware/auth.mid
 import {
   listInboxItems,
   getInboxItem,
+  createInboxItem,
   updateInboxItem,
   deleteInboxItem,
   listOpportunities,
@@ -36,6 +37,7 @@ router.get("/me", ...protectRoute, (req, res) => res.json(req.user));
 // InboxItems
 router.get("/inbox-items", ...protectRoute, readOnlyOrAbove, listInboxItems);
 router.get("/inbox-items/:id", ...protectRoute, readOnlyOrAbove, getInboxItem);
+router.post("/inbox-items", ...protectRoute, adminOnly, createInboxItem);
 router.patch("/inbox-items/:id", ...protectRoute, adminOnly, updateInboxItem);
 router.delete("/inbox-items/:id", ...protectRoute, adminOnly, deleteInboxItem);
 
