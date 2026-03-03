@@ -95,7 +95,7 @@ const AddToInboxModal = ({ opportunityId, awardId, defaultType = "", onClose }) 
         </div>
       </div>
       <form method="dialog" className="modal-backdrop">
-        <button onClick={onClose}>close</button>
+        <button onClick={onClose}></button>
       </form>
     </dialog>
   );

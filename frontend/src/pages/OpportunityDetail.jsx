@@ -132,6 +132,10 @@ const OpportunityDetail = () => {
       {showDeleteConfirm && (
         <dialog open className="modal modal-open">
           <div className="modal-box">
+            <button
+              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+              onClick={() => setShowDeleteConfirm(false)}
+            >✕</button>
             <h3 className="font-bold text-lg">Delete Opportunity</h3>
             <p className="py-4">Are you sure you want to delete this opportunity? This cannot be undone.</p>
             <div className="modal-action">
@@ -147,9 +151,6 @@ const OpportunityDetail = () => {
               </button>
             </div>
           </div>
-          <form method="dialog" className="modal-backdrop">
-            <button className="btn btn-accent" onClick={() => setShowDeleteConfirm(false)}>close</button>
-          </form>
         </dialog>
       )}
 
