@@ -127,7 +127,7 @@ const InboxItemDetail = () => {
               </div>
             </div>
 
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-2">
               <p className="font-semibold text-sm">Notes</p>
               <textarea
                 className="textarea textarea-bordered text-sm w-full"
