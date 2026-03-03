@@ -1,8 +1,31 @@
+import { useState } from 'react';
 import { Link } from 'react-router';
-
+import PaginationButton from './PaginationButton.jsx';
 const truncate = (str, n) => str && str.length > n ? `${str.slice(0, n)}…` : (str ?? "—");
 
 const TYPE_LABEL = { PRIMARY: "Primary", SECONDARY: "Secondary", OTHER: "Other" };
+
+const PAGE_SIZE = 10;
+
+const PaginatedList = ({ items, page, onPageChange, renderItem }) => {
+  const totalPages = Math.ceil(items.length / PAGE_SIZE);
+  const slice = items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  return (
+    <>
+      <ul className="flex flex-col gap-1">{slice.map(renderItem)}</ul>
+      {totalPages > 1 && (
+        <div className="flex justify-center mt-4">
+          <PaginationButton
+            totalPages={totalPages}
+            currentPage={page}
+            onPageChange={onPageChange}
+            size="sm"
+          />
+        </div>
+      )}
+    </>
+  );
+};
 
 /**
  * Displays a collapsible "Related Records" card linking to entities associated
@@ -42,6 +65,10 @@ const RelatedRecordsCard = ({
   // Contact button mode
   contactLinks = [],
 }) => {
+  const [pages, setPages] = useState({ opportunities: 1, industryDays: 1, buyingOrgs: 1, awards: 1 });
+
+  const setPage = (section, page) => setPages((prev) => ({ ...prev, [section]: page }));
+
   const hasSingleItems = opportunity || award;
   const hasListItems = opportunityLinks.length > 0 || industryDayLinks.length > 0 || buyingOrgLinks.length > 0 || awardLinks.length > 0;
   const hasContactButtons = contactLinks.length > 0;
@@ -78,16 +105,19 @@ const RelatedRecordsCard = ({
             <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">
               Opportunities ({opportunityLinks.length})
             </span>
-            <ul className="flex flex-col gap-1">
-              {opportunityLinks.map((link) => (
+            <PaginatedList
+              items={opportunityLinks}
+              page={pages.opportunities}
+              onPageChange={(p) => setPage("opportunities", p)}
+              renderItem={(link) => (
                 <li key={link.id}>
                   <Link to={link.to} className="link link-primary-content text-sm">
                     {link.label}
                   </Link>
                   {link.meta && <span className="block text-xs text-base-content/50">{link.meta}</span>}
                 </li>
-              ))}
-            </ul>
+              )}
+            />
           </div>
         )}
 
@@ -97,15 +127,18 @@ const RelatedRecordsCard = ({
             <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">
               Industry Days ({industryDayLinks.length})
             </span>
-            <ul className="flex flex-col gap-1">
-              {industryDayLinks.map((link) => (
+            <PaginatedList
+              items={industryDayLinks}
+              page={pages.industryDays}
+              onPageChange={(p) => setPage("industryDays", p)}
+              renderItem={(link) => (
                 <li key={link.id}>
                   <Link to={link.to} className="link link-primary-content text-sm">
                     {link.label}
                   </Link>
                 </li>
-              ))}
-            </ul>
+              )}
+            />
           </div>
         )}
 
@@ -115,16 +148,19 @@ const RelatedRecordsCard = ({
             <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">
               Buying Organizations ({buyingOrgLinks.length})
             </span>
-            <ul className="flex flex-col gap-1">
-              {buyingOrgLinks.map((link) => (
+            <PaginatedList
+              items={buyingOrgLinks}
+              page={pages.buyingOrgs}
+              onPageChange={(p) => setPage("buyingOrgs", p)}
+              renderItem={(link) => (
                 <li key={link.id} className="flex items-center gap-2">
                   <Link to={link.to} className="link link-primary-content text-sm">
                     {link.label}
                   </Link>
                   {link.badge && <span className="badge badge-xs badge-outline">{link.badge}</span>}
                 </li>
-              ))}
-            </ul>
+              )}
+            />
           </div>
         )}
 
@@ -134,8 +170,11 @@ const RelatedRecordsCard = ({
             <span className="text-xs font-semibold uppercase tracking-wide text-base-content/50">
               Awards ({awardLinks.length})
             </span>
-            <ul className="flex flex-col gap-2">
-              {awardLinks.map((link) => (
+            <PaginatedList
+              items={awardLinks}
+              page={pages.awards}
+              onPageChange={(p) => setPage("awards", p)}
+              renderItem={(link) => (
                 <li key={link.id} className="flex flex-col gap-1 border-b border-base-300 pb-2 last:border-0">
                   <span className="text-sm">{truncate(link.description, 60)}</span>
                   <div className="flex gap-4 text-xs text-base-content/50">
@@ -148,8 +187,8 @@ const RelatedRecordsCard = ({
                   </div>
                   <Link to={link.to} className="btn btn-xs btn-outline btn-primary w-fit mt-1">View Award</Link>
                 </li>
-              ))}
-            </ul>
+              )}
+            />
           </div>
         )}
 

@@ -632,7 +632,7 @@ export const getBuyingOrg = async (req, res) => {
       where: { id: req.params.id },
       include: {
         children: true,
-        opportunities: { take: 20, orderBy: { postedDate: "desc" } },
+        opportunities: { take: 100, orderBy: { postedDate: "desc" } },
       },
     });
     if (!item) return res.status(404).json({ error: "BuyingOrganization not found" });
@@ -691,7 +691,7 @@ export const getRecipient = async (req, res) => {
     const item = await prisma.recipient.findUnique({
       where: { id: req.params.id },
       include: {
-        awards: { take: 20, orderBy: { startDate: "desc" } },
+        awards: { take: 100, orderBy: { startDate: "desc" } },
       },
     });
     if (!item) return res.status(404).json({ error: "Recipient not found" });

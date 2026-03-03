@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router'
+import { useNavigate } from 'react-router';
+import PaginationButton from './PaginationButton.jsx';
 import Row from "./Row.jsx";
 
 const Table = ({ isLoading, isError, error, data, columns, meta, page, onPageChange, basePath, emptyMessage, emptySubMessage }) => {
@@ -51,28 +52,13 @@ const Table = ({ isLoading, isError, error, data, columns, meta, page, onPageCha
               </table>
             </div>
             {showPagination && (
-              <div className="flex justify-center mt-4">
-                <div className="join text-accent-content">
-                  <button
-                    className="join-item btn bg-primary/80 border border-primary-content text-primary-content"
-                    onClick={() => onPageChange(page - 1)}
-                    disabled={page === 1}
-                  >
-                    Prev
-                  </button>
-                  <button className="join-item btn bg-accent/80 pointer-events-none border border-accent-content text-accent-content">
-                    Page {page} of {totalPages}
-                  </button>
-                  <button
-                    className="join-item btn bg-primary/80 border border-primary-content text-primary-content"
-                    onClick={() => onPageChange(page + 1)}
-                    disabled={page === totalPages}
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
+              <PaginationButton
+                totalPages={totalPages}
+                currentPage={page}
+                onPageChange={onPageChange}
+              />
             )}
+                 
           </>
         )}
       </div>

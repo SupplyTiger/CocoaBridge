@@ -29,6 +29,9 @@ const BuyingOrgDetail = () => {
 
   const parent = parentResult?.data;
 
+  const [childPage, setChildPage] = useState(1);
+  const CHILD_PAGE_SIZE = 10;
+
   const [website, setWebsite] = useState(null);
 
   const websiteValue = website ?? (item?.website ?? "");
@@ -95,9 +98,9 @@ const BuyingOrgDetail = () => {
             )}
             {children.length > 0 && (
               <div>
-                <p className="font-semibold mb-1">Sub-Organizations</p>
+                <p className="font-semibold mb-1">Sub-Organizations ({children.length})</p>
                 <ul className="flex flex-col gap-1">
-                  {children.map((c) => (
+                  {children.slice((childPage - 1) * CHILD_PAGE_SIZE, childPage * CHILD_PAGE_SIZE).map((c) => (
                     <li key={c.id}>
                       <Link
                         to={`/buying-orgs/${c.id}`}
@@ -109,6 +112,13 @@ const BuyingOrgDetail = () => {
                     </li>
                   ))}
                 </ul>
+                {children.length > CHILD_PAGE_SIZE && (
+                  <div className="join mt-2">
+                    <button className="join-item btn btn-xs" onClick={() => setChildPage((p) => p - 1)} disabled={childPage === 1}>«</button>
+                    <span className="join-item btn btn-xs btn-disabled pointer-events-none">{childPage} / {Math.ceil(children.length / CHILD_PAGE_SIZE)}</span>
+                    <button className="join-item btn btn-xs" onClick={() => setChildPage((p) => p + 1)} disabled={childPage === Math.ceil(children.length / CHILD_PAGE_SIZE)}>»</button>
+                  </div>
+                )}
               </div>
             )}
           </div>
