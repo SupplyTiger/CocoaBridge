@@ -1,57 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { dbApi } from "../lib/api.js";
 import Table from "../components/Table.jsx";
 import SearchBar from "../components/SearchBar.jsx";
-
-const columns = [
-  { accessor: "title", header: "Title", sortable: true },
-  {
-    accessor: "pscCode",
-    header: "PSC",
-    sortable: true,
-    render: (val) => val ?? "—",
-  },
-  {
-    accessor: "naicsCodes",
-    header: "NAICS Codes",
-    render: (val) => val?.length > 0 ? val.join(", ") : "—",
-  },
-  {
-    accessor: "responseDeadline",
-    header: "Deadline",
-    sortable: true,
-    render: (val) => (val ? new Date(val).toLocaleDateString() : "—"),
-  },
-  {
-    accessor: "setAside",
-    header: "Set Aside",
-    render: (val) => val ? <span className="badge badge-warning text-white">{val}</span> : "—",
-  },
-  {
-    accessor: "type",
-    header: "Type",
-    render: (val) => val ? <span className="badge badge-info text-white">{val}</span> : "—",
-  },
-  {
-    accessor: "state",
-    header: "State",
-    render: (val) => val ? <span className="badge badge-primary text-white">{val}</span> : "—",
-  },
-  {
-    accessor: "active",
-    header: "Status",
-    render: (val) => (
-      <span className={`badge ${val ? "badge-success" : "badge-error"} text-white`}>
-        {val ? "Active" : "Inactive"}
-      </span>
-    ),
-  },
-];
+import FavoriteButton from "../components/FavoriteButton.jsx";
 
 const Opportunities = () => {
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ search: "", naics: "", psc: "" });
+  const [filters, setFilters] = useState({ search: "", naics: "", psc: "", favoritesOnly: false });
   const [sort, setSort] = useState({ field: null, dir: "asc" });
 
   const updateFilter = useCallback((key) => (value) => {
@@ -68,6 +24,11 @@ const Opportunities = () => {
     setPage(1);
   }, []);
 
+  const toggleFavoritesOnly = () => {
+    setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }));
+    setPage(1);
+  };
+
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["opportunities", page, filters, sort],
     queryFn: () => dbApi.listOpportunities({
@@ -76,13 +37,89 @@ const Opportunities = () => {
       ...(filters.search && { search: filters.search }),
       ...(filters.naics && { naics: filters.naics }),
       ...(filters.psc && { psc: filters.psc }),
+      ...(filters.favoritesOnly && { favoritesOnly: true }),
       ...(sort.field && { sortBy: sort.field, sortDir: sort.dir }),
     }),
   });
 
+  const { data: favoritesData } = useQuery({
+    queryKey: ["favorites"],
+    queryFn: dbApi.listFavorites,
+  });
+
+  const favoriteIds = useMemo(() => {
+    return new Set((favoritesData?.opportunities ?? []).map((o) => o.id));
+  }, [favoritesData]);
+
+  const columns = [
+    {
+      accessor: "id",
+      header: "",
+      render: (val) => (
+        <FavoriteButton entityType="opportunity" entityId={val} isFavorited={favoriteIds.has(val)} />
+      ),
+    },
+    { accessor: "title", header: "Title", sortable: true },
+    {
+      accessor: "pscCode",
+      header: "PSC",
+      sortable: true,
+      render: (val) => val ?? "—",
+    },
+    {
+      accessor: "naicsCodes",
+      header: "NAICS Codes",
+      render: (val) => val?.length > 0 ? val.join(", ") : "—",
+    },
+    {
+      accessor: "responseDeadline",
+      header: "Deadline",
+      sortable: true,
+      render: (val) => (val ? new Date(val).toLocaleDateString() : "—"),
+    },
+    {
+      accessor: "setAside",
+      header: "Set Aside",
+      render: (val) => val ? <span className="badge badge-warning text-white">{val}</span> : "—",
+    },
+    {
+      accessor: "type",
+      header: "Type",
+      render: (val) => val ? <span className="badge badge-info text-white">{val}</span> : "—",
+    },
+    {
+      accessor: "state",
+      header: "State",
+      render: (val) => val ? <span className="badge badge-primary text-white">{val}</span> : "—",
+    },
+    {
+      accessor: "active",
+      header: "Status",
+      render: (val) => (
+        <span className={`badge ${val ? "badge-success" : "badge-error"} text-white`}>
+          {val ? "Active" : "Inactive"}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="join">
+          <button
+            className={`join-item btn btn-sm ${!filters.favoritesOnly ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
+            onClick={() => filters.favoritesOnly && toggleFavoritesOnly()}
+          >
+            All
+          </button>
+          <button
+            className={`join-item btn btn-sm ${filters.favoritesOnly ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
+            onClick={() => !filters.favoritesOnly && toggleFavoritesOnly()}
+          >
+            Favorites
+          </button>
+        </div>
         <SearchBar onSearch={updateFilter("search")} placeholder="Search title & description…" />
         <SearchBar onSearch={updateFilter("naics")} placeholder="NAICS code…" className="max-w-[180px]" />
         <SearchBar onSearch={updateFilter("psc")} placeholder="PSC prefix…" className="max-w-[160px]" />
@@ -99,6 +136,8 @@ const Opportunities = () => {
         basePath="/opportunities"
         sort={sort}
         onSort={handleSort}
+        emptyMessage={filters.favoritesOnly ? "No favorited opportunities" : undefined}
+        emptySubMessage={filters.favoritesOnly ? "Star an opportunity to save it here." : undefined}
       />
     </div>
   );

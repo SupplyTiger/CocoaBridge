@@ -204,7 +204,7 @@ const SystemHealth = () => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       {health.map(({ jobId, jobName, lastRun }) => (
-        <div key={jobId} className="card card-compact bg-base-200">
+        <div key={jobId} className="card card-compact bg-accent-content/10">
           <div className="card-body gap-1">
             <p className="text-sm font-medium">{jobName}</p>
             <div className="flex items-center justify-between">

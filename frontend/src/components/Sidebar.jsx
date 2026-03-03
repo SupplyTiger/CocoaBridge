@@ -10,8 +10,9 @@ const Sidebar = () => {
     const {user} = useUser();
     const currentUser = useCurrentUser();
 
-    const mainLinks = NAVIGATION_LINKS.filter(item => item.path !== "/admin");
+    const mainLinks = NAVIGATION_LINKS.filter(item => item.path !== "/admin" && item.path !== "/favorites");
     const adminLinks = NAVIGATION_LINKS.filter(item => item.path === "/admin");
+    const favoriteLinks = NAVIGATION_LINKS.filter(item => item.path === "/favorites");
 
     const navigate = useNavigate();
     const [query, setQuery] = useState("");
@@ -140,12 +141,27 @@ const Sidebar = () => {
                     })}
                 </ul>
 
-                {/* admin link — only visible to ADMIN role */}
-                {currentUser?.role === "ADMIN" && (
-                    <div className="w-full grow flex flex-col">
-                        <div className="divider my-1 mx-1"></div>
-                        <ul className="menu w-full">
-                            {adminLinks.map((item) => {
+                {/* bottom utility section — Favorites (READ_ONLY+) and Admin (ADMIN only) */}
+                {currentUser?.role !== "USER" && (
+                    <div className="w-full flex flex-col">
+                        <div className="divider my-2 mx-2"></div>
+                        <ul className="menu w-full gap-2">
+                            {favoriteLinks.map((item) => {
+                                const isActive = location.pathname === item.path;
+                                return (
+                                    <li key={item.path}>
+                                        <Link
+                                            to={item.path}
+                                            data-tip={item.name}
+                                            className={`is-drawer-close:tooltip is-drawer-close:tooltip-right is-drawer-close:justify-center ${isActive ? "bg-secondary/50 text-secondary-content" : ""}`}
+                                        >
+                                            {item.icon}
+                                            <span className="is-drawer-close:hidden">{item.name}</span>
+                                        </Link>
+                                    </li>
+                                );
+                            })}
+                            {currentUser?.role === "ADMIN" && adminLinks.map((item) => {
                                 const isActive = location.pathname === item.path;
                                 return (
                                     <li key={item.path}>

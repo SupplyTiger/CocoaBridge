@@ -1,4 +1,4 @@
-import {Home, Mail, BrainCog, Calendar, BarChart, Contact, Lock, Award, Handshake} from "lucide-react";
+import {Home, Mail, BrainCog, Calendar, BarChart, Contact, Lock, Award, Handshake, Star} from "lucide-react";
 
 export const NAVIGATION_LINKS = [
     { name: "Dashboard", path: "/dashboard", icon: <Home className="size-5"/> },
@@ -11,4 +11,6 @@ export const NAVIGATION_LINKS = [
         { name: "Analytics", path: "/analytics", icon: <BarChart className="size-5"/> },
     { name: "Calendar", path: "/calendar", icon: <Calendar className="size-5"/> },
     { name: "Admin", path: "/admin", icon: <Lock className="size-5"/> },
+        { name: "Favorites", path: "/favorites", icon: <Star className="size-5"/> },
+
 ];

@@ -7,6 +7,7 @@ import { dbApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import ItemDetail from "../components/ItemDetail.jsx";
 import AddToInboxModal from "../components/AddToInboxModal.jsx";
+import FavoriteButton from "../components/FavoriteButton.jsx";
 
 const AwardDetail = () => {
   const { id } = useParams();
@@ -23,7 +24,13 @@ const AwardDetail = () => {
     queryFn: () => dbApi.getAward(id),
   });
 
+  const { data: favoritesData } = useQuery({
+    queryKey: ["favorites"],
+    queryFn: dbApi.listFavorites,
+  });
+
   const item = result?.data;
+  const isFavorited = (favoritesData?.awards ?? []).some((a) => a.id === id);
 
   const awardLink = `https://www.usaspending.gov/award/${item?.externalId}`;
 
@@ -84,32 +91,37 @@ const AwardDetail = () => {
         title={item?.description?.slice(0, 80) ?? "Award"}
         fields={fields}
       >
-        {isAdmin && item && (
+        {item && (
           <div className="flex justify-end gap-2">
-            {item.inboxItems?.length > 0 ? (
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => navigate(`/inbox/${item.inboxItems[0].id}`)}
-              >
-                <Inbox className="size-4" />
-                View in Inbox
-              </button>
-            ) : (
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => setShowAddToInbox(true)}
-              >
-                <Inbox className="size-4" />
-                Add to Inbox
-              </button>
+            <FavoriteButton entityType="award" entityId={id} isFavorited={isFavorited} />
+            {isAdmin && (
+              <>
+                {item.inboxItems?.length > 0 ? (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => navigate(`/inbox/${item.inboxItems[0].id}`)}
+                  >
+                    <Inbox className="size-4" />
+                    View in Inbox
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setShowAddToInbox(true)}
+                  >
+                    <Inbox className="size-4" />
+                    Add to Inbox
+                  </button>
+                )}
+                <button
+                  className="btn btn-error btn-sm"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </button>
+              </>
             )}
-            <button
-              className="btn btn-error btn-sm"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              <Trash2 className="size-4" />
-              Delete
-            </button>
           </div>
         )}
       </ItemDetail>

@@ -1,49 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { dbApi } from "../lib/api.js";
 import Table from "../components/Table.jsx";
 import SearchBar from "../components/SearchBar.jsx";
-
-const columns = [
-  {
-    accessor: "description",
-    header: "Description",
-    render: (val) => val && val.length > 60 ? `${val.slice(0, 60)}…` : (val ?? "—"),
-  },
-  {
-    accessor: "obligatedAmount",
-    header: "Amount",
-    sortable: true,
-    render: (val) => val ? `$${Number(val).toLocaleString()}` : "—",
-  },
-  {
-    accessor: "pscCode",
-    header: "PSC",
-    sortable: true,
-    render: (val) => val ?? "—",
-  },
-  {
-    accessor: "naicsCodes",
-    header: "NAICS Codes",
-    render: (val) => val?.length > 0 ? val.join(", ") : "—",
-  },
-  {
-    accessor: "startDate",
-    header: "Start",
-    sortable: true,
-    render: (val) => val ? new Date(val).toLocaleDateString() : "—",
-  },
-  {
-    accessor: "endDate",
-    header: "End",
-    sortable: true,
-    render: (val) => val ? new Date(val).toLocaleDateString() : "—",
-  },
-];
+import FavoriteButton from "../components/FavoriteButton.jsx";
 
 const Awards = () => {
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ search: "", naics: "", psc: "" });
+  const [filters, setFilters] = useState({ search: "", naics: "", psc: "", favoritesOnly: false });
   const [sort, setSort] = useState({ field: null, dir: "asc" });
 
   const updateFilter = useCallback((key) => (value) => {
@@ -60,6 +24,11 @@ const Awards = () => {
     setPage(1);
   }, []);
 
+  const toggleFavoritesOnly = () => {
+    setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }));
+    setPage(1);
+  };
+
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["awards", page, filters, sort],
     queryFn: () => dbApi.listAwards({
@@ -68,13 +37,80 @@ const Awards = () => {
       ...(filters.search && { search: filters.search }),
       ...(filters.naics && { naics: filters.naics }),
       ...(filters.psc && { psc: filters.psc }),
+      ...(filters.favoritesOnly && { favoritesOnly: true }),
       ...(sort.field && { sortBy: sort.field, sortDir: sort.dir }),
     }),
   });
 
+  const { data: favoritesData } = useQuery({
+    queryKey: ["favorites"],
+    queryFn: dbApi.listFavorites,
+  });
+
+  const favoriteIds = useMemo(() => {
+    return new Set((favoritesData?.awards ?? []).map((a) => a.id));
+  }, [favoritesData]);
+
+  const columns = [
+    {
+      accessor: "id",
+      header: "",
+      render: (val) => (
+        <FavoriteButton entityType="award" entityId={val} isFavorited={favoriteIds.has(val)} />
+      ),
+    },
+    {
+      accessor: "description",
+      header: "Description",
+      render: (val) => val && val.length > 60 ? `${val.slice(0, 60)}…` : (val ?? "—"),
+    },
+    {
+      accessor: "obligatedAmount",
+      header: "Amount",
+      sortable: true,
+      render: (val) => val ? `$${Number(val).toLocaleString()}` : "—",
+    },
+    {
+      accessor: "pscCode",
+      header: "PSC",
+      sortable: true,
+      render: (val) => val ?? "—",
+    },
+    {
+      accessor: "naicsCodes",
+      header: "NAICS Codes",
+      render: (val) => val?.length > 0 ? val.join(", ") : "—",
+    },
+    {
+      accessor: "startDate",
+      header: "Start",
+      sortable: true,
+      render: (val) => val ? new Date(val).toLocaleDateString() : "—",
+    },
+    {
+      accessor: "endDate",
+      header: "End",
+      sortable: true,
+      render: (val) => val ? new Date(val).toLocaleDateString() : "—",
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="join">
+          <button
+            className={`join-item btn btn-sm ${!filters.favoritesOnly ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
+            onClick={() => filters.favoritesOnly && toggleFavoritesOnly()}
+          >
+            All
+          </button>
+          <button
+            className={`join-item btn btn-sm ${filters.favoritesOnly ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
+            onClick={() => !filters.favoritesOnly && toggleFavoritesOnly()}
+          >Favorites
+          </button>
+        </div>
         <SearchBar onSearch={updateFilter("search")} placeholder="Search description…" />
         <SearchBar onSearch={updateFilter("naics")} placeholder="NAICS code…" className="max-w-[180px]" />
         <SearchBar onSearch={updateFilter("psc")} placeholder="PSC prefix…" className="max-w-[160px]" />
@@ -91,6 +127,8 @@ const Awards = () => {
         basePath="/awards"
         sort={sort}
         onSort={handleSort}
+        emptyMessage={filters.favoritesOnly ? "No favorited awards" : undefined}
+        emptySubMessage={filters.favoritesOnly ? "Star an award to save it here." : undefined}
       />
     </div>
   );

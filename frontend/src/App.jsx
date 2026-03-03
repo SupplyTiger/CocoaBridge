@@ -20,6 +20,7 @@ import Awards from "./pages/AwardsPage";
 import InboxItemDetail from "./pages/InboxItemDetail";
 import OpportunityDetail from "./pages/OpportunityDetail";
 import AwardDetail from "./pages/AwardDetail";
+import FavoritesPage from "./pages/FavoritesPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import { useCurrentUser } from "./lib/CurrentUserContext.jsx";
 
@@ -63,6 +64,8 @@ function App() {
         <Route path="recipients/:id" element={<DataOnlyRoute><RecipientDetail /></DataOnlyRoute>} />
         <Route path="buying-orgs/:id" element={<DataOnlyRoute><BuyingOrgDetail /></DataOnlyRoute>} />
         <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
+        <Route path="favorites" element={<DataOnlyRoute><FavoritesPage /></DataOnlyRoute>} />
+
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
