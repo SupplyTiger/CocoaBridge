@@ -177,16 +177,19 @@ SupplyTigerGOA/
         │   ├── Table.jsx                 # Paginated data table with clickable rows
         │   ├── Row.jsx                   # Single table row
         │   ├── ItemDetail.jsx            # Shared detail card (title, badges, fields, children)
-        │   └── RelatedRecordsCard.jsx    # Linked records panel (opps, awards, orgs, contacts)
+        │   ├── RelatedRecordsCard.jsx    # Linked records panel (opps, awards, orgs, contacts)
+        │   ├── FavoriteButton.jsx        # Star toggle button; optimistic UI; works on opportunities + awards
+        │   └── TabsJoinButton.jsx        # Reusable DaisyUI join-style tab switcher
         ├── pages/
         │   ├── AdminPage.jsx             # User mgmt, sync controls, system health, filter config
+        │   ├── AnalyticsPage.jsx         # Tabbed analytics: Top Recipients | By PSC | By NAICS | By Agency
         │   ├── DashboardLayout.jsx
         │   ├── DashboardPage.jsx         # Access-denied state for USER role
         │   ├── InboxPage.jsx             # Inbox list; admin status dropdown + delete
-        │   ├── InboxItemDetail.jsx       # Inbox detail; admin notes + status edit
+        │   ├── InboxItemDetail.jsx       # Inbox detail; admin notes + status edit; read-only can view linked opp/award
         │   ├── OpportunitiesPage.jsx
         │   ├── OpportunityDetail.jsx
-        │   ├── AwardsPage.jsx
+        │   ├── AwardsPage.jsx            # Tabbed: All | Favorites; filterable by search, NAICS, PSC
         │   ├── AwardDetail.jsx
         │   ├── ContactsPage.jsx          # Contacts list with debounced search
         │   ├── ContactDetail.jsx         # Contact detail; admin inline edit (phone, title); phone as tel: link
@@ -261,6 +264,12 @@ All endpoints under `/api/db` and `/api/admin` require authentication via Clerk 
 | GET | `/api/db/contacts` | READ_ONLY+ | List contacts (search by name/email) |
 | GET | `/api/db/contacts/:id` | READ_ONLY+ | Get contact with linked opps/industry days/buying orgs |
 | PATCH | `/api/db/contacts/:id` | ADMIN | Update contact (`phone`, `title`) |
+| GET | `/api/db/favorites` | READ_ONLY+ | List all favorited opportunities and awards |
+| POST | `/api/db/favorites` | READ_ONLY+ | Toggle favorite on an opportunity or award |
+| GET | `/api/db/analytics/recipients` | READ_ONLY+ | Top award recipients ranked by total obligated amount |
+| GET | `/api/db/analytics/psc` | READ_ONLY+ | Award spend and opportunity counts grouped by PSC code |
+| GET | `/api/db/analytics/naics` | READ_ONLY+ | Award spend and opportunity counts grouped by NAICS code |
+| GET | `/api/db/analytics/agencies` | READ_ONLY+ | Buying agencies ranked by opportunity count and award spend |
 
 ### Admin Endpoints (`/api/admin`)
 
@@ -356,6 +365,30 @@ Admins can manually enrich or correct data on detail pages without waiting for a
 
 ---
 
+## Favorites
+
+Users with `READ_ONLY` or `ADMIN` roles can star opportunities and awards to save them for quick access.
+
+- **Star button** appears on the Awards list and detail pages, and the Opportunities detail page
+- **Favorites tab** on the Awards page filters the list to only favorited awards
+- Favorites are per-user and stored in the database via the `Favorite` model
+- The toggle is optimistic — the UI updates instantly and reverts on error
+
+---
+
+## Analytics
+
+The `/analytics` page (READ_ONLY+) provides a tabbed breakdown of contract data:
+
+| Tab | Description |
+|-----|-------------|
+| **Top Recipients** | Award recipients ranked by total obligated amount, with award count and a relative bar |
+| **By PSC Code** | Opportunity counts and award spend grouped by Product Service Code; sortable by award $ or opp count |
+| **By NAICS Code** | Same as PSC but grouped by NAICS code |
+| **By Agency** | Buying organizations ranked by activity, with a per-type opportunity breakdown (SOL, PRE, SS, AWD, SPC, OTH) |
+
+---
+
 ## Future Features
 
 * Enhanced opportunity scoring (speed, size, friction)
@@ -363,7 +396,6 @@ Admins can manually enrich or correct data on detail pages without waiting for a
 * Daily digest emails sent to admins
 * Quote / follow-up templates tied to opportunity records
 * GSA Advantage listing support
-* Analytics: response rates, conversion paths, win/loss tracking
 * Calendar integration for industry day events
 
 ---
