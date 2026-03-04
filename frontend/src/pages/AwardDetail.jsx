@@ -14,6 +14,7 @@ const AwardDetail = () => {
   const navigate = useNavigate();
   const currentUser = useCurrentUser();
   const isAdmin = currentUser?.role === "ADMIN";
+  const hasReadAccess = currentUser?.role !== "USER";
   const queryClient = useQueryClient();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -94,7 +95,7 @@ const AwardDetail = () => {
         {item && (
           <div className="flex justify-end gap-2">
             <FavoriteButton entityType="award" entityId={id} isFavorited={isFavorited} />
-            {isAdmin && (
+            {hasReadAccess && (
               <>
                 {item.inboxItems?.length > 0 ? (
                   <button
@@ -104,7 +105,7 @@ const AwardDetail = () => {
                     <Inbox className="size-4" />
                     View in Inbox
                   </button>
-                ) : (
+                ) : (isAdmin && (
                   <button
                     className="btn btn-primary btn-sm"
                     onClick={() => setShowAddToInbox(true)}
@@ -112,14 +113,16 @@ const AwardDetail = () => {
                     <Inbox className="size-4" />
                     Add to Inbox
                   </button>
+                ))}
+                {isAdmin && (
+                  <button
+                    className="btn btn-error btn-sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="size-4" />
+                    Delete
+                  </button>
                 )}
-                <button
-                  className="btn btn-error btn-sm"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  <Trash2 className="size-4" />
-                  Delete
-                </button>
               </>
             )}
           </div>

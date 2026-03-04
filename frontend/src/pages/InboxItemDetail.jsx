@@ -23,6 +23,7 @@ const InboxItemDetail = () => {
   const navigate = useNavigate();
   const currentUser = useCurrentUser();
   const isAdmin = currentUser?.role === "ADMIN";
+  const hasReadAccess = currentUser?.role !== "USER";
   const queryClient = useQueryClient();
 
   const [notes, setNotes] = useState(null);
@@ -88,22 +89,24 @@ const InboxItemDetail = () => {
         badges={badges}
         fields={fields}
       >
-        {isAdmin && item && (
+        {hasReadAccess && item && (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold">Status</span>
-                <select
-                  className="select select-sm select-bordered"
-                  value={item.reviewStatus}
-                  disabled={isUpdating}
-                  onChange={(e) => updateItem({ reviewStatus: e.target.value })}
-                >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">Status</span>
+                  <select
+                    className="select select-sm select-bordered"
+                    value={item.reviewStatus}
+                    disabled={isUpdating}
+                    onChange={(e) => updateItem({ reviewStatus: e.target.value })}
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex gap-2 ml-auto">
                 {item.opportunity && (
                   <Link to={`/opportunities/${item.opportunity.id}`} className="btn btn-primary btn-sm">
@@ -117,33 +120,37 @@ const InboxItemDetail = () => {
                     View Award
                   </Link>
                 )}
-                <button
-                  className="btn btn-error btn-sm"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  <Trash2 className="size-4" />
-                  Delete
-                </button>
+                {isAdmin && (
+                  <button
+                    className="btn btn-error btn-sm"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="size-4" />
+                    Delete
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <p className="font-semibold text-sm">Notes</p>
-              <textarea
-                className="textarea textarea-bordered text-sm w-full"
-                rows={6}
-                value={notesValue}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add notes…"
-              />
-              <button
-                className="btn btn-sm btn-primary self-end"
-                disabled={isUpdating}
-                onClick={() => updateItem({ notes: notesValue })}
-              >
-                {isUpdating ? <span className="loading loading-spinner loading-xs" /> : "Save Notes"}
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="flex flex-col gap-2">
+                <p className="font-semibold text-sm">Notes</p>
+                <textarea
+                  className="textarea textarea-bordered text-sm w-full"
+                  rows={6}
+                  value={notesValue}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add notes…"
+                />
+                <button
+                  className="btn btn-sm btn-primary self-end"
+                  disabled={isUpdating}
+                  onClick={() => updateItem({ notes: notesValue })}
+                >
+                  {isUpdating ? <span className="loading loading-spinner loading-xs" /> : "Save Notes"}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -158,7 +165,7 @@ const InboxItemDetail = () => {
       {showDeleteConfirm && (
         <dialog open className="modal modal-open">
           <div className="modal-box">
-                        <button
+            <button
               className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
               onClick={() => setShowDeleteConfirm(false)}
             >✕</button>
