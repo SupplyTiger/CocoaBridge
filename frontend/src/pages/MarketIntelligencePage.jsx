@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { dbApi } from "../lib/api.js";
 import Table from "../components/Table.jsx";
 import SearchBar from "../components/SearchBar.jsx";
+import TabsJoinButton from '../components/TabsJoinButton.jsx';
 
 const recipientColumns = [
   { accessor: "name", header: "Name", sortable: true, render: (val) => val ?? "—" },
@@ -27,6 +28,7 @@ const RecipientsTab = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sort, setSort] = useState({ field: null, dir: "asc" });
 
+ 
   const handleSort = useCallback((field) => {
     setSort((prev) => ({
       field,
@@ -140,24 +142,20 @@ const BuyingOrgsTab = () => {
 };
 
 const MarketIntelligencePage = () => {
-  const [activeTab, setActiveTab] = useState("recipients");
+
+   const tabs = [
+  { label: "Recipients", value: "recipients" },
+  { label: "Buying Agencies", value: "buying-orgs" },
+];
+  const [activeTab, setActiveTab] = useState(tabs[0].value);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="join">
-        <button
-          className={`join-item btn btn-sm ${activeTab === "recipients" ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
-          onClick={() => setActiveTab("recipients")}
-        >
-          Recipients
-        </button>
-        <button
-          className={`join-item btn btn-sm ${activeTab === "buying-orgs" ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
-          onClick={() => setActiveTab("buying-orgs")}
-        >
-          Buying Agencies
-        </button>
-      </div>
+        <TabsJoinButton tabs={tabs} activeTab={activeTab} setActiveTab={handleTabChange} />
 
       {activeTab === "recipients" ? <RecipientsTab /> : <BuyingOrgsTab />}
     </div>

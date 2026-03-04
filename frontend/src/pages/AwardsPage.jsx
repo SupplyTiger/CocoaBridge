@@ -4,11 +4,18 @@ import { dbApi } from "../lib/api.js";
 import Table from "../components/Table.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import FavoriteButton from "../components/FavoriteButton.jsx";
+import TabsJoinButton from "../components/TabsJoinButton.jsx";
 
 const Awards = () => {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ search: "", naics: "", psc: "", favoritesOnly: false });
   const [sort, setSort] = useState({ field: null, dir: "asc" });
+
+  const tabs = [
+    { label: "All", value: "all" },
+    { label: "Favorites", value: "favorites" },
+  ];
+  const [activeTab, setActiveTab] = useState(tabs[0].value);
 
   const updateFilter = useCallback((key) => (value) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -24,10 +31,11 @@ const Awards = () => {
     setPage(1);
   }, []);
 
-  const toggleFavoritesOnly = () => {
-    setFilters((prev) => ({ ...prev, favoritesOnly: !prev.favoritesOnly }));
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setFilters((prev) => ({ ...prev, favoritesOnly: tab === "favorites" }));
     setPage(1);
-  };
+  }
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["awards", page, filters, sort],
@@ -96,21 +104,10 @@ const Awards = () => {
   ];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
+      <TabsJoinButton tabs={tabs} activeTab={activeTab} setActiveTab={handleTabChange} />
+
       <div className="flex flex-wrap items-center gap-2">
-        <div className="join">
-          <button
-            className={`join-item btn btn-sm ${!filters.favoritesOnly ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
-            onClick={() => filters.favoritesOnly && toggleFavoritesOnly()}
-          >
-            All
-          </button>
-          <button
-            className={`join-item btn btn-sm ${filters.favoritesOnly ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
-            onClick={() => !filters.favoritesOnly && toggleFavoritesOnly()}
-          >Favorites
-          </button>
-        </div>
         <SearchBar onSearch={updateFilter("search")} placeholder="Search description…" />
         <SearchBar onSearch={updateFilter("naics")} placeholder="NAICS code…" className="max-w-[180px]" />
         <SearchBar onSearch={updateFilter("psc")} placeholder="PSC prefix…" className="max-w-[160px]" />

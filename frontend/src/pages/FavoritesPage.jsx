@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { dbApi } from "../lib/api.js";
 import Table from "../components/Table.jsx";
 import FavoriteButton from "../components/FavoriteButton.jsx";
+import TabsJoinButton from "../components/TabsJoinButton.jsx";
 
 const oppColumns = (favoriteIds) => [
   {
@@ -77,35 +78,31 @@ const awardColumns = (favoriteIds) => [
 ];
 
 const FavoritesPage = () => {
-  const [activeTab, setActiveTab] = useState("opportunities");
+  const tabs = [
+    { label: "Opportunities", value: "opportunities" },
+    { label: "Awards", value: "awards" },
+  ];
+  const [activeTab, setActiveTab] = useState(tabs[0].value);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+
+  };
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["favorites"],
     queryFn: dbApi.listFavorites,
   });
 
-  const opportunities = data?.opportunities ?? [];
-  const awards = data?.awards ?? [];
+  const opportunities = useMemo(() => data?.opportunities ?? [], [data]);
+  const awards = useMemo(() => data?.awards ?? [], [data]);
 
   const oppFavoriteIds = useMemo(() => new Set(opportunities.map((o) => o.id)), [opportunities]);
   const awardFavoriteIds = useMemo(() => new Set(awards.map((a) => a.id)), [awards]);
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="join">
-        <button
-          className={`join-item btn btn-sm ${activeTab === "opportunities" ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
-          onClick={() => setActiveTab("opportunities")}
-        >
-          Opportunities
-        </button>
-        <button
-          className={`join-item btn btn-sm ${activeTab === "awards" ? "btn-primary" : "btn-ghost hover:bg-accent-content/40 border border-accent-content/40"}`}
-          onClick={() => setActiveTab("awards")}
-        >
-          Awards
-        </button>
-      </div>
+      <TabsJoinButton tabs={tabs} activeTab={activeTab} setActiveTab={handleTabChange} />
 
       {activeTab === "opportunities" ? (
         <Table
