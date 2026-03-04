@@ -1,6 +1,12 @@
 import express from "express";
 import { protectRoute, adminOnly, readOnlyOrAbove } from "../middleware/auth.middleware.js";
 import {
+  getRecipientAnalytics,
+  getPscAnalytics,
+  getNaicsAnalytics,
+  getAgencyAnalytics,
+} from "../controllers/analytics.controller.js";
+import {
   listInboxItems,
   getInboxItem,
   createInboxItem,
@@ -77,3 +83,9 @@ router.patch("/contacts/:id", ...protectRoute, adminOnly, updateContact);
 // Favorites
 router.get("/favorites", ...protectRoute, readOnlyOrAbove, listFavorites);
 router.post("/favorites", ...protectRoute, readOnlyOrAbove, toggleFavorite);
+
+// Analytics
+router.get("/analytics/recipients", ...protectRoute, readOnlyOrAbove, getRecipientAnalytics);
+router.get("/analytics/psc",        ...protectRoute, readOnlyOrAbove, getPscAnalytics);
+router.get("/analytics/naics",      ...protectRoute, readOnlyOrAbove, getNaicsAnalytics);
+router.get("/analytics/agencies",   ...protectRoute, readOnlyOrAbove, getAgencyAnalytics);

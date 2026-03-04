@@ -169,7 +169,7 @@ const SYNC_JOBS = {
     fn: () => runAwardsSyncFromUsaspending(),
     countFn: (r) => {
       if (!r?.presets) return null;
-      return Object.values(r.presets).reduce((sum, p) => sum + (p?.upserted ?? 0), 0);
+      return Object.values(r.presets).reduce((sum, p) => sum + (p?.db?.upserted ?? 0), 0);
     },
     failFn: (r) => {
       const n = Object.values(r?.presets ?? {}).reduce((sum, p) => sum + (p?.db?.errors?.length ?? 0), 0);
