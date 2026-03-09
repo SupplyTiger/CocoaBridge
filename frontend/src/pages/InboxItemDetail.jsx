@@ -155,7 +155,7 @@ const InboxItemDetail = () => {
           </div>
         )}
 
-        {!isAdmin && item?.notes && (
+        {!isAdmin && hasReadAccess && item?.notes && (
           <div>
             <p className="font-semibold text-sm">Notes</p>
             <p className="text-sm text-base-content/80">{item.notes}</p>
