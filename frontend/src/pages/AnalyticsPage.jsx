@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { analyticsApi } from "../lib/api.js";
 import { Link } from "react-router";
 import TabsJoinButton from "../components/TabsJoinButton.jsx";
+import PaginationButton from "../components/PaginationButton.jsx";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -96,17 +97,20 @@ const SectionError = () => (
 // ─── Section 1: Top Recipients ────────────────────────────────────────────────
 
 const RecipientAnalytics = () => {
+  const [page, setPage] = useState(1);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["analytics-recipients"],
-    queryFn: analyticsApi.getRecipients,
+    queryKey: ["analytics-recipients", page],
+    queryFn: () => analyticsApi.getRecipients({ page }),
   });
 
   if (isLoading) return <SectionLoader />;
   if (isError) return <SectionError />;
 
   const raw = data?.data ?? [];
-  const max = raw[0]?.totalObligated ?? 0;
-  const rows = raw.map((r, i) => ({ ...r, id: r.recipientId, rank: i + 1 }));
+  const meta = data?.meta;
+  const offset = ((meta?.page ?? 1) - 1) * (meta?.limit ?? 25);
+  const max = page === 1 ? (raw[0]?.totalObligated ?? 0) : null;
+  const rows = raw.map((r, i) => ({ ...r, id: r.recipientId, rank: offset + i + 1 }));
 
   const columns = [
     { accessor: "rank", header: "#", cellClassName: "opacity-40 text-xs w-8" },
@@ -123,23 +127,34 @@ const RecipientAnalytics = () => {
     { accessor: "_bar", header: "", render: (_, row) => <Bar value={row.totalObligated} max={max} />, cellClassName: "w-24" },
   ];
 
-  return <AnalyticsTable columns={columns} data={rows} />;
+  return (
+    <>
+      <AnalyticsTable columns={columns} data={rows} />
+      {meta?.totalPages > 1 && (
+        <PaginationButton totalPages={meta.totalPages} currentPage={meta.page} onPageChange={setPage} size="sm" />
+      )}
+    </>
+  );
 };
 
 // ─── Section 2 & 3: PSC / NAICS ──────────────────────────────────────────────
 
 const CodeAnalytics = ({ queryKey, queryFn, codeLabel }) => {
   const [sortBy, setSortBy] = useState("totalObligated");
-  const { data, isLoading, isError } = useQuery({ queryKey: [queryKey], queryFn });
+  const [page, setPage] = useState(1);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: [queryKey, sortBy, page],
+    queryFn: () => queryFn({ sortBy, page }),
+  });
 
   if (isLoading) return <SectionLoader />;
   if (isError) return <SectionError />;
 
   const raw = data?.data ?? [];
-  const rows = [...raw].sort((a, b) =>
-    sortBy === "oppCount" ? b.oppCount - a.oppCount : b.totalObligated - a.totalObligated
-  );
-  const max = Math.max(...rows.map((r) => r.totalObligated), 0);
+  const meta = data?.meta;
+  const offset = ((meta?.page ?? 1) - 1) * (meta?.limit ?? 25);
+  const max = Math.max(...raw.map((r) => r.totalObligated), 0);
+  const tableData = raw.map((r, i) => ({ ...r, id: r.pscCode ?? r.naics, code: r.pscCode ?? r.naics, rank: offset + i + 1 }));
 
   const columns = [
     { accessor: "rank", header: "#", cellClassName: "opacity-40 text-xs w-8" },
@@ -149,8 +164,6 @@ const CodeAnalytics = ({ queryKey, queryFn, codeLabel }) => {
     { accessor: "totalObligated", header: "Total Obligated", className: "text-right", cellClassName: "text-right text-sm font-medium", render: (val) => fmt(val) },
     { accessor: "_bar", header: "", cellClassName: "w-24", render: (_, row) => <Bar value={row.totalObligated} max={max} /> },
   ];
-
-  const tableData = rows.map((r, i) => ({ ...r, id: r.pscCode ?? r.naics, code: r.pscCode ?? r.naics, rank: i + 1 }));
 
   return (
     <>
@@ -162,13 +175,16 @@ const CodeAnalytics = ({ queryKey, queryFn, codeLabel }) => {
           <button
             key={key}
             className={`join-item btn btn-xs ${sortBy === key ? "btn-primary" : "btn-ghost border border-base-300"}`}
-            onClick={() => setSortBy(key)}
+            onClick={() => { setSortBy(key); setPage(1); }}
           >
             {label}
           </button>
         ))}
       </div>
       <AnalyticsTable columns={columns} data={tableData} />
+      {meta?.totalPages > 1 && (
+        <PaginationButton totalPages={meta.totalPages} currentPage={meta.page} onPageChange={setPage} size="sm" />
+      )}
     </>
   );
 };
@@ -177,18 +193,18 @@ const CodeAnalytics = ({ queryKey, queryFn, codeLabel }) => {
 
 const AgencyAnalytics = () => {
   const [sortBy, setSortBy] = useState("awardTotal");
+  const [page, setPage] = useState(1);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["analytics-agencies"],
-    queryFn: analyticsApi.getAgencies,
+    queryKey: ["analytics-agencies", sortBy, page],
+    queryFn: () => analyticsApi.getAgencies({ sortBy, page }),
   });
 
   if (isLoading) return <SectionLoader />;
   if (isError) return <SectionError />;
 
   const raw = data?.data ?? [];
-  const rows = [...raw].sort((a, b) =>
-    sortBy === "awardTotal" ? b.awardTotal - a.awardTotal : b.oppCount - a.oppCount
-  );
+  const meta = data?.meta;
+  const offset = ((meta?.page ?? 1) - 1) * (meta?.limit ?? 25);
 
   const columns = [
     { accessor: "rank", header: "#", cellClassName: "opacity-40 text-xs w-8" },
@@ -214,10 +230,10 @@ const AgencyAnalytics = () => {
     { accessor: "awardTotal", header: "Award Total", className: "text-right", cellClassName: "text-right text-sm", render: (val) => fmt(val) },
   ];
 
-  const tableData = rows.map((r, i) => ({
+  const tableData = raw.map((r, i) => ({
     ...r,
     id: r.orgId,
-    rank: i + 1,
+    rank: offset + i + 1,
     ...Object.fromEntries(OPP_TYPES.map((t) => [`type_${t}`, r.oppsByType?.[t]])),
   }));
 
@@ -231,13 +247,16 @@ const AgencyAnalytics = () => {
           <button
             key={key}
             className={`join-item btn btn-xs ${sortBy === key ? "btn-primary" : "btn-ghost border border-base-300"}`}
-            onClick={() => setSortBy(key)}
+            onClick={() => { setSortBy(key); setPage(1); }}
           >
             {label}
           </button>
         ))}
       </div>
       <AnalyticsTable columns={columns} data={tableData} />
+      {meta?.totalPages > 1 && (
+        <PaginationButton totalPages={meta.totalPages} currentPage={meta.page} onPageChange={setPage} size="sm" />
+      )}
     </>
   );
 };
@@ -252,13 +271,10 @@ const AnalyticsPage = () => {
     { label: "By Agency", value: "agencies" },
   ];
   const [activeTab, setActiveTab] = useState(tabs[0].value);
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-  };
 
   return (
   <div className="flex flex-col gap-4">
-    <TabsJoinButton tabs={tabs} activeTab={activeTab} setActiveTab={handleTabChange} />
+    <TabsJoinButton tabs={tabs} activeTab={activeTab} setActiveTab={setActiveTab} />
 
     {activeTab === "recipients" && (
       <SectionShell
@@ -306,6 +322,5 @@ const AnalyticsPage = () => {
   </div>
 );
 }
-   
 
 export default AnalyticsPage;

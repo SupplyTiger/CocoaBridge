@@ -1,16 +1,33 @@
 import prisma from "../config/db.js";
 
+const parseAnalyticsPagination = (query) => {
+  const page = Math.max(1, parseInt(query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 25));
+  return { page, limit, skip: (page - 1) * limit };
+};
+
+const paginate = (arr, page, limit) => {
+  const total = arr.length;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(page, totalPages);
+  return {
+    data: arr.slice((safePage - 1) * limit, safePage * limit),
+    meta: { total, page: safePage, limit, totalPages },
+  };
+};
+
 // ─── Recipients by obligated amount ──────────────────────────────────────────
 
 export const getRecipientAnalytics = async (req, res) => {
   try {
+    const { page, limit } = parseAnalyticsPagination(req.query);
+
     const grouped = await prisma.award.groupBy({
       by: ["recipientId"],
       _sum: { obligatedAmount: true },
       _count: { id: true },
       where: { recipientId: { not: null } },
       orderBy: { _sum: { obligatedAmount: "desc" } },
-      take: 50,
     });
 
     const recipientIds = grouped.map((r) => r.recipientId);
@@ -20,7 +37,7 @@ export const getRecipientAnalytics = async (req, res) => {
     });
     const byId = Object.fromEntries(recipients.map((r) => [r.id, r]));
 
-    const data = grouped.map((row) => ({
+    const all = grouped.map((row) => ({
       recipientId: row.recipientId,
       name: byId[row.recipientId]?.name ?? "Unknown",
       uei: byId[row.recipientId]?.uei ?? null,
@@ -28,7 +45,7 @@ export const getRecipientAnalytics = async (req, res) => {
       totalObligated: Number(row._sum.obligatedAmount ?? 0),
     }));
 
-    return res.status(200).json({ data });
+    return res.status(200).json(paginate(all, page, limit));
   } catch (error) {
     console.error("Error in getRecipientAnalytics:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -39,6 +56,9 @@ export const getRecipientAnalytics = async (req, res) => {
 
 export const getPscAnalytics = async (req, res) => {
   try {
+    const { page, limit } = parseAnalyticsPagination(req.query);
+    const sortBy = req.query.sortBy === "oppCount" ? "oppCount" : "totalObligated";
+
     const [oppGroups, awardGroups] = await Promise.all([
       prisma.opportunity.groupBy({
         by: ["pscCode"],
@@ -53,7 +73,6 @@ export const getPscAnalytics = async (req, res) => {
       }),
     ]);
 
-    // Build unified map keyed by pscCode
     const map = {};
     for (const row of oppGroups) {
       map[row.pscCode] = { pscCode: row.pscCode, oppCount: row._count.id, awardCount: 0, totalObligated: 0 };
@@ -64,9 +83,9 @@ export const getPscAnalytics = async (req, res) => {
       map[row.pscCode].totalObligated = Number(row._sum.obligatedAmount ?? 0);
     }
 
-    const data = Object.values(map).sort((a, b) => b.totalObligated - a.totalObligated);
+    const all = Object.values(map).sort((a, b) => b[sortBy] - a[sortBy]);
 
-    return res.status(200).json({ data });
+    return res.status(200).json(paginate(all, page, limit));
   } catch (error) {
     console.error("Error in getPscAnalytics:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -77,13 +96,15 @@ export const getPscAnalytics = async (req, res) => {
 
 export const getNaicsAnalytics = async (req, res) => {
   try {
+    const { page, limit } = parseAnalyticsPagination(req.query);
+    const sortBy = req.query.sortBy === "oppCount" ? "oppCount" : "totalObligated";
+
     const [oppRows, awardRows] = await Promise.all([
       prisma.$queryRaw`
         SELECT unnest("naicsCodes") AS naics, COUNT(*)::int AS opp_count
         FROM "Opportunity"
         WHERE array_length("naicsCodes", 1) > 0
         GROUP BY naics
-        ORDER BY opp_count DESC
       `,
       prisma.$queryRaw`
         SELECT unnest("naicsCodes") AS naics,
@@ -92,7 +113,6 @@ export const getNaicsAnalytics = async (req, res) => {
         FROM "Award"
         WHERE array_length("naicsCodes", 1) > 0
         GROUP BY naics
-        ORDER BY total_obligated DESC
       `,
     ]);
 
@@ -106,9 +126,9 @@ export const getNaicsAnalytics = async (req, res) => {
       map[row.naics].totalObligated = Number(row.total_obligated ?? 0);
     }
 
-    const data = Object.values(map).sort((a, b) => b.totalObligated - a.totalObligated);
+    const all = Object.values(map).sort((a, b) => b[sortBy] - a[sortBy]);
 
-    return res.status(200).json({ data });
+    return res.status(200).json(paginate(all, page, limit));
   } catch (error) {
     console.error("Error in getNaicsAnalytics:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -117,8 +137,11 @@ export const getNaicsAnalytics = async (req, res) => {
 
 // ─── Agency breakdown ─────────────────────────────────────────────────────────
 
-export const getAgencyAnalytics = async (_req, res) => {
+export const getAgencyAnalytics = async (req, res) => {
   try {
+    const { page, limit } = parseAnalyticsPagination(req.query);
+    const sortBy = req.query.sortBy === "oppCount" ? "oppCount" : "awardTotal";
+
     const [oppGroups, awardGroups] = await Promise.all([
       prisma.opportunity.groupBy({
         by: ["buyingOrganizationId", "type"],
@@ -175,11 +198,9 @@ export const getAgencyAnalytics = async (_req, res) => {
       map[id].awardTotal = Number(row._sum.obligatedAmount ?? 0);
     }
 
-    const data = Object.values(map)
-      .sort((a, b) => b.awardTotal - a.awardTotal)
-      .slice(0, 50);
+    const all = Object.values(map).sort((a, b) => b[sortBy] - a[sortBy]);
 
-    return res.status(200).json({ data });
+    return res.status(200).json(paginate(all, page, limit));
   } catch (error) {
     console.error("Error in getAgencyAnalytics:", error);
     return res.status(500).json({ message: "Internal server error" });

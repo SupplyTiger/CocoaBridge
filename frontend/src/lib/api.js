@@ -113,10 +113,10 @@ export const dbApi = {
 };
 
 export const analyticsApi = {
-  getRecipients: async () => { const { data } = await axiosInstance.get("/db/analytics/recipients"); return data; },
-  getPsc:        async () => { const { data } = await axiosInstance.get("/db/analytics/psc");        return data; },
-  getNaics:      async () => { const { data } = await axiosInstance.get("/db/analytics/naics");      return data; },
-  getAgencies:   async () => { const { data } = await axiosInstance.get("/db/analytics/agencies"); return data; },
+  getRecipients: async (params) => { const { data } = await axiosInstance.get("/db/analytics/recipients", { params }); return data; },
+  getPsc:        async (params) => { const { data } = await axiosInstance.get("/db/analytics/psc",        { params }); return data; },
+  getNaics:      async (params) => { const { data } = await axiosInstance.get("/db/analytics/naics",      { params }); return data; },
+  getAgencies:   async (params) => { const { data } = await axiosInstance.get("/db/analytics/agencies",   { params }); return data; },
 };
 
 export const adminApi = {
