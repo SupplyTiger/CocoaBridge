@@ -255,7 +255,10 @@ const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config }) => {
 
   const { mutate: saveBank } = useMutation({
     mutationFn: (values) => adminApi.updateFilterConfig(bankKey, values),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["filterConfig"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["filterConfig"] });
+      toast.success("Word bank updated");
+    },
     onError: () => toast.error("Failed to update word bank"),
   });
 

@@ -37,6 +37,7 @@ const OpportunityDetail = () => {
   const { mutate: deleteItem, isPending: isDeleting } = useMutation({
     mutationFn: () => dbApi.deleteOpportunity(id),
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["opportunity", id] });
       queryClient.invalidateQueries({ queryKey: ["opportunities"] });
       toast.success("Opportunity deleted");
       navigate("/opportunities");

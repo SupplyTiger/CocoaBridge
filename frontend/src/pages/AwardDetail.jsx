@@ -38,6 +38,7 @@ const AwardDetail = () => {
   const { mutate: deleteItem, isPending: isDeleting } = useMutation({
     mutationFn: () => dbApi.deleteAward(id),
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["award", id] });
       queryClient.invalidateQueries({ queryKey: ["awards"] });
       toast.success("Award deleted");
       navigate("/awards");

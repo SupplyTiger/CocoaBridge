@@ -900,19 +900,23 @@ export const toggleFavorite = async (req, res) => {
       ? { userId, opportunityId: entityId }
       : { userId, awardId: entityId };
 
-      const {count} = await prisma.favorite.deleteMany({ where });
-      if( count > 0) {
-        return res.status(200).json({ favorited: false });
-      }
+    const { count } = await prisma.favorite.deleteMany({ where });
+    if (count > 0) return res.status(200).json({ favorited: false });
 
-    await prisma.favorite.create({
-      data: {
-        userId,
-        opportunityId: entityType === "opportunity" ? entityId : null,
-        awardId: entityType === "award" ? entityId : null,
-      },
-    });
-    return res.status(201).json({ favorited: true });
+    try {
+      await prisma.favorite.create({
+        data: {
+          userId,
+          opportunityId: entityType === "opportunity" ? entityId : null,
+          awardId: entityType === "award" ? entityId : null,
+        },
+      });
+      return res.status(201).json({ favorited: true });
+    } catch (createError) {
+      // Concurrent request already created the favorite — treat as success
+      if (createError?.code === "P2002") return res.status(200).json({ favorited: true });
+      throw createError;
+    }
   } catch (error) {
     console.error("toggleFavorite error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });

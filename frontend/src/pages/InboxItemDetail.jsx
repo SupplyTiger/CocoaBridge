@@ -50,6 +50,7 @@ const InboxItemDetail = () => {
   const { mutate: deleteItem, isPending: isDeleting } = useMutation({
     mutationFn: () => dbApi.deleteInboxItem(id),
     onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ["inboxItem", id] });
       queryClient.invalidateQueries({ queryKey: ["inboxItems"] });
       toast.success("Item deleted");
       navigate("/inbox");
