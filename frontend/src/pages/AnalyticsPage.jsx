@@ -191,12 +191,15 @@ const CodeAnalytics = ({ queryKey, queryFn, codeLabel }) => {
 
 // ─── Section 4: Agencies ──────────────────────────────────────────────────────
 
+const ORG_LEVELS = ["AGENCY", "SUBAGENCY", "OFFICE", "OTHER"];
+
 const AgencyAnalytics = () => {
+  const [level, setLevel] = useState("AGENCY");
   const [sortBy, setSortBy] = useState("awardTotal");
   const [page, setPage] = useState(1);
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["analytics-agencies", sortBy, page],
-    queryFn: () => analyticsApi.getAgencies({ sortBy, page }),
+    queryKey: ["analytics-agencies", level, sortBy, page],
+    queryFn: () => analyticsApi.getAgencies({ level, sortBy, page }),
   });
 
   if (isLoading) return <SectionLoader />;
@@ -239,19 +242,30 @@ const AgencyAnalytics = () => {
 
   return (
     <>
-      <div className="join">
-        {[
-          { key: "awardTotal", label: "By Award $" },
-          { key: "oppCount", label: "By Opp Count" },
-        ].map(({ key, label }) => (
-          <button
-            key={key}
-            className={`join-item btn btn-xs ${sortBy === key ? "btn-primary" : "btn-ghost border border-base-300"}`}
-            onClick={() => { setSortBy(key); setPage(1); }}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="flex items-center gap-2">
+        <select
+          className="select select-bordered select-xs"
+          value={level}
+          onChange={(e) => { setLevel(e.target.value); setPage(1); }}
+        >
+          {ORG_LEVELS.map((l) => (
+            <option key={l} value={l}>{l}</option>
+          ))}
+        </select>
+        <div className="join">
+          {[
+            { key: "awardTotal", label: "By Award $" },
+            { key: "oppCount", label: "By Opp Count" },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              className={`join-item btn btn-xs ${sortBy === key ? "btn-primary" : "btn-ghost border border-base-300"}`}
+              onClick={() => { setSortBy(key); setPage(1); }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
       <AnalyticsTable columns={columns} data={tableData} />
       {meta?.totalPages > 1 && (
