@@ -1,7 +1,7 @@
 import {useUser} from "@clerk/clerk-react";
 import {useState, useRef} from "react";
 import {Link, useLocation, useNavigate} from "react-router";
-import {Search, Layers} from "lucide-react";
+import {Search} from "lucide-react";
 import {NAVIGATION_LINKS} from "./NavigationLinks.jsx";
 import {useCurrentUser} from "../lib/CurrentUserContext.jsx";
 
@@ -71,8 +71,8 @@ const Sidebar = () => {
                 </div>
 
                 {/* page search — icon only when drawer closed, full bar when open */}
-                <div className="is-drawer-open:hidden flex justify-center mt-2 tooltip tooltip-right text-primary-content" data-tip="Search">
-                    <button onClick={onSearchIconClick} className="p-2 rounded-lg hover:bg-secondary-content/10">
+                <div className="is-drawer-open:hidden flex justify-center mt-2 tooltip tooltip-right" data-tip="Search">
+                    <button onClick={onSearchIconClick} className="p-2 rounded-lg hover:opacity-100 text-secondary">
                         <Search className="size-4" />
                     </button>
                 </div>
