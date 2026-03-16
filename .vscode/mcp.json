@@ -4,7 +4,7 @@
 			"type": "stdio",
 			"command": "node",
 			"args": [
-				"src/server.js"
+				"src/stdio.js"
 			],
 			"cwd": "${workspaceFolder}/mcp",
 			"dev": {
@@ -12,9 +12,8 @@
 				"debug": {
 					"type": "node"
 				}
-
 			}
 		}
 	},
-		"inputs": []
+	"inputs": []
 }
