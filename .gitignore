@@ -148,3 +148,4 @@ vite.config.ts.timestamp-*
 .vite/
 
 .agent/agents/AGENTS.md
+mcp/SRS.md
