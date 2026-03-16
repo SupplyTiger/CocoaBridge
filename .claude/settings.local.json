@@ -2,7 +2,18 @@
   "permissions": {
     "allow": [
       "Bash(xargs grep -l \"npm\")",
-      "Bash(node src/stdio.js)"
+      "Bash(node src/stdio.js)",
+      "Bash(taskkill //PID 44640 //F)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :6277)",
+      "Bash(findstr LISTENING)",
+      "Bash(taskkill //PID 41844 //F)",
+      "Bash(taskkill //PID 30312 //F)",
+      "Bash(DANGEROUSLY_OMIT_AUTH=true npx @modelcontextprotocol/inspector node src/stdio.js)",
+      "Bash(findstr \":6277\\\\|:6274\")",
+      "Bash(findstr \"6277 6274\")",
+      "Bash(taskkill //PID 76044 //F)",
+      "Bash(taskkill //PID 27816 //F)"
     ]
   }
 }

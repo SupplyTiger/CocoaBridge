@@ -8,6 +8,7 @@ import { registerSearchBuyingOrgs } from "./tools/searchBuyingOrgs.js";
 import { registerGetBuyingOrg } from "./tools/getBuyingOrg.js";
 import { registerSearchRecipients } from "./tools/searchRecipients.js";
 import { registerSearchContacts } from "./tools/searchContacts.js";
+import { registerResources } from "./resources.js";
 
 export function createMcpServer() {
   const server = new McpServer({
@@ -16,6 +17,7 @@ export function createMcpServer() {
     description: "SupplyTiger procurement intelligence MCP server",
     capabilities: {
       tools: {},
+      resources: {},
     },
   });
 
@@ -28,6 +30,7 @@ export function createMcpServer() {
   registerGetBuyingOrg(server);
   registerSearchRecipients(server);
   registerSearchContacts(server);
+  registerResources(server);
 
   return server;
 }
