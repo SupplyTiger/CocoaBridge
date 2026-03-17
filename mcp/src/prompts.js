@@ -7,16 +7,9 @@ export function registerPrompts(server) {
   // --- Prompt: generate-bid-draft ---
   server.prompt(
     "generate-bid-draft",
+    "Generate a structured draft bid/proposal for a specific opportunity using SupplyTiger's company profile, the bid template, and opportunity details. The agent will follow the template structure and elicit specifics from the user.",
     {
-      description:
-        "Generate a structured draft bid/proposal for a specific opportunity using SupplyTiger's company profile, the bid template, and opportunity details. The agent will follow the template structure and elicit specifics from the user.",
-      arguments: [
-        {
-          name: "opportunityId",
-          description: "The opportunity ID to draft a bid for",
-          required: true,
-        },
-      ],
+      opportunityId: z.string().describe("The opportunity ID to draft a bid for"),
     },
     async ({ opportunityId }) => {
       const opportunity = await prisma.opportunity.findUnique({
@@ -112,16 +105,9 @@ ${templateJson}
   // --- Prompt: analyze-opportunity-fit ---
   server.prompt(
     "analyze-opportunity-fit",
+    "Deep-dive analysis of a specific opportunity's fit for SupplyTiger — competitive landscape, incumbents, agency buying history, contacts, and recommended pursuit strategy.",
     {
-      description:
-        "Deep-dive analysis of a specific opportunity's fit for SupplyTiger — competitive landscape, incumbents, agency buying history, contacts, and recommended pursuit strategy.",
-      arguments: [
-        {
-          name: "opportunityId",
-          description: "The opportunity ID to analyze",
-          required: true,
-        },
-      ],
+      opportunityId: z.string().describe("The opportunity ID to analyze"),
     },
     async ({ opportunityId }) => {
       // Fetch opportunity with related data
