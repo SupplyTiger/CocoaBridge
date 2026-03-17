@@ -8,7 +8,8 @@ import { registerSearchBuyingOrgs } from "./tools/searchBuyingOrgs.js";
 import { registerGetBuyingOrg } from "./tools/getBuyingOrg.js";
 import { registerSearchRecipients } from "./tools/searchRecipients.js";
 import { registerSearchContacts } from "./tools/searchContacts.js";
-import { registerResources } from "./resources.js";
+import { registerScoreOpportunity } from "./tools/scoring.js";
+import { registerResources } from "./resourcesConfig.js";
 
 export function createMcpServer() {
   const server = new McpServer({
@@ -30,6 +31,7 @@ export function createMcpServer() {
   registerGetBuyingOrg(server);
   registerSearchRecipients(server);
   registerSearchContacts(server);
+  registerScoreOpportunity(server);
   registerResources(server);
 
   return server;
