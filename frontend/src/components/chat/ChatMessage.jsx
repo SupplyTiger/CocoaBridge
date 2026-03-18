@@ -53,6 +53,10 @@ const ChatMessage = ({ message, owner }) => {
   const isUser = message.role === "user";
   const displayName = isUser ? owner?.name ?? "User" : "CocoaBridge AI";
 
+  const hasContent = message.content ||
+    message.parts?.some((p) => (p.type === "text" && p.text) || p.type === "tool-invocation");
+  const isThinking = !isUser && !hasContent;
+
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
@@ -71,6 +75,13 @@ const ChatMessage = ({ message, owner }) => {
         <p className={`text-xs font-semibold mb-1 ${isUser ? "text-primary-content/70" : "text-base-content/50"}`}>
           {displayName}
         </p>
+
+        {isThinking && (
+          <div className="flex items-center gap-2 text-base-content/50 text-sm">
+            <span className="loading loading-dots loading-sm"></span>
+            <span>Thinking…</span>
+          </div>
+        )}
 
         {/* Tool invocations */}
         {message.parts?.map((part, i) => {
