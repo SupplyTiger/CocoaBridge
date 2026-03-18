@@ -31,6 +31,7 @@ export const chatTools = {
     execute: (args) => callMcpTool("get_opportunity", args),
   }),
 
+  
   search_awards: tool({
     description:
       "Search federal contract awards by keyword, NAICS, PSC, recipient, buying org, or amount range",
@@ -108,10 +109,9 @@ export const chatTools = {
     description:
       "Score a procurement opportunity against SupplyTiger's company profile. Returns HIGH/MEDIUM/LOW fit.",
     parameters: z.object({
-      opportunity_id: z.string().describe("The opportunity ID to score"),
+      id: z.string().describe("Opportunity ID to score"),
     }),
-    execute: ({ opportunity_id }) =>
-      callMcpTool("score_opportunity", { id: opportunity_id }),
+    execute: (args) => callMcpTool("score_opportunity", args),
   }),
 
   get_analytics_summary: tool({
