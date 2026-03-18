@@ -1,8 +1,8 @@
 import React from 'react'
 import {ArrowLeft, ArrowRight} from "lucide-react";
-const PaginationButton = ( {totalPages, onPageChange, currentPage, size }) => {
+const PaginationButton = ( {totalPages, onPageChange, currentPage, size, justify = "center" }) => {
   return (
-              <div className="flex justify-center mt-4">
+              <div className={`flex justify-${justify} mt-4`}>
                 <div className="join text-primary-content">
                   <button
                     className={`join-item btn bg-primary hover:bg-primary/80 border border-primary-content/60 text-primary-content` + (size ? ` btn-${size}` : '')}

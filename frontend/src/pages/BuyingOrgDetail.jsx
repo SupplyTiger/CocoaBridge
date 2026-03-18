@@ -7,6 +7,7 @@ import { dbApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import ItemDetail from "../components/ItemDetail.jsx";
 import RelatedRecordsCard from "../components/RelatedRecordsCard.jsx";
+import PaginationButton from "../components/PaginationButton.jsx";
 
 const BuyingOrgDetail = () => {
   const { id } = useParams();
@@ -106,18 +107,20 @@ const BuyingOrgDetail = () => {
                         to={`/buying-orgs/${c.id}`}
                         className="flex items-center gap-2 link link-hover"
                       >
-                        <span className="badge badge-outline badge-sm text-primary-content">{c.level}</span>
+                        <span className="badge badge-error badge-sm text-error-content">{c.level}</span>
                         {c.name}
                       </Link>
                     </li>
                   ))}
                 </ul>
                 {children.length > CHILD_PAGE_SIZE && (
-                  <div className="join mt-2">
-                    <button className="join-item btn btn-xs" onClick={() => setChildPage((p) => p - 1)} disabled={childPage === 1}>«</button>
-                    <span className="join-item btn btn-xs btn-disabled pointer-events-none">{childPage} / {Math.ceil(children.length / CHILD_PAGE_SIZE)}</span>
-                    <button className="join-item btn btn-xs" onClick={() => setChildPage((p) => p + 1)} disabled={childPage === Math.ceil(children.length / CHILD_PAGE_SIZE)}>»</button>
-                  </div>
+                  <PaginationButton
+                    totalPages={Math.ceil(children.length / CHILD_PAGE_SIZE)}
+                    currentPage={childPage}
+                    onPageChange={setChildPage}
+                    size="xs"
+                    justify="start"
+                  />
                 )}
               </div>
             )}

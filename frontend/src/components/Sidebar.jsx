@@ -21,7 +21,7 @@ const Sidebar = () => {
 
     const results = query.trim()
         ? NAVIGATION_LINKS.filter((item) =>
-            item.name.toLowerCase().includes(query.toLowerCase())
+            item.name.toLowerCase().startsWith(query.trim().toLowerCase())
           )
         : [];
 
