@@ -34,7 +34,7 @@ const ChatSidebar = ({
   };
 
   return (
-    <div className="flex flex-col h-full w-64 border-r border-base-300 bg-base-100 shrink-0">
+    <div className="flex flex-col h-full w-64 border-r border-base-300 bg-base-200 shrink-0">
       {/* Header */}
       <div className="p-3 border-b border-base-300">
         <button

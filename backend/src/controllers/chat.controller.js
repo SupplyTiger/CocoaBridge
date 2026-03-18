@@ -174,7 +174,7 @@ export async function listConversations(req, res) {
       },
       orderBy: { updatedAt: "desc" },
       include: {
-        user: { select: { id: true, name: true } },
+        user: { select: { id: true, name: true, imageUrl: true } },
       },
     });
 

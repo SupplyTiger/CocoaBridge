@@ -54,8 +54,10 @@ const ChatPage = () => {
   }, [models, selectedModelOverride]);
 
   // Keep refs in sync with state
-  conversationIdRef.current = activeConversationId;
-  selectedModelRef.current = selectedModel;
+  useEffect(() => {
+    conversationIdRef.current = activeConversationId;
+    selectedModelRef.current = selectedModel;
+  }, [activeConversationId, selectedModel]);
 
   // Fetch conversations
   const { data: conversations } = useQuery({
@@ -64,12 +66,44 @@ const ChatPage = () => {
     refetchInterval: 30000,
   });
 
+  const activeConversation = conversations?.find((c) => c.id === activeConversationId);
+
   // Load messages for active conversation
   const { data: savedMessages } = useQuery({
     queryKey: ["chatMessages", activeConversationId],
     queryFn: () => chatApi.getMessages(activeConversationId),
     enabled: !!activeConversationId,
   });
+
+  // Memoize transport so ref access happens inside callbacks, not during render
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: `${API_BASE}/chat`,
+        credentials: "include",
+        prepareSendMessagesRequest: ({ body, messages }) => ({
+          body: {
+            ...body,
+            messages,
+            conversationId: conversationIdRef.current,
+            model: selectedModelRef.current,
+          },
+        }),
+        fetch: async (url, init) => {
+          const response = await fetch(url, init);
+          // Capture conversation ID from response header for new conversations
+          const newConvId = response.headers.get("x-conversation-id");
+          if (newConvId && !conversationIdRef.current) {
+            conversationIdRef.current = newConvId;
+            setActiveConversationId(newConvId);
+            queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
+          }
+          return response;
+        },
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   // useChat hook — core streaming integration
   const {
@@ -79,28 +113,7 @@ const ChatPage = () => {
     stop,
     setMessages,
   } = useChat({
-    transport: new DefaultChatTransport({
-      api: `${API_BASE}/chat`,
-      credentials: "include",
-      prepareSendMessagesRequest: ({ body, messages }) => ({
-        body: {
-          ...body,
-          messages,
-          conversationId: conversationIdRef.current,
-          model: selectedModelRef.current,
-        },
-      }),
-      fetch: async (url, init) => {
-        const response = await fetch(url, init);
-        // Capture conversation ID from response header for new conversations
-        const newConvId = response.headers.get("x-conversation-id");
-        if (newConvId && !conversationIdRef.current) {
-          conversationIdRef.current = newConvId;
-          setActiveConversationId(newConvId);
-        }
-        return response;
-      },
-    }),
+    transport,
     onFinish: () => {
       queryClient.invalidateQueries({ queryKey: ["chatConversations"] });
       if (conversationIdRef.current) {
@@ -205,8 +218,7 @@ const ChatPage = () => {
           <div className="flex items-center gap-2">
             <h2 className="font-semibold text-lg">
               {activeConversationId
-                ? conversations?.find((c) => c.id === activeConversationId)
-                    ?.title || "Chat"
+                ? activeConversation?.title || "Chat"
                 : "New Chat"}
             </h2>
           </div>
@@ -246,7 +258,7 @@ const ChatPage = () => {
           )}
 
           {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
+            <ChatMessage key={message.id} message={message} owner={activeConversation?.user} />
           ))}
 
           {isStreaming && messages[messages.length - 1]?.role === "user" && (
@@ -266,7 +278,7 @@ const ChatPage = () => {
         </div>
 
         {/* Input area */}
-        <div className="border-t border-base-300 bg-base-100 p-4">
+        <div className="border-t border-base-300 bg-secondary p-4">
           <form
             onSubmit={(e) => {
               e.preventDefault();

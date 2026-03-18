@@ -1,5 +1,7 @@
-import { User, Bot, Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { Bot, User, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const ToolInvocation = ({ toolInvocation }) => {
   const [expanded, setExpanded] = useState(false);
@@ -31,7 +33,7 @@ const ToolInvocation = ({ toolInvocation }) => {
           ))}
       </button>
       {expanded && state === "result" && result && (
-        <div className="px-3 py-2 bg-base-200/30 max-h-60 overflow-auto">
+        <div className="px-3 py-2 bg-base-200 max-h-60 overflow-auto">
           <pre className="whitespace-pre-wrap text-xs">
             {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
           </pre>
@@ -41,16 +43,21 @@ const ToolInvocation = ({ toolInvocation }) => {
   );
 };
 
-const ChatMessage = ({ message }) => {
+const MarkdownContent = ({ children }) => (
+  <div className="prose prose-sm max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+    <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
+  </div>
+);
+
+const ChatMessage = ({ message, owner }) => {
   const isUser = message.role === "user";
+  const displayName = isUser ? owner?.name ?? "User" : "CocoaBridge AI";
 
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <div className="avatar placeholder shrink-0">
-          <div className="bg-primary text-primary-content rounded-full w-8 h-8">
-            <Bot className="size-4" />
-          </div>
+        <div className="shrink-0 w-8 h-8 rounded-full bg-primary text-primary-content flex items-center justify-center">
+          <Bot className="size-4" />
         </div>
       )}
 
@@ -61,16 +68,22 @@ const ChatMessage = ({ message }) => {
             : "bg-base-200 rounded-2xl rounded-bl-sm px-4 py-2"
         }`}
       >
+        <p className={`text-xs font-semibold mb-1 ${isUser ? "text-primary-content/70" : "text-base-content/50"}`}>
+          {displayName}
+        </p>
+
         {/* Tool invocations */}
         {message.parts?.map((part, i) => {
           if (part.type === "tool-invocation") {
             return <ToolInvocation key={i} toolInvocation={part.toolInvocation} />;
           }
           if (part.type === "text" && part.text) {
-            return (
+            return isUser ? (
               <div key={i} className="whitespace-pre-wrap break-words">
                 {part.text}
               </div>
+            ) : (
+              <MarkdownContent key={i}>{part.text}</MarkdownContent>
             );
           }
           return null;
@@ -78,16 +91,30 @@ const ChatMessage = ({ message }) => {
 
         {/* Fallback for messages without parts */}
         {!message.parts && message.content && (
-          <div className="whitespace-pre-wrap break-words">{message.content}</div>
+          isUser ? (
+            <div className="whitespace-pre-wrap break-words">{message.content}</div>
+          ) : (
+            <MarkdownContent>{message.content}</MarkdownContent>
+          )
         )}
       </div>
 
       {isUser && (
-        <div className="avatar placeholder shrink-0">
-          <div className="bg-secondary text-secondary-content rounded-full w-8 h-8">
+        owner?.imageUrl ? (
+          <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden">
+            <img src={owner.imageUrl} alt={displayName} className="w-full h-full object-cover" />
+          </div>
+        ) : owner?.name ? (
+          <div className="shrink-0 w-8 h-8 rounded-full bg-secondary text-secondary-content flex items-center justify-center">
+            <span className="text-xs font-bold">
+              {owner.name[0].toUpperCase()}
+            </span>
+          </div>
+        ) : (
+          <div className="shrink-0 w-8 h-8 rounded-full bg-secondary text-secondary-content flex items-center justify-center">
             <User className="size-4" />
           </div>
-        </div>
+        )
       )}
     </div>
   );
