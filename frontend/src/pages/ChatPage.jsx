@@ -2,7 +2,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Send, Square, Info } from "lucide-react";
+import { Send, Square, Info, Bot } from "lucide-react";
 import toast from "react-hot-toast";
 import ChatSidebar from "../components/chat/ChatSidebar.jsx";
 import ChatMessage from "../components/chat/ChatMessage.jsx";
@@ -263,10 +263,8 @@ const ChatPage = () => {
 
           {isStreaming && messages[messages.length - 1]?.role === "user" && (
             <div className="flex gap-3 justify-start">
-              <div className="avatar placeholder shrink-0">
-                <div className="bg-primary text-primary-content rounded-full w-8 h-8">
-                  <span className="loading loading-dots loading-xs"></span>
-                </div>
+              <div className="shrink-0 w-8 h-8 rounded-full bg-primary text-primary-content flex items-center justify-center">
+                <Bot className="size-4" />
               </div>
               <div className="bg-base-200 rounded-2xl rounded-bl-sm px-4 py-2">
                 <span className="loading loading-dots loading-sm"></span>
