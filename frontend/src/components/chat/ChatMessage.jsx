@@ -1,4 +1,4 @@
-import { Bot, User, Loader2, ChevronDown, ChevronRight } from "lucide-react";
+import { Bot, User, Loader2, ChevronDown, ChevronRight, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -49,6 +49,36 @@ const MarkdownContent = ({ children }) => (
   </div>
 );
 
+const getMessageText = (message) => {
+  if (message.parts) {
+    return message.parts
+      .filter((p) => p.type === "text" && p.text)
+      .map((p) => p.text)
+      .join("\n");
+  }
+  return message.content ?? "";
+};
+
+const CopyButton = ({ text, isUser }) => {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className={`opacity-0 group-hover:opacity-100 transition-opacity btn btn-ghost btn-xs ${isUser ? "text-primary-content/70 hover:text-primary-content" : "text-base-content/50 hover:text-base-content"}`}
+      title="Copy message"
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+    </button>
+  );
+};
+
 const ChatMessage = ({ message, owner }) => {
   const isUser = message.role === "user";
   const displayName = isUser ? owner?.name ?? "User" : "CocoaBridge AI";
@@ -56,6 +86,7 @@ const ChatMessage = ({ message, owner }) => {
   const hasContent = message.content ||
     message.parts?.some((p) => (p.type === "text" && p.text) || p.type === "tool-invocation");
   const isThinking = !isUser && !hasContent;
+  const textContent = getMessageText(message);
 
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -66,7 +97,7 @@ const ChatMessage = ({ message, owner }) => {
       )}
 
       <div
-        className={`max-w-[75%] ${
+        className={`group relative max-w-[75%] ${
           isUser
             ? "bg-primary text-primary-content rounded-2xl rounded-br-sm px-4 py-2"
             : "bg-base-200 rounded-2xl rounded-bl-sm px-4 py-2"
@@ -108,6 +139,10 @@ const ChatMessage = ({ message, owner }) => {
             <MarkdownContent>{message.content}</MarkdownContent>
           )
         )}
+
+<div className="flex justify-end">
+        {textContent && <CopyButton text={textContent} isUser={isUser} />}
+        </div>
       </div>
 
       {isUser && (
