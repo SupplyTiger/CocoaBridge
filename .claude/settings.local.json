@@ -13,7 +13,10 @@
       "Bash(findstr \":6277\\\\|:6274\")",
       "Bash(findstr \"6277 6274\")",
       "Bash(taskkill //PID 76044 //F)",
-      "Bash(taskkill //PID 27816 //F)"
+      "Bash(taskkill //PID 27816 //F)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm install:*)"
     ]
   }
 }

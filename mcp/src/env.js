@@ -6,11 +6,11 @@ export const ENV = {
   DATABASE_URL: process.env.DATABASE_URL,
   PORT: process.env.PORT || 3001,
   NODE_ENV: process.env.NODE_ENV || "development",
-  CLIENT_URL: process.env.CLIENT_URL || `http://localhost:${process.env.PORT || 3001}`,
+  MCP_SERVER_URL: process.env.MCP_SERVER_URL || `http://localhost:${process.env.PORT || 3001}`,
   MCP_SECRET: process.env.MCP_SECRET
 };
 
-export const REQUIRED_ENV_VARS = ["GEMINI_API_KEY", "DATABASE_URL", "MCP_SECRET", "CLIENT_URL"];
+export const REQUIRED_ENV_VARS = ["GEMINI_API_KEY", "DATABASE_URL", "MCP_SECRET", "MCP_SERVER_URL"];
 
 const missing = REQUIRED_ENV_VARS.filter((key) => !ENV[key]);
 

@@ -315,6 +315,22 @@ export const syncAwardsFromUsaspendingBiWeekly = inngest.createFunction(
   },
 );
 
+// Daily cleanup of expired chat conversations (14-day retention)
+export const cleanupExpiredChats = inngest.createFunction(
+  {
+    id: "cleanup-expired-chats",
+    name: "Cleanup Expired Chat Conversations",
+    description: "Daily cron to delete chat conversations older than 14 days at 3:00 AM UTC",
+  },
+  { cron: "0 3 * * *" }, // Daily at 3 AM UTC
+  async () => {
+    const deleted = await prisma.chatConversation.deleteMany({
+      where: { expiresAt: { lte: new Date() } },
+    });
+    return { deletedCount: deleted.count };
+  },
+);
+
 export const functions = [
   syncUser,
   updateUserInDB,
@@ -327,4 +343,5 @@ export const functions = [
   syncIndustryDaysFromSamDaily,
   markPastIndustryDaysDaily,
   syncAwardsFromUsaspendingBiWeekly,
+  cleanupExpiredChats,
 ];
