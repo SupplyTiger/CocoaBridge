@@ -8,6 +8,7 @@ import samRoutes from "./routes/sam.routes.js";
 import USASpendingRoutes from "./routes/usaspending.routes.js";
 import { router as dbRoutes } from "./routes/db.routes.js";
 import { router as adminRoutes } from "./routes/admin.routes.js";
+import { router as chatRoutes } from "./routes/chat.routes.js";
 import prisma from "./config/db.js";
 import { inngest, functions } from "./config/inngest.js";
 import { serve } from "inngest/express";
@@ -41,6 +42,7 @@ app.use(
       }
     },
     credentials: true,
+    exposedHeaders: ["x-conversation-id"],
   }),
 );
 
@@ -50,6 +52,7 @@ app.use("/api/samgov", samRoutes);
 app.use("/api/usaspending", USASpendingRoutes);
 app.use("/api/db", dbRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.get("/api/health", (req, res) => {
   res.status(200).json({ message: "API success" });

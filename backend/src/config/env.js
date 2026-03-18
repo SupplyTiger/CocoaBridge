@@ -4,6 +4,8 @@ export const ENV = {
   PORT: process.env.PORT || 5001,
   NODE_ENV: process.env.NODE_ENV,
   CLIENT_URL: process.env.CLIENT_URL,
+  MCP_SERVER_URL: process.env.MCP_SERVER_URL,
+  MCP_SECRET: process.env.MCP_SECRET,
   SAMGOV_BASE_URL: process.env.SAMGOV_BASE_URL,
   USASPENDING_BASE_URL: process.env.USASPENDING_BASE_URL,
   DATABASE_URL: process.env.DATABASE_URL,
@@ -16,6 +18,7 @@ export const ENV = {
   NEON_DB_API: process.env.NEON_DB_API,
   INNGEST_ID: process.env.INNGEST_ID,
   CLERK_JWKS_URL: process.env.CLERK_JWKS_URL,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   ADMIN_EMAILS: process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase())
     : [],
@@ -31,7 +34,11 @@ const required = [
   "SAMGOV_NOTICE_DESC_URL",
   "NEON_DB_API",
   "CLIENT_URL",
+  "MCP_SERVER_URL",
   "INNGEST_ID",
+  "MCP_SECRET",
+  "GEMINI_API_KEY"
+
 ];
 
 const missing = required.filter((key) => !ENV[key]);

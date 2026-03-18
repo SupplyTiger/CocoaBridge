@@ -40,6 +40,7 @@ const InboxPage = () => {
     queryFn: () => dbApi.listInboxItems({
       page,
       limit: 50,
+      ...(debouncedSearch && { title: debouncedSearch }),
       ...(sort.field && { sortBy: sort.field, sortDir: sort.dir }),
     }),
   });
