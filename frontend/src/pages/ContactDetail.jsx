@@ -44,6 +44,7 @@ const ContactDetail = () => {
     mutationFn: () => dbApi.updateContact(id, { phone: phoneValue, title: titleValue }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contact", id] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
       toast.success("Saved");
     },
     onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to save"),

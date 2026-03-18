@@ -119,6 +119,13 @@ const ChatPage = () => {
       if (conversationIdRef.current) {
         queryClient.invalidateQueries({ queryKey: ["chatMessages", conversationIdRef.current] });
       }
+      // Refresh data queries that AI tools may have touched
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] });
+      queryClient.invalidateQueries({ queryKey: ["awards"] });
+      queryClient.invalidateQueries({ queryKey: ["buying-orgs"] });
+      queryClient.invalidateQueries({ queryKey: ["recipients"] });
+      queryClient.invalidateQueries({ queryKey: ["favorites"] });
     },
     onError: (error) => {
       let msg = error?.message || "Something went wrong";
