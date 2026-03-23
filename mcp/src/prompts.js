@@ -89,7 +89,11 @@ ${templateJson}
 
 7. **Output format:** Draft each section with clear headings. Use placeholders like [USER INPUT NEEDED] where user-specific information is required.
 
-8. This is a DRAFT for user review — do not submit anything. The user will refine and finalize.`;
+8. This is a DRAFT for user review — do not submit anything. The user will refine and finalize.
+
+---
+
+> **Tip:** You can use the \`search_publog_items\` tool to look up specific NSN/NIIN items matching this opportunity's PSC code (${opportunity.pscCode || "N/A"}). This can help you reference exact product lines and item descriptions when drafting the technical approach.`;
 
       return {
         messages: [
@@ -165,6 +169,24 @@ ${templateJson}
         });
       }
 
+      // Fetch matching publog/NSN items for this opportunity's PSC
+      let matchingItems = [];
+      if (opportunity.pscCode) {
+        matchingItems = await prisma.nationalStockNumber.findMany({
+          where: { pscCode: opportunity.pscCode },
+          select: {
+            nsn: true,
+            niin: true,
+            pscCode: true,
+            itemName: true,
+            commonName: true,
+            pscClass: { select: { title: true, isSupplyTigerPsc: true } },
+          },
+          orderBy: { itemName: "asc" },
+          take: 20,
+        });
+      }
+
       // Fetch contacts linked to this opportunity
       const contactLinks = await prisma.contactLink.findMany({
         where: { opportunityId: opportunity.id },
@@ -233,6 +255,14 @@ ${awardsJson}
 
 ---
 
+## MATCHING SUPPLY ITEMS (NSN/Publog — PSC ${opportunity.pscCode || "N/A"})
+
+${matchingItems.length > 0
+  ? `These are federal supply items in this opportunity's PSC code. Items flagged as \`isSupplyTigerPsc: true\` are in SupplyTiger's core product lines.\n\n${JSON.stringify(matchingItems.map((i) => ({ nsn: i.nsn, niin: i.niin, psc: i.pscCode, itemName: i.itemName, commonName: i.commonName, pscTitle: i.pscClass?.title || null, isSupplyTigerPsc: i.pscClass?.isSupplyTigerPsc || false })), null, 2)}`
+  : "No matching publog items found for this opportunity's PSC code."}
+
+---
+
 ## CONTACTS LINKED TO THIS OPPORTUNITY
 
 ${contacts.length > 0 ? JSON.stringify(contacts, null, 2) : "No contacts found for this opportunity."}
@@ -243,7 +273,7 @@ ${contacts.length > 0 ? JSON.stringify(contacts, null, 2) : "No contacts found f
 
 Provide a comprehensive analysis covering:
 
-1. **Fit Assessment:** How well does this opportunity align with SupplyTiger's NAICS codes, PSC codes, core competencies, and acquisition paths? Rate as HIGH / MEDIUM / LOW with reasoning.
+1. **Fit Assessment:** How well does this opportunity align with SupplyTiger's NAICS codes, PSC codes, core competencies, and acquisition paths? Use the matching supply items data to assess whether SupplyTiger carries products in this PSC. Rate as HIGH / MEDIUM / LOW with reasoning.
 
 2. **Competitive Landscape:** Based on the related awards data, who are the incumbents? What are typical award sizes? Is this a re-compete or new requirement?
 
