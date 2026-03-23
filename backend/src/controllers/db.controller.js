@@ -906,6 +906,67 @@ export const listFavorites = async (req, res) => {
   }
 };
 
+// --- NSN Item controllers ---
+
+export const listNsnItems = async (req, res) => {
+  try {
+    const { page, limit, skip } = parsePagination(req.query);
+    const where = {};
+    if (req.query.search) {
+      where.OR = [
+        { itemName: { contains: req.query.search, mode: "insensitive" } },
+        { commonName: { contains: req.query.search, mode: "insensitive" } },
+        { characteristics: { contains: req.query.search, mode: "insensitive" } },
+      ];
+    }
+    if (req.query.supplyTigerOnly === "true") {
+      where.pscClass = { isSupplyTigerPsc: true };
+    }
+
+    const validNsnSortFields = ["itemName", "pscCode"];
+    const nsnSortBy = validNsnSortFields.includes(req.query.sortBy) ? req.query.sortBy : null;
+    const nsnSortDir = req.query.sortDir === "asc" ? "asc" : "desc";
+    const nsnOrderBy = nsnSortBy ? { [nsnSortBy]: nsnSortDir } : { itemName: "asc" };
+
+    const [total, items] = await Promise.all([
+      prisma.nationalStockNumber.count({ where }),
+      prisma.nationalStockNumber.findMany({
+        where,
+        orderBy: nsnOrderBy,
+        skip,
+        take: limit,
+        include: {
+          pscClass: { select: { title: true, isSupplyTigerPsc: true } },
+        },
+      }),
+    ]);
+
+    return res.json({
+      meta: { total, page, limit, returned: items.length },
+      data: items,
+    });
+  } catch (error) {
+    console.error("listNsnItems error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const getNsnItem = async (req, res) => {
+  try {
+    const item = await prisma.nationalStockNumber.findUnique({
+      where: { id: req.params.id },
+      include: {
+        pscClass: { select: { title: true, isSupplyTigerPsc: true } },
+      },
+    });
+    if (!item) return res.status(404).json({ error: "NSN item not found" });
+    return res.json({ data: item });
+  } catch (error) {
+    console.error("getNsnItem error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
 export const toggleFavorite = async (req, res) => {
   try {
     const { entityType, entityId } = req.body;
