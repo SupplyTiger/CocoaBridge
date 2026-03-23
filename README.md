@@ -454,6 +454,7 @@ The `/admin` page (ADMIN role only) provides:
 - **Manual Sync Controls** — trigger any of the 4 data sync jobs on demand with live feedback
 - **System Health** — status cards showing last run time, success/failure, and records affected for each sync job
 - **Filter Configuration** — tabbed keyword/code editor for the 4 sync filter types (Solicitation Keywords, NAICS Codes, PSC Prefixes, Industry Day Keywords); each filter has an active list and a word bank for quick re-adding
+  > **Note:** Filter Configuration applies to SAM.gov and USASpending data ingest only. Publog data was manually inserted.
 
 ## Admin Inline Editing
 
