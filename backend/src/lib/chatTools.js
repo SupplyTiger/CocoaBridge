@@ -131,4 +131,19 @@ export const chatTools = {
     }),
     execute: (args) => callMcpTool("get_intelligence_summary", args),
   }),
+
+  search_publog_items: tool({
+    description:
+      "Search federal supply items from DLA Publog by keyword, PSC code, NIIN, or NSN. Returns item descriptions, characteristics, and common names. Use supplyTigerOnly to filter to SupplyTiger product lines (PSC 8925, 8950).",
+    parameters: z.object({
+      keyword: z.string().optional().describe("Searches itemName + commonName (case-insensitive)"),
+      psc: z.string().optional().describe("Filter by 4-digit PSC code (e.g., '8925')"),
+      niin: z.string().optional().describe("Exact NIIN lookup (9-digit identifier)"),
+      nsn: z.string().optional().describe("Exact NSN lookup (13-digit: PSC + NIIN)"),
+      supplyTigerOnly: z.boolean().optional().describe("If true, only return items from SupplyTiger PSC codes (8925, 8950)"),
+      limit: z.number().optional().describe("Max results (default 20, max 50)"),
+      offset: z.number().optional().describe("Pagination offset"),
+    }),
+    execute: (args) => callMcpTool("search_publog_items", args),
+  }),
 };

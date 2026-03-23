@@ -467,3 +467,57 @@ model Favorite {
   @@index([userId])
   @@schema("public")
 }
+
+model PscClass {
+  psc              String  @id // 4-digit PSC code (e.g., "8925")
+  title            String // e.g., "SUGAR, CONFECTIONERY, AND NUTS"
+  inclusions       String?
+  exclusions       String?
+  notes            String?
+  isSupplyTigerPsc Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stockNumbers         NationalStockNumber[]
+  commercialItemDescs  CommercialItemDesc[]
+
+  @@index([isSupplyTigerPsc])
+  @@schema("public")
+}
+
+model NationalStockNumber {
+  id              String  @id @default(cuid())
+  nsn             String  @unique // pscCode + niin (13 chars)
+  niin            String // 9-digit NIIN
+  pscCode         String
+  pscClass        PscClass @relation(fields: [pscCode], references: [psc], onDelete: Cascade)
+  itemName        String
+  characteristics String?
+  commonName      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pscCode])
+  @@index([itemName])
+  @@index([commonName])
+  @@schema("public")
+}
+
+model CommercialItemDesc {
+  id          String  @id @default(cuid())
+  cid         String  @unique // e.g., "A-A-20177G"
+  date        String? // Date string(s) — variable format from source
+  description String
+  qaPkg       String?
+  qaPkgDate   String?
+  pscCode     String
+  pscClass    PscClass @relation(fields: [pscCode], references: [psc], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pscCode])
+  @@schema("public")
+}
