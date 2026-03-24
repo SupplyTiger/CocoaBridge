@@ -1,6 +1,7 @@
 import express from "express";
 import {
   backfillNullOpportunityDescriptionsFromSam,
+  backfillOpportunityAttachments,
   getIndustryDayOpportunitiesFromSam,
   getOpportunityDescriptionFromSam,
   syncCurrentOpportunitiesFromSam,
@@ -52,6 +53,11 @@ router.get("/opportunities/event", protectRoute, getIndustryDayOpportunitiesFrom
 router.get(
   "/opportunities/description/backfill", protectRoute,
   backfillNullOpportunityDescriptionsFromSam,
+);
+
+router.get(
+  "/opportunities/attachments/backfill", protectRoute,
+  backfillOpportunityAttachments,
 );
 
 /*

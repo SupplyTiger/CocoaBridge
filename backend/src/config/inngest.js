@@ -11,6 +11,7 @@ import {
   deleteUser,
   changeExpiredOpportunitiesToInactive,
   runBackfillNullOpportunityDescriptionsFromSam,
+  runBackfillOpportunityAttachments,
   markPastIndustryDays,
 } from "../controllers/db.controller.js";
 import { runCurrentOpportunitiesSyncFromSam, runIndustryDaySyncFromSam } from "../controllers/sam.controller.js";
@@ -315,6 +316,29 @@ export const syncAwardsFromUsaspendingBiWeekly = inngest.createFunction(
   },
 );
 
+// Daily backfill of attachment metadata from SAM.gov /resources endpoint
+export const backfillAttachmentMetadataDaily = inngest.createFunction(
+  {
+    id: "backfill-attachment-metadata-daily",
+    name: "Backfill Attachment Metadata Daily",
+    description:
+      "Daily cron to fetch attachment metadata for opportunities with resourceLinks, runs at 1:00 AM EST",
+  },
+  { cron: "0 6 * * *" }, // 1:00 AM EST / 6:00 AM UTC
+  async () => {
+    return await withSyncLog(
+      "backfill-attachment-metadata",
+      "Backfill Attachment Metadata",
+      () => runBackfillOpportunityAttachments(),
+      (r) => r?.results?.upserted ?? null,
+      (r) => {
+        const n = r?.results?.failed ?? 0;
+        return n > 0 ? `${n} attachment fetch error(s)` : null;
+      },
+    );
+  },
+);
+
 // Daily cleanup of expired chat conversations (14-day retention)
 export const cleanupExpiredChats = inngest.createFunction(
   {
@@ -343,5 +367,6 @@ export const functions = [
   syncIndustryDaysFromSamDaily,
   markPastIndustryDaysDaily,
   syncAwardsFromUsaspendingBiWeekly,
+  backfillAttachmentMetadataDaily,
   cleanupExpiredChats,
 ];

@@ -25,6 +25,7 @@ export const normalizeOpportunity = (opportunity) => {
     opportunity?.responseDeadLine || opportunity?.responseDeadline,
   );
 
+  const resourceLinks = Array.isArray(opportunity?.resourceLinks) ? opportunity.resourceLinks : [];
   const setAside = opportunity?.typeOfSetAside || null;
   const fullParentPathName = opportunity?.fullParentPathName || null;
   const city =
@@ -61,6 +62,7 @@ export const normalizeOpportunity = (opportunity) => {
     zip,
     countryCode,
     postedDate,
+    resourceLinks,
     responseDeadline,
     setAside,
   };

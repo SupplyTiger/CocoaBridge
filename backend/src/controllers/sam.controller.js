@@ -2,6 +2,7 @@ import { SourceSystem, AcquisitionPath } from "@prisma/client";
 import { ENV } from "../config/env.js";
 import axios from "axios";
 import prisma from "../config/db.js";
+import { runBackfillOpportunityAttachments } from "./db.controller.js";
 import { inngestClient, emitInternalEventSafe } from "../config/inngestClient.js";
 import { buildInboxSummary, buildInboxTitle } from "../utils/inboxText.js";
 import {
@@ -395,6 +396,7 @@ async function upsertOpportunityFromSam(prisma, opportunity, filterConfig = null
     state: normalized.state ?? null,
     zip: normalized.zip ?? null,
     countryCode: normalized.countryCode ?? null,
+    resourceLinks: normalized.resourceLinks ?? [],
   };
 
   // Upsert by solicitationNumber when available (handles amendments without
@@ -1082,6 +1084,22 @@ export const backfillNullOpportunityDescriptionsFromSam = async (req, res) => {
       error:
         "Internal Server Error -- failed to backfill null opportunity descriptions",
       details: error?.response?.data ?? error?.message,
+    });
+  }
+};
+
+export const backfillOpportunityAttachments = async (req, res) => {
+  try {
+    const payload = await runBackfillOpportunityAttachments({
+      limit: req?.query?.limit,
+    });
+    return res.status(200).json(payload);
+  } catch (error) {
+    console.error("Error in backfillOpportunityAttachments controller:", error);
+    return res.status(500).json({
+      ok: false,
+      error: "Internal Server Error -- failed to backfill attachment metadata",
+      details: error?.message,
     });
   }
 };

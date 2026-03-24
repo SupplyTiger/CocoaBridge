@@ -296,6 +296,126 @@ export const runBackfillNullOpportunityDescriptionsFromSam = async ({
   };
 };
 
+// ---------- Attachment metadata backfill ----------
+
+const SAM_RESOURCES_BASE = "https://sam.gov/api/prod/opps/v3/opportunities";
+
+export const runBackfillOpportunityAttachments = async ({
+  limit = 50,
+} = {}) => {
+  const safeLimit = Math.max(1, Math.min(Number.parseInt(limit, 10) || 50, 200));
+
+  // Find opportunities that have resourceLinks but no attachment records yet
+  const opportunities = await prisma.opportunity.findMany({
+    where: {
+      noticeId: { not: null },
+      resourceLinks: { isEmpty: false },
+      attachments: { none: {} },
+    },
+    select: {
+      id: true,
+      noticeId: true,
+      title: true,
+    },
+    take: safeLimit,
+    orderBy: { postedDate: "desc" },
+  });
+
+  let fetched = 0;
+  let upserted = 0;
+  let skipped = 0;
+  let failed = 0;
+  const failures = [];
+
+  for (const opp of opportunities) {
+    try {
+      const response = await fetch(
+        `${SAM_RESOURCES_BASE}/${opp.noticeId}/resources`,
+        { signal: AbortSignal.timeout(15000) },
+      );
+
+      if (!response.ok) {
+        failed += 1;
+        failures.push({
+          id: opp.id,
+          noticeId: opp.noticeId,
+          title: opp.title,
+          message: `HTTP ${response.status}`,
+        });
+        continue;
+      }
+
+      const data = await response.json();
+      const attachments =
+        data?._embedded?.opportunityAttachmentList?.[0]?.attachments ?? [];
+      fetched += 1;
+
+      // Filter to public attachments only
+      const publicAttachments = attachments.filter(
+        (a) => a.accessLevel === "public" && a.fileExists === "1",
+      );
+
+      for (const att of publicAttachments) {
+        const resourceId = att.resourceId;
+        if (!resourceId) continue;
+
+        const downloadUrl = `${SAM_RESOURCES_BASE}/resources/files/${resourceId}/download`;
+
+        await prisma.opportunityAttachment.upsert({
+          where: { resourceId },
+          update: {
+            name: att.name,
+            mimeType: att.mimeType || null,
+            size: att.size ? Number(att.size) : null,
+            postedDate: att.postedDate ? new Date(att.postedDate) : null,
+            attachmentOrder: att.attachmentOrder ? Number(att.attachmentOrder) : null,
+            downloadUrl,
+          },
+          create: {
+            resourceId,
+            name: att.name,
+            mimeType: att.mimeType || null,
+            size: att.size ? Number(att.size) : null,
+            postedDate: att.postedDate ? new Date(att.postedDate) : null,
+            attachmentOrder: att.attachmentOrder ? Number(att.attachmentOrder) : null,
+            downloadUrl,
+            opportunityId: opp.id,
+          },
+        });
+        upserted += 1;
+      }
+
+      skipped += attachments.length - publicAttachments.length;
+    } catch (error) {
+      failed += 1;
+      failures.push({
+        id: opp.id,
+        noticeId: opp.noticeId,
+        title: opp.title,
+        message: error?.message ?? String(error),
+      });
+    }
+
+    // Rate limit: 200ms between opportunities
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  return {
+    ok: true,
+    meta: {
+      selected: opportunities.length,
+      limit: safeLimit,
+    },
+    results: {
+      fetched,
+      upserted,
+      skipped,
+      failed,
+    },
+    failures,
+  };
+};
+
 export const markPastIndustryDays = async () => {
   const now = new Date();
   try {
@@ -494,6 +614,20 @@ export const getOpportunity = async (req, res) => {
         inboxItems: true,
         contactLinks: {
           include: { contact: { select: { id: true } } },
+        },
+        attachments: {
+          orderBy: { attachmentOrder: "asc" },
+          select: {
+            id: true,
+            resourceId: true,
+            name: true,
+            mimeType: true,
+            size: true,
+            postedDate: true,
+            attachmentOrder: true,
+            downloadUrl: true,
+            parsedAt: true,
+          },
         },
       },
     });

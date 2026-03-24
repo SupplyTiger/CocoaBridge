@@ -263,7 +263,8 @@ model Opportunity {
   tag                OppTag  @default(GENERAL)
   active             Boolean @default(true)
 
-  description String?
+  description   String?
+  resourceLinks String[] @default([]) // SAM.gov attachment download URLs
 
   postedDate       DateTime?
   responseDeadline DateTime?
@@ -291,7 +292,8 @@ model Opportunity {
   // Contacts scraped from SAM for this opportunity (optional but useful)
   contactLinks ContactLink[]
 
-  favorites Favorite[]
+  favorites   Favorite[]
+  attachments OpportunityAttachment[]
 
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -304,6 +306,31 @@ model Opportunity {
   @@index([pscCode])
   @@index([type])
   @@index([title])
+  @@schema("public")
+}
+
+model OpportunityAttachment {
+  id              String    @id @default(cuid())
+  resourceId      String    @unique
+  name            String // original filename
+  mimeType        String? // ".pdf", ".docx", etc.
+  size            Int? // bytes
+  postedDate      DateTime?
+  attachmentOrder Int?
+  downloadUrl     String // full SAM.gov download URL
+
+  // Step Two fields (on-demand PDF parsing)
+  parsedText String?
+  parsedAt   DateTime?
+
+  opportunityId String
+  opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([opportunityId])
+  @@index([name])
   @@schema("public")
 }
 
