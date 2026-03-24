@@ -33,8 +33,8 @@ import {
   deleteContact,
   listFavorites,
   toggleFavorite,
-  listNsnItems,
-  getNsnItem,
+  listFLISItems,
+  getFLISItem,
 } from "../controllers/db.controller.js";
 
 export const router = express.Router();
@@ -78,9 +78,9 @@ router.get("/recipients", ...protectRoute, readOnlyOrAbove, listRecipients);
 router.get("/recipients/:id", ...protectRoute, readOnlyOrAbove, getRecipient);
 router.patch("/recipients/:id", ...protectRoute, adminOnly, updateRecipient);
 
-// NSN Items
-router.get("/nsn-items", ...protectRoute, readOnlyOrAbove, listNsnItems);
-router.get("/nsn-items/:id", ...protectRoute, readOnlyOrAbove, getNsnItem);
+// FLIS Items
+router.get("/flis-items", ...protectRoute, readOnlyOrAbove, listFLISItems);
+router.get("/flis-items/:id", ...protectRoute, readOnlyOrAbove, getFLISItem);
 
 // Contacts
 router.get("/contacts", ...protectRoute, readOnlyOrAbove, listContacts);

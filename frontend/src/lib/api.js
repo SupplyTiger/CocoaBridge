@@ -105,13 +105,13 @@ export const dbApi = {
     const { data } = await axiosInstance.delete(`/db/contacts/${id}`);
     return data;
   },
-  // NSN Items
-  listNsnItems: async (params) => {
-    const { data } = await axiosInstance.get("/db/nsn-items", { params });
+  // FLIS Items
+  listFLISItems: async (params) => {
+    const { data } = await axiosInstance.get("/db/flis-items", { params });
     return data;
   },
-  getNsnItem: async (id) => {
-    const { data } = await axiosInstance.get(`/db/nsn-items/${id}`);
+  getFLISItem: async (id) => {
+    const { data } = await axiosInstance.get(`/db/flis-items/${id}`);
     return data;
   },
   // Favorites

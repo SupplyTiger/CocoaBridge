@@ -93,8 +93,8 @@ async function seedPscClasses() {
   }
 }
 
-async function seedNationalStockNumbers() {
-  console.log("Seeding National Stock Numbers...");
+async function seedFederalLogisticsInformation() {
+  console.log("Seeding Federal Logistics Information System...");
 
   for (const psc of PSC_CODES) {
     const csvPath = resolve(CONTEXT_DIR, `${psc}_DESCRIPTIONS.csv`);
@@ -111,10 +111,17 @@ async function seedNationalStockNumbers() {
       const characteristics = row.CHARACTERISTICS?.trim() || null;
       const commonName = row.COMMON_NAME?.trim() || null;
 
-      await prisma.nationalStockNumber.upsert({
+      await prisma.FederalLogisticsInformationSystem.upsert({
         where: { nsn },
         update: { niin, pscCode: fsc, itemName, characteristics, commonName },
-        create: { nsn, niin, pscCode: fsc, itemName, characteristics, commonName },
+        create: {
+          nsn,
+          niin,
+          pscCode: fsc,
+          itemName,
+          characteristics,
+          commonName,
+        },
       });
       count++;
     }
@@ -127,8 +134,9 @@ async function seedCommercialItemDescs() {
   console.log("Seeding Commercial Item Descriptions...");
 
   const cidFiles = [
-    // { path: resolve(CONTEXT_DIR, "8970-A-A-20331B_CID_NUMBERS.txt"), psc: "8970" },
+    { path: resolve(CONTEXT_DIR, "8925_CID_NUMBERS.txt"), psc: "8925" },
     { path: resolve(CONTEXT_DIR, "8950-A-A-20001C_CID_NUMBERS.txt"), psc: "8950" },
+    { path: resolve(CONTEXT_DIR, "8970-A-A-20331B_CID_NUMBERS.txt"), psc: "8970" },
   ];
 
   for (const { path: cidPath, psc } of cidFiles) {
@@ -162,8 +170,8 @@ async function main() {
 
   try {
     // await seedPscClasses();
-    // await seedNationalStockNumbers();
-    await seedCommercialItemDescs();
+    await seedFederalLogisticsInformation();
+    // await seedCommercialItemDescs();
     console.log("\nSeed complete.");
   } catch (error) {
     console.error("Seed failed:", error);

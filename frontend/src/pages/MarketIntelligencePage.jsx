@@ -21,7 +21,7 @@ const buyingOrgColumns = [
   { accessor: "website", header: "Website", render: (val) => val ?? "—" },
 ];
 
-const nsnColumns = [
+const flisItemColumns = [
   { accessor: "nsn", header: "NSN", render: (val) => val ?? "—" },
   { accessor: "pscCode", header: "PSC", sortable: true, render: (val) => val ?? "—" },
   { accessor: "niin", header: "NIIN", render: (val) => val ?? "—" },
@@ -148,7 +148,7 @@ const BuyingOrgsTab = () => {
   );
 };
 
-const NsnItemsTab = () => {
+const FLISItemsTab = () => {
   const [page, setPage] = useState(1);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sort, setSort] = useState({ field: null, dir: "asc" });
@@ -163,8 +163,8 @@ const NsnItemsTab = () => {
   }, []);
 
   const { data: result, isLoading, isError, error } = useQuery({
-    queryKey: ["nsn-items", page, debouncedSearch, sort, supplyTigerOnly],
-    queryFn: () => dbApi.listNsnItems({
+    queryKey: ["flis-items", page, debouncedSearch, sort, supplyTigerOnly],
+    queryFn: () => dbApi.listFLISItems({
       page,
       limit: 50,
       search: debouncedSearch || undefined,
@@ -192,7 +192,7 @@ const NsnItemsTab = () => {
         </label>
       </div>
       <Table
-        columns={nsnColumns}
+        columns={flisItemColumns}
         data={result?.data ?? []}
         isLoading={isLoading}
         isError={isError}
@@ -200,11 +200,11 @@ const NsnItemsTab = () => {
         meta={result?.meta}
         page={page}
         onPageChange={setPage}
-        basePath="/nsn-items"
+        basePath="/flis-items"
         sort={sort}
         onSort={handleSort}
-        emptyMessage={debouncedSearch ? "No results found" : "No NSN Items"}
-        emptySubMessage={debouncedSearch ? `No NSN items match "${debouncedSearch}".` : "NSN items will appear here once available."}
+        emptyMessage={debouncedSearch ? "No results found" : "No FLIS Items"}
+        emptySubMessage={debouncedSearch ? `No FLIS items match "${debouncedSearch}".` : "FLIS items will appear here once available."}
       />
     </div>
   );
@@ -215,7 +215,7 @@ const MarketIntelligencePage = () => {
   const tabs = [
     { label: "Recipients", value: "recipients" },
     { label: "Buying Agencies", value: "buying-orgs" },
-    { label: "NSN Items", value: "nsn-items" },
+    { label: "FLIS Items", value: "flis-items" },
   ];
   const [activeTab, setActiveTab] = useState(tabs[0].value);
 
@@ -227,7 +227,7 @@ const MarketIntelligencePage = () => {
     <div className="flex flex-col gap-4">
         <TabsJoinButton tabs={tabs} activeTab={activeTab} setActiveTab={handleTabChange} />
 
-      {activeTab === "recipients" ? <RecipientsTab /> : activeTab === "buying-orgs" ? <BuyingOrgsTab /> : <NsnItemsTab />}
+      {activeTab === "recipients" ? <RecipientsTab /> : activeTab === "buying-orgs" ? <BuyingOrgsTab /> : <FLISItemsTab />}
     </div>
   );
 };

@@ -3,12 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { dbApi } from "../lib/api.js";
 import ItemDetail from "../components/ItemDetail.jsx";
 
-const NsnItemDetail = () => {
+const FLISItemDetail = () => {
   const { id } = useParams();
 
   const { data: result, isLoading, isError, error } = useQuery({
-    queryKey: ["nsn-item", id],
-    queryFn: () => dbApi.getNsnItem(id),
+    queryKey: ["flis-item", id],
+    queryFn: () => dbApi.getFLISItem(id),
   });
 
   const item = result?.data;
@@ -28,11 +28,11 @@ const NsnItemDetail = () => {
       item={item}
       backTo="/market-intelligence"
       backLabel="Back to Market Intelligence"
-      title={item?.itemName ?? "NSN Item"}
+      title={item?.itemName ?? "FLIS Item"}
       fields={fields}
       description={item?.characteristics}
     />
   );
 };
 
-export default NsnItemDetail;
+export default FLISItemDetail;

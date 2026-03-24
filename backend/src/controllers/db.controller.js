@@ -906,9 +906,9 @@ export const listFavorites = async (req, res) => {
   }
 };
 
-// --- NSN Item controllers ---
+// --- FLIS Item controllers ---
 
-export const listNsnItems = async (req, res) => {
+export const listFLISItems = async (req, res) => {
   try {
     const { page, limit, skip } = parsePagination(req.query);
     const where = {};
@@ -923,16 +923,16 @@ export const listNsnItems = async (req, res) => {
       where.pscClass = { isSupplyTigerPsc: true };
     }
 
-    const validNsnSortFields = ["itemName", "pscCode"];
-    const nsnSortBy = validNsnSortFields.includes(req.query.sortBy) ? req.query.sortBy : null;
-    const nsnSortDir = req.query.sortDir === "asc" ? "asc" : "desc";
-    const nsnOrderBy = nsnSortBy ? { [nsnSortBy]: nsnSortDir } : { itemName: "asc" };
+    const validFLISSortFields = ["itemName", "pscCode"];
+    const FLISSortBy = validFLISSortFields.includes(req.query.sortBy) ? req.query.sortBy : null;
+    const FLISSortDir = req.query.sortDir === "asc" ? "asc" : "desc";
+    const FLISOrderBy = FLISSortBy ? { [FLISSortBy]: FLISSortDir } : { itemName: "asc" };
 
     const [total, items] = await Promise.all([
-      prisma.nationalStockNumber.count({ where }),
-      prisma.nationalStockNumber.findMany({
+      prisma.federalLogisticsInformationSystem.count({ where }),
+      prisma.federalLogisticsInformationSystem.findMany({
         where,
-        orderBy: nsnOrderBy,
+        orderBy: FLISOrderBy,
         skip,
         take: limit,
         include: {
@@ -946,23 +946,23 @@ export const listNsnItems = async (req, res) => {
       data: items,
     });
   } catch (error) {
-    console.error("listNsnItems error:", error);
+    console.error("listFLISItems error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };
 
-export const getNsnItem = async (req, res) => {
+export const getFLISItem = async (req, res) => {
   try {
-    const item = await prisma.nationalStockNumber.findUnique({
+    const item = await prisma.federalLogisticsInformationSystem.findUnique({
       where: { id: req.params.id },
       include: {
         pscClass: { select: { title: true, isSupplyTigerPsc: true } },
       },
     });
-    if (!item) return res.status(404).json({ error: "NSN item not found" });
+    if (!item) return res.status(404).json({ error: "FLIS item not found" });
     return res.json({ data: item });
   } catch (error) {
-    console.error("getNsnItem error:", error);
+    console.error("getFLISItem error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };

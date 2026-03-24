@@ -109,7 +109,7 @@ ${cidSection}
 
 ---
 
-> **Tip:** You can use the \`search_publog_items\` tool to look up specific NSN/NIIN items matching this opportunity's PSC code (${opportunity.pscCode || "N/A"}). This can help you reference exact product lines and item descriptions when drafting the technical approach.`;
+> **Tip:** You can use the \`search_publog_items\` tool to look up specific NSN/NIIN/FLIS items matching this opportunity's PSC code (${opportunity.pscCode || "N/A"}). This can help you reference exact product lines and item descriptions when drafting the technical approach.`;
 
   return {
     messages: [
@@ -154,7 +154,7 @@ export async function buildOpportunityFitPrompt(opportunityId) {
 
   let matchingItems = [];
   if (opportunity.pscCode) {
-    matchingItems = await prisma.nationalStockNumber.findMany({
+    matchingItems = await prisma.federalLogisticsInformationSystem.findMany({
       where: { pscCode: opportunity.pscCode },
       select: {
         nsn: true,
@@ -234,7 +234,7 @@ ${awardsJson}
 
 ---
 
-## MATCHING SUPPLY ITEMS (NSN/Publog — PSC ${opportunity.pscCode || "N/A"})
+## MATCHING SUPPLY ITEMS (NSN/FLIS/Publog — PSC ${opportunity.pscCode || "N/A"})
 
 ${matchingItems.length > 0
   ? `These are federal supply items in this opportunity's PSC code. Items flagged as \`isSupplyTigerPsc: true\` are in SupplyTiger's core product lines.\n\n${JSON.stringify(matchingItems.map((i) => ({ nsn: i.nsn, niin: i.niin, psc: i.pscCode, itemName: i.itemName, commonName: i.commonName, pscTitle: i.pscClass?.title || null, isSupplyTigerPsc: i.pscClass?.isSupplyTigerPsc || false })), null, 2)}`
@@ -293,49 +293,51 @@ export async function buildFulfillmentPrompt(opportunityId) {
     ...(opportunity.pscCode ? [{ pscCode: opportunity.pscCode }] : []),
   ];
 
-  const [supplyTigerItems, opportunityItems, relatedAwards] = await Promise.all([
-    prisma.nationalStockNumber.findMany({
-      where: { pscCode: { in: COMPANY_PSC_CODES } },
-      select: {
-        nsn: true,
-        niin: true,
-        pscCode: true,
-        itemName: true,
-        commonName: true,
-        pscClass: { select: { title: true, isSupplyTigerPsc: true } },
-      },
-      orderBy: { itemName: "asc" },
-      take: 20,
-    }),
-    opportunity.pscCode
-      ? prisma.nationalStockNumber.findMany({
-          where: { pscCode: opportunity.pscCode },
-          select: {
-            nsn: true,
-            niin: true,
-            pscCode: true,
-            itemName: true,
-            commonName: true,
-            pscClass: { select: { title: true, isSupplyTigerPsc: true } },
-          },
-          orderBy: { itemName: "asc" },
-          take: 20,
-        })
-      : Promise.resolve([]),
-    opportunity.buyingOrganizationId
-      ? prisma.award.findMany({
-          where: {
-            buyingOrganizationId: opportunity.buyingOrganizationId,
-            OR: orConditions.length > 0 ? orConditions : [{}],
-          },
-          include: {
-            recipient: { select: { name: true, uei: true } },
-          },
-          orderBy: { startDate: "desc" },
-          take: 15,
-        })
-      : Promise.resolve([]),
-  ]);
+  const [supplyTigerItems, opportunityItems, relatedAwards] = await Promise.all(
+    [
+      prisma.federalLogisticsInformationSystem.findMany({
+        where: { pscCode: { in: COMPANY_PSC_CODES } },
+        select: {
+          nsn: true,
+          niin: true,
+          pscCode: true,
+          itemName: true,
+          commonName: true,
+          pscClass: { select: { title: true, isSupplyTigerPsc: true } },
+        },
+        orderBy: { itemName: "asc" },
+        take: 20,
+      }),
+      opportunity.pscCode
+        ? prisma.federalLogisticsInformationSystem.findMany({
+            where: { pscCode: opportunity.pscCode },
+            select: {
+              nsn: true,
+              niin: true,
+              pscCode: true,
+              itemName: true,
+              commonName: true,
+              pscClass: { select: { title: true, isSupplyTigerPsc: true } },
+            },
+            orderBy: { itemName: "asc" },
+            take: 20,
+          })
+        : Promise.resolve([]),
+      opportunity.buyingOrganizationId
+        ? prisma.award.findMany({
+            where: {
+              buyingOrganizationId: opportunity.buyingOrganizationId,
+              OR: orConditions.length > 0 ? orConditions : [{}],
+            },
+            include: {
+              recipient: { select: { name: true, uei: true } },
+            },
+            orderBy: { startDate: "desc" },
+            take: 15,
+          })
+        : Promise.resolve([]),
+    ],
+  );
 
   const formatItems = (items) =>
     JSON.stringify(
@@ -482,7 +484,7 @@ Using the historical awards data above:
 
 ### 8. FULFILLABLE ITEMS SUMMARY
 
-List the specific items, product categories, or CLINs that SupplyTiger can deliver. Reference publog NSN data where available. If the recommendation is FULL, summarize the complete scope. If NO-BID, state why no items are fulfillable.`;
+List the specific items, product categories, or CLINs that SupplyTiger can deliver. Reference publog FLIS data where available. If the recommendation is FULL, summarize the complete scope. If NO-BID, state why no items are fulfillable.`;
 
   return {
     messages: [

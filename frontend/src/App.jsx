@@ -13,7 +13,7 @@ import ContactsPage from "./pages/ContactsPage";
 import ContactDetail from "./pages/ContactDetail";
 import RecipientDetail from "./pages/RecipientDetail";
 import BuyingOrgDetail from "./pages/BuyingOrgDetail";
-import NsnItemDetail from "./pages/NsnItemDetail";
+import FLISItemDetail from "./pages/FLISItemDetail";
 import AdminPage from "./pages/AdminPage";
 import PageLoader from "./components/PageLoader";
 import Opportunities from "./pages/OpportunitiesPage";
@@ -66,7 +66,7 @@ function App() {
         <Route path="contacts/:id" element={<DataOnlyRoute><ContactDetail /></DataOnlyRoute>} />
         <Route path="recipients/:id" element={<DataOnlyRoute><RecipientDetail /></DataOnlyRoute>} />
         <Route path="buying-orgs/:id" element={<DataOnlyRoute><BuyingOrgDetail /></DataOnlyRoute>} />
-        <Route path="nsn-items/:id" element={<DataOnlyRoute><NsnItemDetail /></DataOnlyRoute>} />
+        <Route path="flis-items/:id" element={<DataOnlyRoute><FLISItemDetail /></DataOnlyRoute>} />
         <Route path="chat" element={<ChatPage />} />
         <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="favorites" element={<DataOnlyRoute><FavoritesPage /></DataOnlyRoute>} />

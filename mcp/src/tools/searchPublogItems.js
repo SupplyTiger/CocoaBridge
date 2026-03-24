@@ -60,8 +60,8 @@ export function registerSearchPublogItems(server) {
         }
 
         const [totalCount, results] = await Promise.all([
-          prisma.nationalStockNumber.count({ where }),
-          prisma.nationalStockNumber.findMany({
+          prisma.federalLogisticsInformationSystem.count({ where }),
+          prisma.federalLogisticsInformationSystem.findMany({
             where,
             orderBy: { itemName: "asc" },
             take: limit,
