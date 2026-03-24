@@ -146,4 +146,31 @@ export const chatTools = {
     }),
     execute: (args) => callMcpTool("search_publog_items", args),
   }),
+
+  generate_bid_draft: tool({
+    description:
+      "Generate a structured draft bid/proposal for a specific opportunity using SupplyTiger's company profile, bid template, and opportunity details. Returns detailed instructions for drafting the bid with placeholders for user input.",
+    parameters: z.object({
+      opportunityId: z.string().describe("The opportunity ID to draft a bid for"),
+    }),
+    execute: (args) => callMcpTool("generate_bid_draft", args),
+  }),
+
+  analyze_opportunity_fit: tool({
+    description:
+      "Deep-dive analysis of an opportunity's fit for SupplyTiger — competitive landscape, incumbents, agency buying history, contacts, and recommended pursuit strategy (GO / NO-GO / CONDITIONAL).",
+    parameters: z.object({
+      opportunityId: z.string().describe("The opportunity ID to analyze"),
+    }),
+    execute: (args) => callMcpTool("analyze_opportunity_fit", args),
+  }),
+
+  analyze_fulfillment: tool({
+    description:
+      "Determine whether an opportunity warrants FULL, PARTIAL, or NO-BID based on SupplyTiger's capabilities, PSC/NAICS alignment, CLIN structure, and whether the contracting entity is likely to accept partial fulfillment.",
+    parameters: z.object({
+      opportunityId: z.string().describe("The opportunity ID to analyze for fulfillment capability"),
+    }),
+    execute: (args) => callMcpTool("analyze_fulfillment", args),
+  }),
 };

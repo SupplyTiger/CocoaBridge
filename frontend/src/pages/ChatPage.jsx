@@ -2,7 +2,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Send, Square, Info, Bot } from "lucide-react";
+import { Send, Square, Info, Bot, FileText, Target, PackageCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import ChatSidebar from "../components/chat/ChatSidebar.jsx";
 import ChatMessage from "../components/chat/ChatMessage.jsx";
@@ -261,6 +261,36 @@ const ChatPage = () => {
               <p className="text-sm mt-1">
                 Ask about federal procurement opportunities, awards, and more to receive actionable insights and data-driven answers.
               </p>
+
+              <div className="flex flex-wrap justify-center gap-2 mt-6">
+                {[
+                  {
+                    icon: FileText,
+                    label: "Draft a Bid",
+                    message: "Help me draft a bid for opportunity ",
+                  },
+                  {
+                    icon: Target,
+                    label: "Analyze Fit",
+                    message: "Analyze the opportunity fit for ",
+                  },
+                  {
+                    icon: PackageCheck,
+                    label: "Fulfillment Check",
+                    message: "Analyze our fulfillment capability for opportunity ",
+                  },
+                ].map(({ icon: Icon, label, message }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className="btn btn-outline btn-sm gap-2 normal-case"
+                    onClick={() => setInput(message)}
+                  >
+                    <Icon className="size-4" />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
