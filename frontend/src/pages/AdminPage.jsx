@@ -20,6 +20,7 @@ const SYNC_JOBS = [
   { type: "usaspending-awards", label: "USASpending Awards" },
   { type: "sam-descriptions", label: "Opportunity Descriptions" },
   { type: "sam-industry-days", label: "Industry Days" },
+  { type: "sam-attachments", label: "Attachment Metadata" },
 ];
 
 const timeAgo = (dateStr) => {

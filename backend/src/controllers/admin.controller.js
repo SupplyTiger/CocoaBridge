@@ -1,7 +1,7 @@
 import prisma from "../config/db.js";
 import { runCurrentOpportunitiesSyncFromSam, runIndustryDaySyncFromSam } from "./sam.controller.js";
 import { runAwardsSyncFromUsaspending } from "./usaspending.controller.js";
-import { runBackfillNullOpportunityDescriptionsFromSam } from "./db.controller.js";
+import { runBackfillNullOpportunityDescriptionsFromSam, runBackfillOpportunityAttachments } from "./db.controller.js";
 import { loadFilterConfig, VALID_CONFIG_KEYS } from "../utils/filterConfig.js";
 
 // ─── SyncLog helper ──────────────────────────────────────────────────────────
@@ -120,6 +120,7 @@ const KNOWN_JOBS = [
   { jobId: "sync-usaspending-awards", jobName: "Sync USASpending Awards" },
   { jobId: "backfill-opportunity-descriptions", jobName: "Backfill Opportunity Descriptions" },
   { jobId: "sync-sam-industry-days", jobName: "Sync SAM Industry Days" },
+  { jobId: "backfill-opportunity-attachments", jobName: "Backfill Attachment Metadata" },
   { jobId: "deactivate-expired-opportunities", jobName: "Deactivate Expired Opportunities" },
   { jobId: "mark-past-industry-days", jobName: "Mark Past Industry Days" },
 ];
@@ -197,6 +198,16 @@ const SYNC_JOBS = {
       const dbErrors = r?.db?.errors?.length ?? 0;
       if (dbErrors > 0) msg.push(`${dbErrors} industry day upsert error(s)`);
       return msg.length > 0 ? msg.join("; ") : null;
+    },
+  },
+  "sam-attachments": {
+    jobId: "backfill-opportunity-attachments",
+    jobName: "Backfill Attachment Metadata",
+    fn: () => runBackfillOpportunityAttachments(),
+    countFn: (r) => r?.results?.upserted ?? null,
+    failFn: (r) => {
+      const n = r?.results?.failed ?? 0;
+      return n > 0 ? `${n} attachment fetch error(s)` : null;
     },
   },
 };

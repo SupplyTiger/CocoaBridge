@@ -327,7 +327,7 @@ export const backfillAttachmentMetadataDaily = inngest.createFunction(
   { cron: "0 6 * * *" }, // 1:00 AM EST / 6:00 AM UTC
   async () => {
     return await withSyncLog(
-      "backfill-attachment-metadata",
+      "backfill-opportunity-attachments",
       "Backfill Attachment Metadata",
       () => runBackfillOpportunityAttachments(),
       (r) => r?.results?.upserted ?? null,
