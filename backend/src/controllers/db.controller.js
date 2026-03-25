@@ -470,7 +470,7 @@ export const listInboxItems = async (req, res) => {
       prisma.inboxItem.count({ where }),
       prisma.inboxItem.findMany({
         where,
-        include: { opportunity: true, award: true, industryDay: true },
+        include: { opportunity: true, award: true },
         orderBy: inboxOrderBy,
         skip,
         take: limit,
@@ -525,7 +525,7 @@ export const getInboxItem = async (req, res) => {
   try {
     const item = await prisma.inboxItem.findUnique({
       where: { id: req.params.id },
-      include: { opportunity: true, award: true, industryDay: true, contactLinks: true },
+      include: { opportunity: true, award: true, contactLinks: true },
     });
     if (!item) return res.status(404).json({ error: "InboxItem not found" });
     return res.json({ data: item });

@@ -1,4 +1,4 @@
-import { SourceSystem, AcquisitionPath } from "@prisma/client";
+import { SourceSystem, AcquisitionPath, OppTag } from "@prisma/client";
 import { ENV } from "../config/env.js";
 import axios from "axios";
 import prisma from "../config/db.js";
@@ -427,8 +427,11 @@ async function upsertOpportunityFromSam(prisma, opportunity, filterConfig = null
     });
   }
 
-  // Only emit inbox event for genuinely new opportunities — not amendments
-  if (!existingOpportunity) {
+  // Build the pending inbox event (if new) so the caller can emit it
+  // AFTER the surrounding transaction commits — avoids emitting events
+  // for rows that get rolled back.
+  let pendingInboxEvent = null;
+  if (!existingOpportunity && opp.tag !== OppTag.INDUSTRY_DAY) {
     const title = buildInboxTitle({
       entityLabel: "Opportunity",
       naicsCodes: normalized.naicsCodes,
@@ -437,7 +440,7 @@ async function upsertOpportunityFromSam(prisma, opportunity, filterConfig = null
       maxLen: 160,
     });
 
-    await emitInternalEventSafe("internal/opportunity.upserted", {
+    pendingInboxEvent = {
       source: opp.source,
       opportunityId: opp.id,
       op: "CREATED",
@@ -447,7 +450,7 @@ async function upsertOpportunityFromSam(prisma, opportunity, filterConfig = null
       tag: opp.tag ?? "GENERAL",
       buyingOrganizationId: opp.buyingOrganizationId ?? null,
       acquisitionPath: AcquisitionPath.OPEN_MARKET,
-    });
+    };
   }
 
   if (opportunity?.award?.number) {
@@ -460,6 +463,8 @@ async function upsertOpportunityFromSam(prisma, opportunity, filterConfig = null
     opp.id,
     buyingOrganizationId,
   );
+
+  opp.pendingInboxEvent = pendingInboxEvent;
   return opp;
 }
 
@@ -628,7 +633,10 @@ export async function runCurrentOpportunitiesSyncFromSam({
       }
 
       try {
-        await upsertOpportunityFromSam(prisma, opp, filterConfig);
+        const savedOpp = await upsertOpportunityFromSam(prisma, opp, filterConfig);
+        if (savedOpp.pendingInboxEvent) {
+          await emitInternalEventSafe("internal/opportunity.upserted", savedOpp.pendingInboxEvent);
+        }
         upserted += 1;
       } catch (e) {
         skipped += 1;
@@ -814,13 +822,19 @@ export async function runIndustryDaySyncFromSam({
       }
 
       try {
+        let pendingInboxEvent = null;
         await prisma.$transaction(
           async (tx) => {
             const savedOpp = await upsertOpportunityFromSam(tx, opp, filterConfig);
+            pendingInboxEvent = savedOpp.pendingInboxEvent;
             await upsertIndustryDayFromSam(tx, opp, savedOpp.id);
           },
           { timeout: 30000 },
         );
+        // Emit only after the transaction commits successfully
+        if (pendingInboxEvent) {
+          await emitInternalEventSafe("internal/opportunity.upserted", pendingInboxEvent);
+        }
         upserted += 1;
       } catch (e) {
         skipped += 1;
@@ -953,13 +967,18 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
         }
 
         try {
+          let pendingInboxEvent = null;
           await prisma.$transaction(
             async (tx) => {
               const savedOpp = await upsertOpportunityFromSam(tx, opp);
+              pendingInboxEvent = savedOpp.pendingInboxEvent;
               await upsertIndustryDayFromSam(tx, opp, savedOpp.id);
             },
             { timeout: 30000 },
           );
+          if (pendingInboxEvent) {
+            await emitInternalEventSafe("internal/opportunity.upserted", pendingInboxEvent);
+          }
           upserted += 1;
         } catch (e) {
           skipped += 1;

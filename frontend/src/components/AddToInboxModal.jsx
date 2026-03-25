@@ -7,7 +7,7 @@ import { dbApi } from "../lib/api.js";
 const SOURCES = ["SAM", "USASPENDING", "MANUAL"];
 const ACQ_PATHS = ["MICROPURCHASE", "GSA", "OPEN_MARKET", "SUBCONTRACTING"];
 const ITEM_TYPES = ["PRE_SOLICITATION", "AWARD_NOTICE", "SOURCES_SOUGHT", "SPECIAL_NOTICE", "SOLICITATION", "OTHER"];
-const TAGS = ["INDUSTRY_DAY", "GENERAL"];
+const TAGS = ["GENERAL"];
 
 const AddToInboxModal = ({ opportunityId, awardId, defaultType = "", onClose }) => {
   const navigate = useNavigate();

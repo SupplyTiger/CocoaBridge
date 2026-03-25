@@ -402,8 +402,6 @@ model IndustryDay {
 
   contactLinks ContactLink[]
 
-  inboxItems InboxItem[]
-
   @@index([eventDate])
   @@index([status])
   @@schema("public")
@@ -457,9 +455,6 @@ model InboxItem {
   opportunityId String?
   opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
 
-  industryDayId String?
-  industryDay   IndustryDay? @relation(fields: [industryDayId], references: [id], onDelete: SetNull)
-
   contactLinks ContactLink[]
 
   createdAt DateTime @default(now())
@@ -475,7 +470,6 @@ model InboxItem {
   @@index([buyingOrganizationId])
   @@index([awardId])
   @@index([opportunityId])
-  @@index([industryDayId])
   @@schema("public")
 }
 
