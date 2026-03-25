@@ -235,30 +235,53 @@ async function upsertContactsForOpportunity(
       }
 
       // 2) Upsert/create the OpportunityContact link
-      // Prisma will generate a compound unique selector name:
-      // opportunityId_externalId (based on @@unique([opportunityId, externalId]))
-      await db.contactLink.upsert({
-        where: {
-          opportunityId_externalId: {
+      // Try by (opportunityId, externalId) first. If the create path
+      // violates the separate (buyingOrganizationId, externalId) unique
+      // constraint (same contact already linked to this buying org via a
+      // different opportunity), fall back to updating that existing row.
+      try {
+        await db.contactLink.upsert({
+          where: {
+            opportunityId_externalId: {
+              opportunityId,
+              externalId: c.externalId,
+            },
+          },
+          update: {
+            type: c.type,
+            source: c.source,
+            contactId: contact.id,
+            buyingOrganizationId,
+          },
+          create: {
             opportunityId,
             externalId: c.externalId,
+            type: c.type,
+            source: c.source,
+            contactId: contact.id,
+            buyingOrganizationId,
           },
-        },
-        update: {
-          type: c.type,
-          source: c.source,
-          contactId: contact.id,
-          buyingOrganizationId,
-        },
-        create: {
-          opportunityId,
-          externalId: c.externalId,
-          type: c.type,
-          source: c.source,
-          contactId: contact.id,
-          buyingOrganizationId,
-        },
-      });
+        });
+      } catch (upsertErr) {
+        if (upsertErr?.code === "P2002" && buyingOrganizationId) {
+          await db.contactLink.update({
+            where: {
+              buyingOrganizationId_externalId: {
+                buyingOrganizationId,
+                externalId: c.externalId,
+              },
+            },
+            data: {
+              opportunityId,
+              type: c.type,
+              source: c.source,
+              contactId: contact.id,
+            },
+          });
+        } else {
+          throw upsertErr;
+        }
+      }
     } catch (error) {
       console.error("Error in upsertContactsForOpportunity controller: ", {
         opportunityId,
