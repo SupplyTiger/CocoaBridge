@@ -235,11 +235,31 @@ async function upsertContactsForOpportunity(
       }
 
       // 2) Upsert/create the OpportunityContact link
-      // Try by (opportunityId, externalId) first. If the create path
-      // violates the separate (buyingOrganizationId, externalId) unique
-      // constraint (same contact already linked to this buying org via a
-      // different opportunity), fall back to updating that existing row.
-      try {
+      // Check by (buyingOrganizationId, externalId) first to avoid a unique
+      // constraint violation that would poison the surrounding transaction.
+      const existingByBuyingOrg = buyingOrganizationId
+        ? await db.contactLink.findUnique({
+            where: {
+              buyingOrganizationId_externalId: {
+                buyingOrganizationId,
+                externalId: c.externalId,
+              },
+            },
+            select: { id: true },
+          })
+        : null;
+
+      if (existingByBuyingOrg) {
+        await db.contactLink.update({
+          where: { id: existingByBuyingOrg.id },
+          data: {
+            opportunityId,
+            type: c.type,
+            source: c.source,
+            contactId: contact.id,
+          },
+        });
+      } else {
         await db.contactLink.upsert({
           where: {
             opportunityId_externalId: {
@@ -262,27 +282,6 @@ async function upsertContactsForOpportunity(
             buyingOrganizationId,
           },
         });
-        // error handling for unique constraint violation on buyingOrganizationId + externalId
-      } catch (upsertErr) {
-        if (upsertErr?.code === "P2002" && buyingOrganizationId) {
-          console.log(`[ContactLink] P2002 fallback: updating by buyingOrg+externalId for ${c.externalId}`);
-          await db.contactLink.update({
-            where: {
-              buyingOrganizationId_externalId: {
-                buyingOrganizationId,
-                externalId: c.externalId,
-              },
-            },
-            data: {
-              opportunityId,
-              type: c.type,
-              source: c.source,
-              contactId: contact.id,
-            },
-          });
-        } else {
-          throw upsertErr;
-        }
       }
     } catch (error) {
       console.error("Error in upsertContactsForOpportunity controller: ", {
