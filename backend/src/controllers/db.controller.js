@@ -1267,7 +1267,7 @@ export const parseAttachment = async (req, res) => {
   }
 };
 
-// Save reviewed text to DB
+// Save reviewed text to DB with timestamp. This is a separate step to allow for manual review/editing before saving.
 export const saveParsedAttachment = async (req, res) => {
   try {
     const { parsedText } = req.body;
