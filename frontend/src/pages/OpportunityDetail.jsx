@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Inbox, FileText, Download } from "lucide-react";
+import { Trash2, Inbox, FileText, Download, ScanSearch, Eye } from "lucide-react";
 import toast from "react-hot-toast";
 import { dbApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
@@ -9,6 +9,13 @@ import ItemDetail from "../components/ItemDetail.jsx";
 import RelatedRecordsCard from "../components/RelatedRecordsCard.jsx";
 import AddToInboxModal from "../components/AddToInboxModal.jsx";
 import FavoriteButton from "../components/FavoriteButton.jsx";
+import ParsedTextModal from "../components/ParsedTextModal.jsx";
+
+const PARSEABLE_TYPES = [".pdf", ".docx"];
+const isParseable = (att) => {
+  const ext = att.mimeType?.toLowerCase() || att.name?.match(/\.\w+$/)?.[0]?.toLowerCase() || "";
+  return PARSEABLE_TYPES.includes(ext);
+};
 
 const OpportunityDetail = () => {
   const { id } = useParams();
@@ -20,6 +27,7 @@ const OpportunityDetail = () => {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAddToInbox, setShowAddToInbox] = useState(false);
+  const [modalAttachment, setModalAttachment] = useState(null);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["opportunity", id],
@@ -48,11 +56,14 @@ const OpportunityDetail = () => {
     },
   });
 
-  const contactLinks = item?.contactLinks?.map((cl) => ({
-    id: cl.id,
-    to: `/contacts/${cl.contact.id}`,
-    type: cl.type,
-  })) ?? [];
+  const contactLinks = [];
+  const seenContacts = new Set();
+  for (const cl of item?.contactLinks ?? []) {
+    const key = `${cl.contact.id}:${cl.type}`;
+    if (seenContacts.has(key)) continue;
+    seenContacts.add(key);
+    contactLinks.push({ id: cl.id, to: `/contacts/${cl.contact.id}`, type: cl.type });
+  }
 
   const opportunityLink = `https://sam.gov/workspace/contract/opp/${item?.noticeId}/view`;
 
@@ -138,6 +149,7 @@ const OpportunityDetail = () => {
                 <FileText className="size-5" />
                 Attachments ({item.attachments.length})
               </h2>
+              <p className="text-xs text-base-content/50 -mt-2">PDF and DOCX files can be parsed for content extraction</p>
               <div className="overflow-x-auto">
                 <table className="table table-sm">
                   <thead>
@@ -146,39 +158,64 @@ const OpportunityDetail = () => {
                       <th>Type</th>
                       <th>Size</th>
                       <th>Posted</th>
+                      <th>Status</th>
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {item.attachments.map((att) => (
-                      <tr key={att.id}>
-                        <td className="font-mono text-sm max-w-xs truncate">{att.name}</td>
-                        <td>
-                          <span className="badge badge-ghost badge-sm">
-                            {att.mimeType?.replace(".", "").toUpperCase() || "—"}
-                          </span>
-                        </td>
-                        <td className="text-sm">
-                          {att.size ? (att.size < 1024 * 1024
-                            ? `${(att.size / 1024).toFixed(0)} KB`
-                            : `${(att.size / (1024 * 1024)).toFixed(1)} MB`
-                          ) : "—"}
-                        </td>
-                        <td className="text-sm">
-                          {att.postedDate ? new Date(att.postedDate).toLocaleDateString() : "—"}
-                        </td>
-                        <td>
-                          <a
-                            href={att.downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-ghost btn-xs"
-                          >
-                            <Download className="size-4" />
-                          </a>
-                        </td>
-                      </tr>
-                    ))}
+                    {item.attachments.map((att) => {
+                      const canParse = isParseable(att) && hasReadAccess;
+                      return (
+                        <tr key={att.id}>
+                          <td>
+                            <span className="font-mono text-sm">{att.name}</span>
+                          </td>
+                          <td>
+                            <span className="badge badge-ghost badge-sm">
+                              {att.mimeType?.replace(".", "").toUpperCase() || "—"}
+                            </span>
+                          </td>
+                          <td className="text-sm">
+                            {att.size ? (att.size < 1024 * 1024
+                              ? `${(att.size / 1024).toFixed(0)} KB`
+                              : `${(att.size / (1024 * 1024)).toFixed(1)} MB`
+                            ) : "—"}
+                          </td>
+                          <td className="text-sm">
+                            {att.postedDate ? new Date(att.postedDate).toLocaleDateString() : "—"}
+                          </td>
+                          <td>
+                            {att.parsedAt ? (
+                              <span className="badge badge-success badge-sm">Parsed</span>
+                            ) : canParse ? (
+                              <span className="badge badge-ghost badge-sm">Not parsed</span>
+                            ) : (
+                              <span className="text-xs text-base-content/40">—</span>
+                            )}
+                          </td>
+                          <td className="flex gap-1 justify-end">
+                            {canParse && (
+                              <button
+                                className="btn btn-ghost btn-xs"
+                                onClick={() => setModalAttachment(att)}
+                              >
+                                {att.parsedAt
+                                  ? <><Eye className="size-4" /> Open</>
+                                  : <><ScanSearch className="size-4" /> Parse</>}
+                              </button>
+                            )}
+                            <a
+                              href={att.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-ghost btn-xs"
+                            >
+                              <Download className="size-4" />
+                            </a>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -217,6 +254,14 @@ const OpportunityDetail = () => {
           opportunityId={id}
           defaultType={item?.type ?? "OTHER"}
           onClose={() => setShowAddToInbox(false)}
+        />
+      )}
+
+      {modalAttachment && (
+        <ParsedTextModal
+          attachment={modalAttachment}
+          opportunityId={id}
+          onClose={() => setModalAttachment(null)}
         />
       )}
     </>

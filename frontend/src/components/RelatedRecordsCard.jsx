@@ -76,10 +76,9 @@ const RelatedRecordsCard = ({
   if (!hasSingleItems && !hasListItems && !hasContactButtons) return null;
 
   return (
-    <div className="collapse collapse-arrow bg-base-100 text-accent-content shadow-sm rounded-box mt-4">
-      <input type="checkbox" />
-      <div className="collapse-title font-semibold text-base border-b border-base-300">Related Records</div>
-      <div className="collapse-content flex flex-col gap-4 pt-4 px-2">
+    <div className="card bg-base-100 text-accent-content shadow-sm mt-4">
+      <div className="card-body flex flex-col gap-4">
+        <h2 className="card-title text-base">Related Records</h2>
 
         {/* Single-item mode: one opportunity */}
         {opportunity && (
@@ -220,3 +219,4 @@ const RelatedRecordsCard = ({
 };
 
 export default RelatedRecordsCard;
+

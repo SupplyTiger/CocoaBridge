@@ -36,6 +36,19 @@ export const dbApi = {
     const { data } = await axiosInstance.delete(`/db/opportunities/${id}`);
     return data;
   },
+  // Attachment parsing
+  parseAttachment: async (id) => {
+    const { data } = await axiosInstance.post(`/db/attachments/${id}/parse`);
+    return data;
+  },
+  getAttachmentText: async (id) => {
+    const { data } = await axiosInstance.get(`/db/attachments/${id}/text`);
+    return data;
+  },
+  saveParsedAttachment: async (id, parsedText) => {
+    const { data } = await axiosInstance.post(`/db/attachments/${id}/save-parsed`, { parsedText });
+    return data;
+  },
   // Awards
   listAwards: async (params) => {
     const { data } = await axiosInstance.get("/db/awards", { params });
