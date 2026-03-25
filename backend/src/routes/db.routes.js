@@ -35,6 +35,9 @@ import {
   toggleFavorite,
   listFLISItems,
   getFLISItem,
+  parseAttachment,
+  saveParsedAttachment,
+  getAttachmentText,
 } from "../controllers/db.controller.js";
 
 export const router = express.Router();
@@ -56,6 +59,11 @@ router.delete("/inbox-items/:id", ...protectRoute, adminOnly, deleteInboxItem);
 router.get("/opportunities", ...protectRoute, readOnlyOrAbove, listOpportunities);
 router.get("/opportunities/:id", ...protectRoute, readOnlyOrAbove, getOpportunity);
 router.delete("/opportunities/:id", ...protectRoute, adminOnly, deleteOpportunity);
+
+// Attachment parsing (PDF/DOCX text extraction)
+router.post("/attachments/:id/parse", ...protectRoute, readOnlyOrAbove, parseAttachment);
+router.post("/attachments/:id/save-parsed", ...protectRoute, readOnlyOrAbove, saveParsedAttachment);
+router.get("/attachments/:id/text", ...protectRoute, readOnlyOrAbove, getAttachmentText);
 
 // Awards
 router.get("/awards", ...protectRoute, readOnlyOrAbove, listAwards);

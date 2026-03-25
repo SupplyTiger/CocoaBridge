@@ -1,10 +1,16 @@
+import { createRequire } from "module";
 import prisma from "../config/db.js";
 import { ENV } from "../config/env.js";
 import { UserRole, IndustryDayStatus } from "@prisma/client";
 import {fetchOpportunityDescriptionFromSam} from "./sam.controller.js";
+import mammoth from "mammoth";
 
 import { stripHTML } from "../utils/extractSAM.js";
 import { buildInboxTitle } from "../utils/inboxText.js";
+
+// pdf-parse v1 is CJS-only
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
 
 const normalizeClerkUserPayload = (event) => {
   const input = Array.isArray(event) ? event[0] : event;
@@ -298,7 +304,7 @@ export const runBackfillNullOpportunityDescriptionsFromSam = async ({
 
 // ---------- Attachment metadata backfill ----------
 
-const SAM_RESOURCES_BASE = "https://sam.gov/api/prod/opps/v3/opportunities";
+const SAM_RESOURCES_BASE = ENV.SAMGOV_RESOURCES_URL;
 
 export const runBackfillOpportunityAttachments = async ({
   limit = 50,
@@ -1137,5 +1143,171 @@ export const toggleFavorite = async (req, res) => {
   } catch (error) {
     console.error("toggleFavorite error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+// ---------- Attachment parsing (Step Two) ----------
+
+const MAX_PARSE_SIZE = 10 * 1024 * 1024; // 10MB
+const SUPPORTED_PARSE_TYPES = [".pdf", ".docx"];
+
+/**
+ * Extract only relevant sections from solicitation text.
+ * Keeps: Section B (CLINs/prices), Section C (item description/components/tables).
+ * Falls back to CLIN blocks, item description patterns, or full text.
+ */
+function extractRelevantSections(rawText) {
+  const sections = [];
+
+  // Try to extract Section B (Supplies/Services, CLINs)
+  const sectionBMatch = rawText.match(
+    /SECTION\s+B[\s\S]*?(?=SECTION\s+[C-Z]|$)/i,
+  );
+  if (sectionBMatch) sections.push(sectionBMatch[0].trim());
+
+  // Try to extract Section C (Description/Specs/Item Info)
+  const sectionCMatch = rawText.match(
+    /SECTION\s+C[\s\S]*?(?=SECTION\s+[D-Z]|$)/i,
+  );
+  if (sectionCMatch) sections.push(sectionCMatch[0].trim());
+
+  // If no section headers found, try CLIN-based extraction
+  if (sections.length === 0) {
+    const clinBlocks = rawText.match(
+      /CLIN\s+\d{4}[\s\S]*?(?=CLIN\s+\d{4}|SECTION|$)/gi,
+    );
+    if (clinBlocks) sections.push(...clinBlocks.map((b) => b.trim()));
+  }
+
+  // If still nothing, try item description / item info / component patterns
+  if (sections.length === 0) {
+    const itemMatches = rawText.match(
+      /(?:ITEM\s+(?:DESCRIPTION|INFO(?:RMATION)?|DETAIL(?:S)?)|COMPONENT\s+(?:LIST|DESCRIPTION|DETAIL(?:S)?))[\s\S]*?(?=PACKAGING|INSPECTION|QUALITY|DELIVERY|SECTION|$)/gi,
+    );
+    if (itemMatches) sections.push(...itemMatches.map((m) => m.trim()));
+  }
+
+  // Fallback: return cleaned full text if no structure detected
+  const result =
+    sections.length > 0 ? sections.join("\n\n---\n\n") : rawText;
+
+  return result.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function resolveFileExtension(attachment) {
+  if (attachment.mimeType) return attachment.mimeType.toLowerCase();
+  const match = attachment.name?.match(/\.\w+$/);
+  return match ? match[0].toLowerCase() : "";
+}
+
+// Preview only — downloads, extracts, returns text but does NOT save to DB
+export const parseAttachment = async (req, res) => {
+  try {
+    const attachment = await prisma.opportunityAttachment.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    const ext = resolveFileExtension(attachment);
+    if (!SUPPORTED_PARSE_TYPES.includes(ext)) {
+      return res.status(400).json({
+        error: `Unsupported format: ${ext || "unknown"}. Supported: PDF, DOCX`,
+      });
+    }
+
+    if (attachment.size && attachment.size > MAX_PARSE_SIZE) {
+      return res.status(400).json({
+        error: `File too large (${(attachment.size / 1024 / 1024).toFixed(1)}MB). Max: 10MB`,
+      });
+    }
+
+    // Download from SAM.gov
+    const response = await fetch(attachment.downloadUrl, {
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) {
+      return res.status(502).json({
+        error: `Failed to download file from SAM.gov (HTTP ${response.status})`,
+      });
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    if (buffer.length > MAX_PARSE_SIZE) {
+      return res.status(400).json({
+        error: `File too large (${(buffer.length / 1024 / 1024).toFixed(1)}MB). Max: 10MB`,
+      });
+    }
+
+    let rawText;
+    if (ext === ".pdf") {
+      const result = await pdfParse(buffer);
+      rawText = result.text;
+    } else {
+      const result = await mammoth.extractRawText({ buffer });
+      rawText = result.value;
+    }
+
+    if (!rawText || rawText.trim().length === 0) {
+      return res.status(422).json({
+        error: "No text could be extracted from this file (may be scanned/image-based)",
+      });
+    }
+
+    const parsedText = extractRelevantSections(rawText);
+
+    return res.json({ parsedText });
+  } catch (error) {
+    console.error("parseAttachment error:", error);
+    return res.status(500).json({
+      error: "Failed to parse attachment",
+      details: error.message,
+    });
+  }
+};
+
+// Save reviewed text to DB
+export const saveParsedAttachment = async (req, res) => {
+  try {
+    const { parsedText } = req.body;
+    if (!parsedText || typeof parsedText !== "string") {
+      return res.status(400).json({ error: "parsedText is required" });
+    }
+
+    const attachment = await prisma.opportunityAttachment.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+
+    const parsedAt = new Date();
+    await prisma.opportunityAttachment.update({
+      where: { id: attachment.id },
+      data: { parsedText, parsedAt },
+    });
+
+    return res.json({ parsedAt });
+  } catch (error) {
+    console.error("saveParsedAttachment error:", error);
+    return res.status(500).json({ error: "Failed to save parsed text" });
+  }
+};
+
+export const getAttachmentText = async (req, res) => {
+  try {
+    const attachment = await prisma.opportunityAttachment.findUnique({
+      where: { id: req.params.id },
+      select: { parsedText: true, parsedAt: true },
+    });
+    if (!attachment) {
+      return res.status(404).json({ error: "Attachment not found" });
+    }
+    return res.json(attachment);
+  } catch (error) {
+    console.error("getAttachmentText error:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };

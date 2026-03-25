@@ -7,6 +7,7 @@ export const ENV = {
   MCP_SERVER_URL: process.env.MCP_SERVER_URL,
   MCP_SECRET: process.env.MCP_SECRET,
   SAMGOV_BASE_URL: process.env.SAMGOV_BASE_URL,
+  SAMGOV_RESOURCES_URL: process.env.SAMGOV_RESOURCES_URL,
   USASPENDING_BASE_URL: process.env.USASPENDING_BASE_URL,
   DATABASE_URL: process.env.DATABASE_URL,
   CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY,
@@ -37,8 +38,8 @@ const required = [
   "MCP_SERVER_URL",
   "INNGEST_ID",
   "MCP_SECRET",
-  "GEMINI_API_KEY"
-
+  "GEMINI_API_KEY",
+  "SAMGOV_RESOURCES_URL",
 ];
 
 const missing = required.filter((key) => !ENV[key]);
