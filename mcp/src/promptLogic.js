@@ -23,6 +23,71 @@ These are structured USDA Commercial Item Description specifications for this op
 ${specBlocks}`;
 }
 
+function formatSize(bytes) {
+  if (!bytes) return "Unknown size";
+  return bytes < 1024 * 1024
+    ? `${(bytes / 1024).toFixed(0)} KB`
+    : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatMimeType(mimeType) {
+  if (!mimeType) return "Unknown";
+  return mimeType.replace(/^\./, "").toUpperCase();
+}
+
+const ATTACHMENT_MESSAGES_UNPARSED_ONLY = {
+  bid: 'This opportunity has attached documents but none have been parsed yet. To make their content available for AI analysis, parse them from the SupplyTiger dashboard. The attachments may contain the SOW, CLIN structure, and evaluation criteria that would strengthen the draft.',
+  fit: 'This opportunity has attached documents but none have been parsed yet. To make their content available for AI analysis, parse them from the SupplyTiger dashboard. The attachments may contain detailed requirements that affect the GO/NO-GO recommendation.',
+  fulfillment: 'This opportunity has attached documents but none have been parsed yet. To make their content available for AI analysis, parse them from the SupplyTiger dashboard. The attachments may contain CLIN breakdowns, product specifications, and delivery requirements critical to the FULL/PARTIAL/NO-BID determination.',
+};
+
+const ATTACHMENT_MESSAGES_HAS_PARSED = {
+  bid: 'IMPORTANT: Parsed attachments are available for this opportunity. Use the `get_attachment_text` tool to retrieve and analyze the parsed documents BEFORE drafting. Start with the parsed attachments — they likely contain the SOW, CLIN structure, and evaluation criteria critical to the bid response. For unparsed attachments, note them to the user and suggest parsing via the SupplyTiger dashboard.',
+  fit: 'IMPORTANT: Parsed attachments are available for this opportunity. Use the `get_attachment_text` tool to retrieve and analyze the parsed documents BEFORE assessing fit. Start with the parsed attachments — they likely contain detailed requirements that affect the GO/NO-GO recommendation. For unparsed attachments, note them to the user and suggest parsing via the SupplyTiger dashboard.',
+  fulfillment: 'IMPORTANT: Parsed attachments are available for this opportunity. Use the `get_attachment_text` tool to retrieve and analyze the parsed documents BEFORE assessing fulfillment. Start with the parsed attachments — they likely contain CLIN breakdowns, product specifications, and delivery requirements critical to the FULL/PARTIAL/NO-BID determination. For unparsed attachments, note them to the user and suggest parsing via the SupplyTiger dashboard.',
+};
+
+async function loadKeywords() {
+  const [solicitationKeywords, industryDayKeywords] = await Promise.all([
+    prisma.appConfig.findUnique({ where: { key: "solicitationKeywords" } }),
+    prisma.appConfig.findUnique({ where: { key: "industryDayKeywords" } }),
+  ]);
+  return [
+    ...(solicitationKeywords?.values ?? []),
+    ...(industryDayKeywords?.values ?? []),
+  ];
+}
+
+function buildAttachmentSection(attachments, analysisType, keywords = []) {
+  if (!attachments || attachments.length === 0) return "";
+
+  const parsed = attachments.filter((a) => a.parsedAt);
+  const unparsed = attachments.filter((a) => !a.parsedAt);
+
+  const lines = attachments.map((a) => {
+    const status = a.parsedAt ? "Parsed" : "Not parsed";
+    return `- ${a.name} (${formatMimeType(a.mimeType)}, ${formatSize(a.size)}) — ${status}`;
+  });
+
+  const message = parsed.length > 0
+    ? ATTACHMENT_MESSAGES_HAS_PARSED[analysisType]
+    : ATTACHMENT_MESSAGES_UNPARSED_ONLY[analysisType];
+
+  const keywordSection = parsed.length > 0 && keywords.length > 0
+    ? `\n\n**Priority keywords to search for in parsed attachments:** ${keywords.join(", ")}\nWhen analyzing parsed text, prioritize identifying references to these terms — they indicate product lines and categories directly relevant to SupplyTiger's capabilities.`
+    : "";
+
+  return `
+---
+
+## ATTACHMENTS AVAILABLE
+
+This opportunity has ${attachments.length} attachment(s) (${parsed.length} parsed, ${unparsed.length} unparsed):
+${lines.join("\n")}
+
+> ${message}${keywordSection}`;
+}
+
 function notFoundResult(opportunityId) {
   return {
     messages: [
@@ -43,6 +108,10 @@ export async function buildBidDraftPrompt(opportunityId) {
     where: { id: opportunityId },
     include: {
       buyingOrganization: { select: { id: true, name: true, level: true } },
+      attachments: {
+        select: { id: true, name: true, mimeType: true, size: true, postedDate: true, parsedAt: true },
+        orderBy: { attachmentOrder: "asc" },
+      },
     },
   });
 
@@ -51,6 +120,8 @@ export async function buildBidDraftPrompt(opportunityId) {
   const companyJson = JSON.stringify(COMPANY_PROFILE, null, 2);
   const templateJson = JSON.stringify(BID_TEMPLATE, null, 2);
   const cidSection = buildCidSection(opportunity.pscCode);
+  const keywords = await loadKeywords();
+  const attachmentSection = buildAttachmentSection(opportunity.attachments, "bid", keywords);
 
   const promptText = `You are drafting a bid/proposal response for the following federal procurement opportunity on behalf of SupplyTiger (Prime Printer Solution Inc).
 
@@ -109,7 +180,7 @@ ${cidSection}
 
 ---
 
-> **Tip:** You can use the \`search_publog_items\` tool to look up specific NSN/NIIN/FLIS items matching this opportunity's PSC code (${opportunity.pscCode || "N/A"}). This can help you reference exact product lines and item descriptions when drafting the technical approach.`;
+> **Tip:** You can use the \`search_publog_items\` tool to look up specific NSN/NIIN/FLIS items matching this opportunity's PSC code (${opportunity.pscCode || "N/A"}). This can help you reference exact product lines and item descriptions when drafting the technical approach.${attachmentSection}`;
 
   return {
     messages: [
@@ -124,11 +195,17 @@ export async function buildOpportunityFitPrompt(opportunityId) {
     where: { id: opportunityId },
     include: {
       buyingOrganization: { select: { id: true, name: true, level: true } },
+      attachments: {
+        select: { id: true, name: true, mimeType: true, size: true, postedDate: true, parsedAt: true },
+        orderBy: { attachmentOrder: "asc" },
+      },
       _count: { select: { awards: true, contactLinks: true } },
     },
   });
 
   if (!opportunity) return notFoundResult(opportunityId);
+
+  const keywords = await loadKeywords();
 
   let relatedAwards = [];
   if (opportunity.buyingOrganizationId) {
@@ -266,7 +343,7 @@ Provide a comprehensive analysis covering:
 
 7. **Pursuit Recommendation:** GO / NO-GO / CONDITIONAL recommendation with clear reasoning. If CONDITIONAL, state what additional information is needed.
 
-8. **Next Steps:** If pursuing, what are the immediate action items?`;
+8. **Next Steps:** If pursuing, what are the immediate action items?${buildAttachmentSection(opportunity.attachments, "fit", keywords)}`;
 
   return {
     messages: [
@@ -281,10 +358,16 @@ export async function buildFulfillmentPrompt(opportunityId) {
     where: { id: opportunityId },
     include: {
       buyingOrganization: { select: { id: true, name: true, level: true } },
+      attachments: {
+        select: { id: true, name: true, mimeType: true, size: true, postedDate: true, parsedAt: true },
+        orderBy: { attachmentOrder: "asc" },
+      },
     },
   });
 
   if (!opportunity) return notFoundResult(opportunityId);
+
+  const keywords = await loadKeywords();
 
   const orConditions = [
     ...(opportunity.naicsCodes.length > 0
@@ -484,7 +567,7 @@ Using the historical awards data above:
 
 ### 8. FULFILLABLE ITEMS SUMMARY
 
-List the specific items, product categories, or CLINs that SupplyTiger can deliver. Reference publog FLIS data where available. If the recommendation is FULL, summarize the complete scope. If NO-BID, state why no items are fulfillable.`;
+List the specific items, product categories, or CLINs that SupplyTiger can deliver. Reference publog FLIS data where available. If the recommendation is FULL, summarize the complete scope. If NO-BID, state why no items are fulfillable.${buildAttachmentSection(opportunity.attachments, "fulfillment", keywords)}`;
 
   return {
     messages: [

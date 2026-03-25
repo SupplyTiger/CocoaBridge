@@ -12,6 +12,7 @@ import { registerScoreOpportunity } from "./tools/scoring.js";
 import { registerIntelligenceSummary } from "./tools/intelligence.js";
 import { registerSearchPublogItems } from "./tools/searchPublogItems.js";
 import { registerGetCidSpec } from "./tools/getCidSpec.js";
+import { registerGetAttachmentText } from "./tools/getAttachmentText.js";
 import { registerResources } from "./resourcesConfig.js";
 import { registerPrompts } from "./prompts.js";
 import { registerPromptTools } from "./tools/promptTools.js";
@@ -41,6 +42,7 @@ export function createMcpServer() {
   registerIntelligenceSummary(server);
   registerSearchPublogItems(server);
   registerGetCidSpec(server);
+  registerGetAttachmentText(server);
   registerResources(server);
   registerPrompts(server);
   registerPromptTools(server);

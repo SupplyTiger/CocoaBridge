@@ -47,6 +47,17 @@ export function registerResources(server) {
         where: { id },
         include: {
           buyingOrganization: { select: { id: true, name: true, level: true } },
+          attachments: {
+            select: {
+              id: true,
+              name: true,
+              mimeType: true,
+              size: true,
+              postedDate: true,
+              parsedAt: true,
+            },
+            orderBy: { attachmentOrder: "asc" },
+          },
           _count: { select: { awards: true, contactLinks: true } },
         },
       });

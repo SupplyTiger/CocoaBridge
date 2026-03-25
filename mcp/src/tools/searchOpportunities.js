@@ -14,6 +14,8 @@ export function registerSearchOpportunities(server) {
         psc: z.string().optional().describe("Match pscCode"),
         state: z.string().optional().describe("Match state field"),
         active: z.boolean().optional().describe("Filter by active status"),
+        hasAttachments: z.boolean().optional().describe("Filter for opportunities with attachment records"),
+        hasParsedAttachments: z.boolean().optional().describe("Filter for opportunities with at least one parsed attachment"),
         limit: z.number().optional().describe("Max results (default 20, max 50)"),
         offset: z.number().optional().describe("Number of results to skip for pagination (default 0)"),
       },
@@ -24,7 +26,7 @@ export function registerSearchOpportunities(server) {
         openWorldHint: false,
       },
     },
-    async ({ keyword, type, naics, psc, state, active, limit: rawLimit, offset: rawOffset }) => {
+    async ({ keyword, type, naics, psc, state, active, hasAttachments, hasParsedAttachments, limit: rawLimit, offset: rawOffset }) => {
       try {
         const limit = Math.min(Math.max(rawLimit ?? 20, 1), 50);
         const offset = Math.max(rawOffset ?? 0, 0);
@@ -41,6 +43,8 @@ export function registerSearchOpportunities(server) {
         if (psc) where.pscCode = psc;
         if (state) where.state = state;
         if (active !== undefined) where.active = active;
+        if (hasAttachments) where.attachments = { some: {} };
+        if (hasParsedAttachments) where.attachments = { some: { parsedAt: { not: null } } };
 
         const [totalCount, results] = await Promise.all([
           prisma.opportunity.count({ where }),

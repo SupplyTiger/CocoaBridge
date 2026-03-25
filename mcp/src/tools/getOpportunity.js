@@ -31,6 +31,17 @@ export function registerGetOpportunity(server) {
                 },
               },
             },
+            attachments: {
+              select: {
+                id: true,
+                name: true,
+                mimeType: true,
+                size: true,
+                postedDate: true,
+                parsedAt: true,
+              },
+              orderBy: { attachmentOrder: "asc" },
+            },
             _count: {
               select: {
                 awards: true,
