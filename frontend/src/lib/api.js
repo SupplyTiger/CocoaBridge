@@ -49,6 +49,10 @@ export const dbApi = {
     const { data } = await axiosInstance.post(`/db/attachments/${id}/save-parsed`, { parsedText });
     return data;
   },
+  deleteParsedAttachment: async (id) => {
+    const { data } = await axiosInstance.delete(`/db/attachments/${id}/parsed`);
+    return data;
+  },
   // Awards
   listAwards: async (params) => {
     const { data } = await axiosInstance.get("/db/awards", { params });

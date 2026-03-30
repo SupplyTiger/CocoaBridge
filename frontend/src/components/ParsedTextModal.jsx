@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ScanSearch, Save, X, RefreshCw } from "lucide-react";
+import { ScanSearch, Save, X, RefreshCw, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useState } from "react";
 import { dbApi } from "../lib/api.js";
+import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import Modal from "./Modal.jsx";
 
 const ParsedTextModal = ({ attachment, opportunityId, onClose }) => {
   const queryClient = useQueryClient();
+  const currentUser = useCurrentUser();
+  const isAdmin = currentUser?.role === "ADMIN";
   const [previewText, setPreviewText] = useState(null);
 
   const { mutate: parse, isPending: isParsing } = useMutation({
@@ -27,6 +30,17 @@ const ParsedTextModal = ({ attachment, opportunityId, onClose }) => {
       toast.success("Parsed text saved");
     },
     onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to save parsed text"),
+  });
+
+  const { mutate: deleteParsed, isPending: isDeleting } = useMutation({
+    mutationFn: () => dbApi.deleteParsedAttachment(attachment.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["opportunity", opportunityId] });
+      queryClient.removeQueries({ queryKey: ["attachment-text", attachment.id] });
+      toast.success("Parsed text deleted");
+      onClose();
+    },
+    onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to delete parsed text"),
   });
 
   const { data: savedTextData, isLoading: isLoadingText } = useQuery({
@@ -102,6 +116,18 @@ const ParsedTextModal = ({ attachment, opportunityId, onClose }) => {
         ) : (
           <>
             <button className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+            {isAdmin && attachment.parsedAt && (
+              <button
+                className="btn btn-error btn-sm"
+                disabled={isDeleting}
+                onClick={() => deleteParsed()}
+              >
+                {isDeleting
+                  ? <span className="loading loading-spinner loading-xs" />
+                  : <Trash2 className="size-4" />}
+                Delete
+              </button>
+            )}
             <button
               className="btn btn-primary btn-sm"
               disabled={isParsing}

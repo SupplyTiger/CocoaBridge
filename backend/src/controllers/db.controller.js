@@ -1317,6 +1317,26 @@ export const getAttachmentText = async (req, res) => {
   }
 };
 
+export const deleteParsedAttachment = async (req, res) => {
+  try {
+    const attachment = await prisma.opportunityAttachment.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, parsedAt: true },
+    });
+    if (!attachment) return res.status(404).json({ error: "Attachment not found" });
+    if (!attachment.parsedAt) return res.status(400).json({ error: "Attachment has no parsed text to delete" });
+
+    await prisma.opportunityAttachment.update({
+      where: { id: attachment.id },
+      data: { parsedText: null, parsedAt: null },
+    });
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("deleteParsedAttachment error:", error);
+    return res.status(500).json({ error: "Failed to delete parsed text" });
+  }
+};
+
 // ---------------------------------------------------------------------------
 // CSV Export Controllers
 // ---------------------------------------------------------------------------

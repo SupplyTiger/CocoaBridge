@@ -39,6 +39,7 @@ import {
   parseAttachment,
   saveParsedAttachment,
   getAttachmentText,
+  deleteParsedAttachment,
   exportOpportunities,
   exportAwards,
   exportContacts,
@@ -71,6 +72,7 @@ router.delete("/opportunities/:id", ...protectRoute, adminOnly, deleteOpportunit
 router.post("/attachments/:id/parse", ...protectRoute, readOnlyOrAbove, parseAttachment);
 router.post("/attachments/:id/save-parsed", ...protectRoute, readOnlyOrAbove, saveParsedAttachment);
 router.get("/attachments/:id/text", ...protectRoute, readOnlyOrAbove, getAttachmentText);
+router.delete("/attachments/:id/parsed", ...protectRoute, adminOnly, deleteParsedAttachment);
 
 // Awards
 router.get("/awards/export", ...protectRoute, readOnlyOrAbove, exportAwards);
