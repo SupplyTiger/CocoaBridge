@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { usePageParam } from "../lib/usePageParam.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -27,9 +28,12 @@ const STATUS_BADGE = {
 const STATUSES = ["NEW", "IN_REVIEW", "QUALIFIED", "DISMISSED", "CONTACTED", "CLOSED"];
 
 const InboxPage = () => {
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
+  // pendingDeleteId is the id of the item we're currently confirming deletion for (null if not confirming any)
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
+
+
   const [sort, setSort] = useState({ field: null, dir: "asc" });
   const [selectedIds, setSelectedIds] = useState(new Set());
 
@@ -40,7 +44,7 @@ const InboxPage = () => {
     }));
     setPage(1);
     setSelectedIds(new Set());
-  }, []);
+  }, [setPage]);
 
   const currentUser = useCurrentUser();
   const isAdmin = currentUser?.role === "ADMIN";

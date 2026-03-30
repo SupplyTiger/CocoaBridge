@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useLocalStorage } from "../lib/useLocalStorage.js";
+import { usePageParam } from "../lib/usePageParam.js";
 import { useQuery } from "@tanstack/react-query";
 import { dbApi } from "../lib/api.js";
 import Table from "../components/Table.jsx";
@@ -32,7 +33,7 @@ const flisItemColumns = [
 const LEVELS = ["AGENCY", "SUBAGENCY", "OFFICE", "OTHER"];
 
 const RecipientsTab = () => {
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sort, setSort] = useState({ field: null, dir: "asc" });
 
@@ -43,7 +44,7 @@ const RecipientsTab = () => {
       dir: prev.field === field && prev.dir === "asc" ? "desc" : "asc",
     }));
     setPage(1);
-  }, []);
+  }, [setPage]);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["recipients", page, debouncedSearch, sort],
@@ -81,7 +82,7 @@ const RecipientsTab = () => {
 };
 
 const BuyingOrgsTab = () => {
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
   const [level, setLevel] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sort, setSort] = useState({ field: null, dir: "asc" });
@@ -92,7 +93,7 @@ const BuyingOrgsTab = () => {
       dir: prev.field === field && prev.dir === "asc" ? "desc" : "asc",
     }));
     setPage(1);
-  }, []);
+  }, [setPage]);
 
   const handleLevelChange = (e) => {
     setLevel(e.target.value);
@@ -150,7 +151,7 @@ const BuyingOrgsTab = () => {
 };
 
 const FLISItemsTab = () => {
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sort, setSort] = useState({ field: null, dir: "asc" });
   const [supplyTigerOnly, setSupplyTigerOnly] = useState(true);
@@ -161,7 +162,7 @@ const FLISItemsTab = () => {
       dir: prev.field === field && prev.dir === "asc" ? "desc" : "asc",
     }));
     setPage(1);
-  }, []);
+  }, [setPage]);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["flis-items", page, debouncedSearch, sort, supplyTigerOnly],

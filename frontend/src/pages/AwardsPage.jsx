@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { dbApi } from "../lib/api.js";
 import { useLocalStorage } from "../lib/useLocalStorage.js";
+import { usePageParam } from "../lib/usePageParam.js";
 import Table from "../components/Table.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import FavoriteButton from "../components/FavoriteButton.jsx";
@@ -19,7 +20,7 @@ const AWARD_CSV_COLUMNS = [
 ];
 
 const Awards = () => {
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
   const [selectedIds, setSelectedIds] = useState(new Set());
   const tabs = [
     { label: "All", value: "all" },
@@ -34,7 +35,7 @@ const Awards = () => {
     setSort({ field: null, dir: "asc" });
     setPage(1);
     setSelectedIds(new Set());
-  }, []);
+  }, [setPage]);
 
   const handleSort = useCallback((field) => {
     setSort((prev) => ({
@@ -43,7 +44,7 @@ const Awards = () => {
     }));
     setPage(1);
     setSelectedIds(new Set());
-  }, []);
+  }, [setPage]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);

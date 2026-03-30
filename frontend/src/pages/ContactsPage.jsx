@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { usePageParam } from "../lib/usePageParam.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -21,7 +22,7 @@ const ContactsPage = () => {
   const isAdmin = currentUser?.role === "ADMIN";
   const queryClient = useQueryClient();
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePageParam();
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sort, setSort] = useState({ field: null, dir: "asc" });
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -34,7 +35,7 @@ const ContactsPage = () => {
     }));
     setPage(1);
     setSelectedIds(new Set());
-  }, []);
+  }, [setPage]);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["contacts", page, debouncedSearch, sort],

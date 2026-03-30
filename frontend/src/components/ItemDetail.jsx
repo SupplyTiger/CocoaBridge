@@ -1,12 +1,11 @@
 import React from "react";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import { ArrowLeft } from "lucide-react";
 const ItemDetail = ({
   isLoading,
   isError,
   error,
   item,
-  backTo,
   backLabel,
   title,
   badges,
@@ -14,12 +13,13 @@ const ItemDetail = ({
   fields = [],
   children,
 }) => {
+  const navigate = useNavigate();
   return (
     <div className="max-w-full">
-      <Link to={backTo} className="btn btn-ghost btn-md mb-4">
+      <button onClick={() => navigate(-1)} className="btn btn-ghost btn-md mb-4">
         <ArrowLeft className="mr-2" />
         {backLabel}
-      </Link>
+      </button>
 
       {isLoading ? (
         <div className="flex justify-center py-12 mx-2">
@@ -27,7 +27,7 @@ const ItemDetail = ({
         </div>
       ) : isError ? (
         <div className="alert alert-error">{error?.message ?? "Failed to load"}</div>
-      ) : item ? (
+      ) : item && (
         <div className="card bg-base-100 text-accent-content shadow-md">
           <div className="card-body gap-3">
             <h2 className="card-title">{title}</h2>
@@ -49,7 +49,7 @@ const ItemDetail = ({
             </dl>
           </div>
         </div>
-      ) : null}
+      ) }
     </div>
   );
 };
