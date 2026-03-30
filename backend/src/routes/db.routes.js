@@ -21,6 +21,7 @@ import {
   listIndustryDays,
   getIndustryDay,
   updateIndustryDay,
+  listCalendarEvents,
   listBuyingOrgs,
   getBuyingOrg,
   updateBuyingOrg,
@@ -76,6 +77,9 @@ router.get("/awards/export", ...protectRoute, readOnlyOrAbove, exportAwards);
 router.get("/awards", ...protectRoute, readOnlyOrAbove, listAwards);
 router.get("/awards/:id", ...protectRoute, readOnlyOrAbove, getAward);
 router.delete("/awards/:id", ...protectRoute, adminOnly, deleteAward);
+
+// Calendar Events
+router.get("/calendar-events", ...protectRoute, readOnlyOrAbove, listCalendarEvents);
 
 // Industry Days
 router.get("/industry-days", ...protectRoute, readOnlyOrAbove, listIndustryDays);

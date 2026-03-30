@@ -320,11 +320,11 @@ export const runBackfillOpportunityAttachments = async ({
 } = {}) => {
   const safeLimit = Math.max(1, Math.min(Number.parseInt(limit, 10) || 50, 200));
 
-  // Find opportunities that have resourceLinks but no attachment records yet
+  // Find active opportunities with no attachment records yet
   const opportunities = await prisma.opportunity.findMany({
     where: {
       noticeId: { not: null },
-      resourceLinks: { isEmpty: false },
+      active: true,
       attachments: { none: {} },
     },
     select: {
@@ -348,6 +348,11 @@ export const runBackfillOpportunityAttachments = async ({
         `${SAM_RESOURCES_BASE}/${opp.noticeId}/resources`,
         { signal: AbortSignal.timeout(15000) },
       );
+
+      if (response.status === 404) {
+        skipped += 1;
+        continue;
+      }
 
       if (!response.ok) {
         failed += 1;
@@ -800,6 +805,60 @@ export const updateIndustryDay = async (req, res) => {
   } catch (error) {
     if (error?.code === "P2025") return res.status(404).json({ error: "IndustryDay not found" });
     console.error("updateIndustryDay error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const listCalendarEvents = async (req, res) => {
+  try {
+    const month = parseInt(req.query.month, 10); // 1-12
+    const year = parseInt(req.query.year, 10);
+    if (!month || !year || month < 1 || month > 12) {
+      return res.status(400).json({ error: "Valid month (1-12) and year are required" });
+    }
+
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+
+    const [opportunities, industryDays] = await Promise.all([
+      prisma.opportunity.findMany({
+        where: {
+          responseDeadline: { gte: start, lt: end },
+          inboxItems: {
+            some: { reviewStatus: { in: ["IN_REVIEW", "QUALIFIED", "CONTACTED"] } },
+          },
+        },
+        select: { id: true, title: true, responseDeadline: true },
+      }),
+      prisma.industryDay.findMany({
+        where: {
+          status: { in: ["ATTENDING", "ATTENDED"] },
+          eventDate: { gte: start, lt: end },
+        },
+        select: { id: true, title: true, eventDate: true },
+      }),
+    ]);
+
+    const events = [
+      ...opportunities.map((o) => ({
+        id: o.id,
+        title: o.title ?? "Untitled Opportunity",
+        date: o.responseDeadline,
+        type: "deadline",
+        relatedId: o.id,
+      })),
+      ...industryDays.map((d) => ({
+        id: d.id,
+        title: d.title ?? "Untitled Industry Day",
+        date: d.eventDate,
+        type: "industry_day",
+        relatedId: d.id,
+      })),
+    ];
+
+    return res.json({ data: events });
+  } catch (error) {
+    console.error("listCalendarEvents error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };
