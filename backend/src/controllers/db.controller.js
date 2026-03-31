@@ -574,6 +574,19 @@ export const deleteInboxItem = async (req, res) => {
   }
 };
 
+export const bulkDeleteInboxItems = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ error: "ids must be a non-empty array" });
+    const { count } = await prisma.inboxItem.deleteMany({ where: { id: { in: ids } } });
+    return res.json({ count });
+  } catch (error) {
+    console.error("bulkDeleteInboxItems error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
 // --- Opportunity controllers ---
 
 export const listOpportunities = async (req, res) => {

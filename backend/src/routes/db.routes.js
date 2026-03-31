@@ -12,6 +12,7 @@ import {
   createInboxItem,
   updateInboxItem,
   deleteInboxItem,
+  bulkDeleteInboxItems,
   listOpportunities,
   getOpportunity,
   deleteOpportunity,
@@ -60,6 +61,7 @@ router.get("/inbox-items", ...protectRoute, readOnlyOrAbove, listInboxItems);
 router.get("/inbox-items/:id", ...protectRoute, readOnlyOrAbove, getInboxItem);
 router.post("/inbox-items", ...protectRoute, adminOnly, createInboxItem);
 router.patch("/inbox-items/:id", ...protectRoute, adminOnly, updateInboxItem);
+router.delete("/inbox-items", ...protectRoute, adminOnly, bulkDeleteInboxItems);
 router.delete("/inbox-items/:id", ...protectRoute, adminOnly, deleteInboxItem);
 
 // Opportunities
