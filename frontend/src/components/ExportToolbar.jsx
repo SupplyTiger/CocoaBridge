@@ -1,7 +1,7 @@
-import { Download } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import { exportSelectedToCsv, downloadBlob, csvFilename } from "../lib/csvExport.js";
 
-const ExportToolbar = ({ selectedIds, data, csvColumns, entityName, exportAllFn, filterParams }) => {
+const ExportToolbar = ({ selectedIds, data, csvColumns, entityName, exportAllFn, filterParams, onDeleteSelected, isAdmin }) => {
   const selectedCount = selectedIds?.size ?? 0;
 
   const handleExportSelected = () => {
@@ -35,6 +35,16 @@ const ExportToolbar = ({ selectedIds, data, csvColumns, entityName, exportAllFn,
         <Download className="size-4" />
         Export All
       </button>
+      {isAdmin && onDeleteSelected && (
+        <button
+          className="btn btn-sm btn-error gap-1"
+          disabled={selectedCount === 0}
+          onClick={onDeleteSelected}
+        >
+          <Trash2 className="size-4" />
+          Delete Selected{selectedCount > 0 ? ` (${selectedCount})` : ""}
+        </button>
+      )}
     </div>
   );
 };

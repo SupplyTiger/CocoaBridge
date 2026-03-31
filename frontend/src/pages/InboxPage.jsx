@@ -31,6 +31,7 @@ const InboxPage = () => {
   const [page, setPage] = usePageParam();
   // pendingDeleteId is the id of the item we're currently confirming deletion for (null if not confirming any)
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sort, setSort] = useState({ field: null, dir: "asc" });
@@ -80,6 +81,17 @@ const InboxPage = () => {
       toast.error(err?.response?.data?.error ?? "Failed to delete item");
       setPendingDeleteId(null);
     },
+  });
+
+  const { mutate: bulkDelete, isPending: isBulkDeleting } = useMutation({
+    mutationFn: (ids) => dbApi.bulkDeleteInboxItems(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inboxItems"] });
+      toast.success("Items deleted");
+      setSelectedIds(new Set());
+      setShowBulkDeleteConfirm(false);
+    },
+    onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to delete items"),
   });
 
   const columns = [
@@ -164,6 +176,8 @@ const InboxPage = () => {
         entityName="inbox-items"
         exportAllFn={dbApi.exportInboxItems}
         filterParams={{ ...(debouncedSearch && { title: debouncedSearch }) }}
+        onDeleteSelected={() => setShowBulkDeleteConfirm(true)}
+        isAdmin={isAdmin}
       />
       <Table
         columns={columns}
@@ -201,6 +215,28 @@ const InboxPage = () => {
                 onClick={() => deleteItem(pendingDeleteId)}
               >
                 {isDeleting ? <span className="loading loading-spinner loading-xs" /> : "Delete"}
+              </button>
+            </div>
+          </div>
+        </dialog>
+      )}
+      {showBulkDeleteConfirm && (
+        <dialog open className="modal modal-open">
+          <div className="modal-box">
+            <button
+              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+              onClick={() => setShowBulkDeleteConfirm(false)}
+            >✕</button>
+            <h3 className="font-bold text-lg">Delete {selectedIds.size} Item{selectedIds.size !== 1 ? "s" : ""}</h3>
+            <p className="py-4">Are you sure you want to delete these items? This cannot be undone.</p>
+            <div className="modal-action">
+              <button className="btn btn-ghost" onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</button>
+              <button
+                className="btn btn-error"
+                disabled={isBulkDeleting}
+                onClick={() => bulkDelete([...selectedIds])}
+              >
+                {isBulkDeleting ? <span className="loading loading-spinner loading-xs" /> : "Delete"}
               </button>
             </div>
           </div>

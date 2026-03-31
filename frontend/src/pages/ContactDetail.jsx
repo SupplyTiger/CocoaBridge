@@ -25,6 +25,8 @@ const ContactDetail = () => {
   const queryClient = useQueryClient();
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState({});
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["contact", id],
@@ -34,19 +36,14 @@ const ContactDetail = () => {
   const item = result?.data;
   const isUnlinked = item && !item.links?.some((l) => l.opportunity);
 
-  const [phone, setPhone] = useState(null);
-  const [title, setTitle] = useState(null);
-
-  // Initialize local state once item loads (only on first load)
-  const phoneValue = phone ?? (item?.phone ?? "");
-  const titleValue = title ?? (item?.title ?? "");
-
   const { mutate: saveContact, isPending: isSaving } = useMutation({
-    mutationFn: () => dbApi.updateContact(id, { phone: phoneValue, title: titleValue }),
+    mutationFn: () => dbApi.updateContact(id, { phone: draft.phone, title: draft.title }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contact", id] });
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       toast.success("Saved");
+      setIsEditing(false);
+      setDraft({});
     },
     onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to save"),
   });
@@ -64,6 +61,16 @@ const ContactDetail = () => {
       setShowDeleteConfirm(false);
     },
   });
+
+  const handleEdit = () => {
+    setDraft({ phone: item.phone ?? "", title: item.title ?? "" });
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setDraft({});
+    setIsEditing(false);
+  };
 
   const opportunityLinks = uniqueById(
     item?.links
@@ -113,63 +120,91 @@ const ContactDetail = () => {
           fields={fields}
         >
           {item && (
-            <div className="flex justify-end mb-2">
-              <button
-                className="btn btn-secondary btn-sm gap-1"
-                onClick={() => exportDetailToCsv([
-                  { label: "Name", value: item.fullName },
-                  { label: "Email", value: item.email },
-                  { label: "Phone", value: item.phone },
-                  { label: "Title", value: item.title },
-                  { label: "Buying Agency", value: item.links?.[0]?.buyingOrganization?.name },
-                ], csvFilename("contact", id))}
-              >
-                <FileDown className="size-4" />
-                Export
-              </button>
-            </div>
-          )}
-          {isAdmin && item && (
             <div className="flex flex-col gap-3">
-              <p className="text-sm font-semibold">Edit Contact</p>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm">Phone</label>
-                <input
-                  type="text"
-                  className="input input-bordered input-sm w-full max-w-xs"
-                  placeholder="Add phone…"
-                  value={phoneValue}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm">Title</label>
-                <input
-                  type="text"
-                  className="input input-bordered input-sm w-full max-w-xs"
-                  placeholder="Add title…"
-                  value={titleValue}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <button
-                  className="btn btn-primary btn-sm w-fit"
-                  onClick={() => saveContact()}
-                  disabled={isSaving}
-                >
-                  {isSaving ? <span className="loading loading-spinner loading-xs" /> : "Save"}
-                </button>
-                {isUnlinked && (
+              {isEditing ? (
+                <>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm">Phone</label>
+                    <input
+                      type="text"
+                      className="input input-bordered input-sm w-full max-w-xs"
+                      placeholder="Add phone…"
+                      value={draft.phone}
+                      onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm">Title</label>
+                    <input
+                      type="text"
+                      className="input input-bordered input-sm w-full max-w-xs"
+                      placeholder="Add title…"
+                      value={draft.title}
+                      onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      className="btn btn-secondary btn-sm gap-1"
+                      onClick={() => exportDetailToCsv([
+                        { label: "Name", value: item.fullName },
+                        { label: "Email", value: item.email },
+                        { label: "Phone", value: item.phone },
+                        { label: "Title", value: item.title },
+                        { label: "Buying Agency", value: item.links?.[0]?.buyingOrganization?.name },
+                      ], csvFilename("contact", id))}
+                    >
+                      <FileDown className="size-4" />
+                      Export
+                    </button>
+                    {isAdmin && isUnlinked && (
+                      <button
+                        className="btn btn-error btn-sm"
+                        onClick={() => setShowDeleteConfirm(true)}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </button>
+                    )}
+                    <button className="btn btn-ghost btn-sm" onClick={handleCancel}>Cancel</button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => saveContact()}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? <span className="loading loading-spinner loading-xs" /> : "Save"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-end gap-2">
                   <button
-                    className="btn btn-error btn-sm"
-                    onClick={() => setShowDeleteConfirm(true)}
+                    className="btn btn-secondary btn-sm gap-1"
+                    onClick={() => exportDetailToCsv([
+                      { label: "Name", value: item.fullName },
+                      { label: "Email", value: item.email },
+                      { label: "Phone", value: item.phone },
+                      { label: "Title", value: item.title },
+                      { label: "Buying Agency", value: item.links?.[0]?.buyingOrganization?.name },
+                    ], csvFilename("contact", id))}
                   >
-                    <Trash2 className="size-4" />
-                    Delete
+                    <FileDown className="size-4" />
+                    Export
                   </button>
-                )}
-              </div>
+                  {isAdmin && isUnlinked && (
+                    <button
+                      className="btn btn-error btn-sm"
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button className="btn btn-success btn-sm" onClick={handleEdit}>Edit</button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </ItemDetail>

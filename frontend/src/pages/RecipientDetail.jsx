@@ -21,18 +21,29 @@ const RecipientDetail = () => {
 
   const item = result?.data;
 
-  const [website, setWebsite] = useState(null);
-
-  const websiteValue = website ?? (item?.website ?? "");
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState({});
 
   const { mutate: saveRecipient, isPending: isSaving } = useMutation({
-    mutationFn: () => dbApi.updateRecipient(id, { website: websiteValue }),
+    mutationFn: () => dbApi.updateRecipient(id, { website: draft.website }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recipient", id] });
       toast.success("Saved");
+      setIsEditing(false);
+      setDraft({});
     },
     onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to save"),
   });
+
+  const handleEdit = () => {
+    setDraft({ website: item.website ?? "" });
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setDraft({});
+    setIsEditing(false);
+  };
 
   const fields = [
     { label: "UEI", value: item?.uei },
@@ -65,25 +76,29 @@ const RecipientDetail = () => {
         fields={fields}
       >
         {isAdmin && item && (
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-semibold">Edit Recipient</p>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm">Website</label>
-              <input
-                type="text"
-                className="input input-bordered input-sm w-full max-w-xs"
-                placeholder="Add website…"
-                value={websiteValue}
-                onChange={(e) => setWebsite(e.target.value)}
-              />
-            </div>
-            <button
-              className="btn btn-primary btn-sm w-fit"
-              onClick={() => saveRecipient()}
-              disabled={isSaving}
-            >
-              {isSaving ? <span className="loading loading-spinner loading-xs" /> : "Save"}
-            </button>
+          <div className="flex justify-end gap-2">
+            {!isEditing ? (
+              <button className="btn btn-success btn-sm" onClick={handleEdit}>Edit</button>
+            ) : (
+              <>
+                <button className="btn btn-ghost btn-sm" onClick={handleCancel}>Cancel</button>
+                <button className="btn btn-primary btn-sm" disabled={isSaving} onClick={() => saveRecipient()}>
+                  {isSaving ? <span className="loading loading-spinner loading-xs" /> : "Save"}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {isAdmin && isEditing && item && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm">Website</label>
+            <input
+              type="text"
+              className="input input-bordered input-sm w-full max-w-xs"
+              placeholder="Add website…"
+              value={draft.website ?? ""}
+              onChange={(e) => setDraft({ ...draft, website: e.target.value })}
+            />
           </div>
         )}
       </ItemDetail>

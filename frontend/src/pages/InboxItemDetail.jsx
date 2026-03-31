@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Trophy, Handshake, FileDown } from "lucide-react";
 import toast from "react-hot-toast";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { dbApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import ItemDetail from "../components/ItemDetail.jsx";
@@ -27,10 +29,9 @@ const InboxItemDetail = () => {
   const hasReadAccess = currentUser?.role !== "USER";
   const queryClient = useQueryClient();
 
-  const [notes, setNotes] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState({});
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [editTitle, setEditTitle] = useState(null);
-  const [editDeadline, setEditDeadline] = useState(undefined);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["inboxItem", id],
@@ -38,8 +39,6 @@ const InboxItemDetail = () => {
   });
 
   const item = result?.data;
-  const notesValue = notes ?? (item?.notes ?? "");
-  const titleValue = editTitle ?? (item?.title ?? "");
 
   const { mutate: updateItem, isPending: isUpdating } = useMutation({
     mutationFn: (body) => dbApi.updateInboxItem(id, body),
@@ -47,6 +46,8 @@ const InboxItemDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["inboxItem", id] });
       queryClient.invalidateQueries({ queryKey: ["inboxItems"] });
       toast.success("Saved");
+      setIsEditing(false);
+      setDraft({});
     },
     onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to save"),
   });
@@ -64,6 +65,30 @@ const InboxItemDetail = () => {
       setShowDeleteConfirm(false);
     },
   });
+
+  const handleEdit = () => {
+    setDraft({
+      reviewStatus: item.reviewStatus,
+      title: item.title ?? "",
+      deadline: item.deadline ? new Date(item.deadline).toISOString().slice(0, 10) : "",
+      notes: item.notes ?? "",
+    });
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setDraft({});
+    setIsEditing(false);
+  };
+
+  const handleSave = () => {
+    updateItem({
+      reviewStatus: draft.reviewStatus,
+      title: draft.title,
+      deadline: draft.deadline ? new Date(draft.deadline).toISOString() : null,
+      notes: draft.notes,
+    });
+  };
 
   const badges = (
     <>
@@ -97,127 +122,119 @@ const InboxItemDetail = () => {
       >
         {hasReadAccess && item && (
           <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              {isAdmin && (
+                       
+            <div className="flex gap-2 ml-auto flex-wrap">
+              <button
+                className="btn btn-secondary btn-sm gap-1"
+                onClick={() => exportDetailToCsv([
+                  { label: "Title", value: item.title },
+                  { label: "Type", value: item.type },
+                  { label: "Review Status", value: item.reviewStatus },
+                  { label: "Acquisition Path", value: item.acquisitionPath },
+                  { label: "Source", value: item.source },
+                  { label: "Tag", value: item.tag },
+                  { label: "Reviewed By", value: item.reviewedBy },
+                  { label: "Created", value: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "" },
+                ], csvFilename("inbox-item", id))}
+              >
+                <FileDown className="size-4" />
+                Export
+              </button>
+
+              {item.opportunity && (
+                <Link to={`/opportunities/${item.opportunity.id}`} className="btn btn-primary btn-sm">
+                  <Handshake className="size-4" />
+                  View Opportunity
+                </Link>
+              )}
+              {item.award && (
+                <Link to={`/awards/${item.award.id}`} className="btn btn-primary btn-sm">
+                  <Trophy className="size-4" />
+                  View Award
+                </Link>
+              )}
+            </div>
+
+                 <div className="flex gap-2 ml-auto flex-wrap">
+                              {isAdmin && (
+                <button
+                  className="btn btn-error btn-sm"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 className="size-4" />
+                  Delete
+                </button>
+              )}
+              {isAdmin && !isEditing && (
+                <button className="btn btn-success btn-sm" onClick={handleEdit}>Edit</button>
+              )}
+                            </div>
+
+            {!isEditing && item.notes && (
+              <div>
+                <p className="font-semibold text-sm">Notes</p>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.notes}</ReactMarkdown>
+              </div>
+            )}
+
+            {isAdmin && isEditing && (
+              <>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold">Status</span>
                   <select
                     className="select select-sm select-bordered"
-                    value={item.reviewStatus}
+                    value={draft.reviewStatus}
                     disabled={isUpdating}
-                    onChange={(e) => updateItem({ reviewStatus: e.target.value })}
+                    onChange={(e) => setDraft({ ...draft, reviewStatus: e.target.value })}
                   >
                     {STATUSES.map((s) => (
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
                 </div>
-              )}
-              {isAdmin && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">Title</span>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold">Title</label>
                   <input
-                    className="input input-sm input-bordered flex-1"
-                    value={titleValue}
+                    className="input input-sm input-bordered w-full"
+                    value={draft.title}
                     disabled={isUpdating}
-                    onChange={(e) => setEditTitle(e.target.value)}
+                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
                     placeholder="Title…"
                   />
-                  <button
-                    className="btn btn-sm btn-primary"
-                    disabled={isUpdating || editTitle === null}
-                    onClick={() => { updateItem({ title: titleValue }); setEditTitle(null); }}
-                  >
-                    Save
-                  </button>
                 </div>
-              )}
-              {isAdmin && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold">Deadline</span>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-semibold">Deadline</label>
                   <input
                     type="date"
                     className="input input-sm input-bordered"
-                    value={editDeadline !== undefined ? (editDeadline ?? "") : (item?.deadline ? new Date(item.deadline).toISOString().slice(0, 10) : "")}
+                    value={draft.deadline}
                     disabled={isUpdating}
-                    onChange={(e) => setEditDeadline(e.target.value || null)}
+                    onChange={(e) => setDraft({ ...draft, deadline: e.target.value })}
                   />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <p className="font-semibold text-sm">Notes</p>
+                  <p className="text-xs text-base-content/50">Markdown supported</p>
+                  <textarea
+                    className="textarea textarea-bordered text-sm w-full"
+                    rows={6}
+                    value={draft.notes}
+                    onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                    placeholder="Add notes…"
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button className="btn btn-ghost btn-sm" onClick={handleCancel}>Cancel</button>
                   <button
-                    className="btn btn-sm btn-primary"
-                    disabled={isUpdating || editDeadline === undefined}
-                    onClick={() => { updateItem({ deadline: editDeadline ? new Date(editDeadline).toISOString() : null }); setEditDeadline(undefined); }}
+                    className="btn btn-primary btn-sm"
+                    disabled={isUpdating}
+                    onClick={handleSave}
                   >
-                    Save
+                    {isUpdating ? <span className="loading loading-spinner loading-xs" /> : "Save"}
                   </button>
                 </div>
-              )}
-              <div className="flex gap-2 ml-auto">
-                <button
-                  className="btn btn-secondary btn-sm gap-1"
-                  onClick={() => exportDetailToCsv([
-                    { label: "Title", value: item.title },
-                    { label: "Type", value: item.type },
-                    { label: "Review Status", value: item.reviewStatus },
-                    { label: "Acquisition Path", value: item.acquisitionPath },
-                    { label: "Source", value: item.source },
-                    { label: "Tag", value: item.tag },
-                    { label: "Reviewed By", value: item.reviewedBy },
-                    { label: "Created", value: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "" },
-                  ], csvFilename("inbox-item", id))}
-                >
-                  <FileDown className="size-4" />
-                  Export
-                </button>
-                {item.opportunity && (
-                  <Link to={`/opportunities/${item.opportunity.id}`} className="btn btn-primary btn-sm">
-                    <Handshake className="size-4" />
-                    View Opportunity
-                  </Link>
-                )}
-                {item.award && (
-                  <Link to={`/awards/${item.award.id}`} className="btn btn-primary btn-sm">
-                    <Trophy className="size-4" />
-                    View Award
-                  </Link>
-                )}
-                {isAdmin && (
-                  <button
-                    className="btn btn-error btn-sm"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    <Trash2 className="size-4" />
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {isAdmin && (
-              <div className="flex flex-col gap-2">
-                <p className="font-semibold text-sm">Notes</p>
-                <textarea
-                  className="textarea textarea-bordered text-sm w-full"
-                  rows={6}
-                  value={notesValue}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add notes…"
-                />
-                <button
-                  className="btn btn-sm btn-primary self-end"
-                  disabled={isUpdating}
-                  onClick={() => updateItem({ notes: notesValue })}
-                >
-                  {isUpdating ? <span className="loading loading-spinner loading-xs" /> : "Save Notes"}
-                </button>
-              </div>
+              </>
             )}
-          </div>
-        )}
-
-        {!isAdmin && hasReadAccess && item?.notes && (
-          <div>
-            <p className="font-semibold text-sm">Notes</p>
-            <p className="text-sm text-base-content/80">{item.notes}</p>
           </div>
         )}
       </ItemDetail>

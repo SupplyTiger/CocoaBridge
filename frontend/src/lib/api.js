@@ -23,6 +23,7 @@ export const dbApi = {
     const { data } = await axiosInstance.delete(`/db/inbox-items/${id}`);
     return data;
   },
+  bulkDeleteInboxItems: (ids) => axiosInstance.delete("/db/inbox-items", { data: { ids } }),
   // Opportunities
   listOpportunities: async (params) => {
     const { data } = await axiosInstance.get("/db/opportunities", { params });
