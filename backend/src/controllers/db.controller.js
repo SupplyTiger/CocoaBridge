@@ -462,7 +462,7 @@ export const listInboxItems = async (req, res) => {
     const where = {};
     if (req.query.status) where.reviewStatus = req.query.status;
     if (req.query.title) where.opportunity = { title: { contains: req.query.title, mode: "insensitive" } };
-    const validInboxSortFields = ["createdAt"];
+    const validInboxSortFields = ["createdAt", "deadline"];
     const inboxSortBy = validInboxSortFields.includes(req.query.sortBy) ? req.query.sortBy : null;
     const inboxSortDir = req.query.sortDir === "asc" ? "asc" : "desc";
     const inboxOrderBy = inboxSortBy ? { [inboxSortBy]: inboxSortDir } : { createdAt: "desc" };
@@ -496,9 +496,11 @@ export const createInboxItem = async (req, res) => {
     }
 
     let inboxTitle = null;
+    let deadline = null;
     if (opportunityId) {
-      const opp = await prisma.opportunity.findUnique({ where: { id: opportunityId }, select: { title: true, naicsCodes: true, pscCode: true } });
+      const opp = await prisma.opportunity.findUnique({ where: { id: opportunityId }, select: { title: true, naicsCodes: true, pscCode: true, responseDeadline: true } });
       inboxTitle = buildInboxTitle({ entityLabel: "Opportunity", naicsCodes: opp?.naicsCodes, pscCode: opp?.pscCode, text: opp?.title });
+      deadline = opp?.responseDeadline ?? null;
     } else if (awardId) {
       const award = await prisma.award.findUnique({ where: { id: awardId }, select: { description: true, naicsCodes: true, pscCode: true } });
       inboxTitle = buildInboxTitle({ entityLabel: "Award", naicsCodes: award?.naicsCodes, pscCode: award?.pscCode, text: award?.description?.split("|")[0]?.trim() ?? null });
@@ -512,6 +514,7 @@ export const createInboxItem = async (req, res) => {
         opportunityId: opportunityId || null,
         awardId: awardId || null,
         title: inboxTitle,
+        deadline,
       },
     });
     return res.status(201).json({ data: item });
@@ -538,13 +541,15 @@ export const getInboxItem = async (req, res) => {
 
 export const updateInboxItem = async (req, res) => {
   try {
-    const { reviewStatus, notes } = req.body;
+    const { reviewStatus, notes, deadline, title } = req.body;
     const data = {
       reviewedBy: req.user.name,
       reviewedAt: new Date(),
     };
     if (reviewStatus !== undefined) data.reviewStatus = reviewStatus;
     if (notes !== undefined) data.notes = notes;
+    if (deadline !== undefined) data.deadline = deadline;
+    if (title !== undefined) data.title = title;
 
     const item = await prisma.inboxItem.update({
       where: { id: req.params.id },
@@ -811,15 +816,13 @@ export const listCalendarEvents = async (req, res) => {
     const start = new Date(year, month - 1, 1);
     const end = new Date(year, month, 1);
 
-    const [opportunities, industryDays] = await Promise.all([
-      prisma.opportunity.findMany({
+    const [inboxItems, industryDays] = await Promise.all([
+      prisma.inboxItem.findMany({
         where: {
-          responseDeadline: { gte: start, lt: end },
-          inboxItems: {
-            some: { reviewStatus: { in: ["IN_REVIEW", "QUALIFIED", "CONTACTED"] } },
-          },
+          deadline: { gte: start, lt: end },
+          reviewStatus: { in: ["IN_REVIEW", "QUALIFIED", "CONTACTED"] },
         },
-        select: { id: true, title: true, responseDeadline: true },
+        select: { id: true, title: true, deadline: true },
       }),
       prisma.industryDay.findMany({
         where: {
@@ -831,12 +834,12 @@ export const listCalendarEvents = async (req, res) => {
     ]);
 
     const events = [
-      ...opportunities.map((o) => ({
-        id: o.id,
-        title: o.title ?? "Untitled Opportunity",
-        date: o.responseDeadline,
+      ...inboxItems.map((item) => ({
+        id: item.id,
+        title: item.title ?? "Untitled",
+        date: item.deadline,
         type: "deadline",
-        relatedId: o.id,
+        relatedId: item.id,
       })),
       ...industryDays.map((d) => ({
         id: d.id,

@@ -115,6 +115,12 @@ const InboxPage = () => {
       sortable: true,
       render: (val) => new Date(val).toLocaleDateString(),
     },
+    {
+      accessor: "deadline",
+      header: "Deadline",
+      sortable: true,
+      render: (val) => val ? new Date(val).toLocaleDateString() : "—",
+    },
     ...(isAdmin ? [{
       accessor: "id",
       header: "",

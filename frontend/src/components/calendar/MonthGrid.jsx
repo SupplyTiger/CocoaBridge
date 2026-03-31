@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, CalendarDays } from "lucide-react";
 
 const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -16,7 +16,7 @@ function eventBadgeClass(event) {
 
 function eventPath(event) {
   return event.type === "deadline"
-    ? `/opportunities/${event.relatedId}`
+    ? `/inbox/${event.relatedId}`
     : `/industry-day/${event.relatedId}`;
 }
 
@@ -92,11 +92,13 @@ const MonthGrid = ({ events = [], month, year, onPrev, onNext, isLoading }) => {
                   {dayEvents.map((event) => (
                     <button
                       key={event.id}
-                      className={`${eventBadgeClass(event)} block text-left truncate overflow-hidden max-w-full cursor-pointer`}
+                      className={`${eventBadgeClass(event)} flex items-center gap-1 text-left overflow-hidden max-w-full cursor-pointer`}
                       title={event.title}
                       onClick={() => navigate(eventPath(event))}
                     >
-                      {event.title}
+                      {event.type === "deadline" && <Clock className="size-3 shrink-0 inline-block mr-0.5" />}
+                      {event.type === "industry_day" && <CalendarDays className="size-3 shrink-0 inline-block mr-0.5" />}
+                      <span className="truncate">{event.title}</span>
                     </button>
                   ))}
                 </div>

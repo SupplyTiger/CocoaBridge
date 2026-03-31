@@ -438,9 +438,10 @@ model InboxItem {
   type            Type
   tag             OppTag
 
-  title   String?
-  summary String?
-  notes   String?
+  title    String?
+  summary  String?
+  notes    String?
+  deadline DateTime?
 
   reviewStatus InboxStatus @default(NEW)
   reviewedBy   String?
@@ -467,6 +468,7 @@ model InboxItem {
   @@index([type])
   @@index([tag])
   @@index([createdAt])
+  @@index([deadline])
   @@index([buyingOrganizationId])
   @@index([awardId])
   @@index([opportunityId])

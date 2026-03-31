@@ -29,6 +29,8 @@ const InboxItemDetail = () => {
 
   const [notes, setNotes] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editTitle, setEditTitle] = useState(null);
+  const [editDeadline, setEditDeadline] = useState(undefined);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["inboxItem", id],
@@ -37,6 +39,7 @@ const InboxItemDetail = () => {
 
   const item = result?.data;
   const notesValue = notes ?? (item?.notes ?? "");
+  const titleValue = editTitle ?? (item?.title ?? "");
 
   const { mutate: updateItem, isPending: isUpdating } = useMutation({
     mutationFn: (body) => dbApi.updateInboxItem(id, body),
@@ -76,6 +79,7 @@ const InboxItemDetail = () => {
     { label: "Reviewed By", value: item?.reviewedBy },
     { label: "Reviewed At", value: item?.reviewedAt, render: (val) => val ? new Date(val).toLocaleString() : "—" },
     { label: "Created", value: item?.createdAt, render: (val) => val ? new Date(val).toLocaleString() : "—" },
+    { label: "Deadline", value: item?.deadline, render: (val) => val ? new Date(val).toLocaleDateString() : "—" },
   ];
 
   return (
@@ -107,6 +111,44 @@ const InboxItemDetail = () => {
                       <option key={s} value={s}>{s}</option>
                     ))}
                   </select>
+                </div>
+              )}
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">Title</span>
+                  <input
+                    className="input input-sm input-bordered flex-1"
+                    value={titleValue}
+                    disabled={isUpdating}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Title…"
+                  />
+                  <button
+                    className="btn btn-sm btn-primary"
+                    disabled={isUpdating || editTitle === null}
+                    onClick={() => { updateItem({ title: titleValue }); setEditTitle(null); }}
+                  >
+                    Save
+                  </button>
+                </div>
+              )}
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">Deadline</span>
+                  <input
+                    type="date"
+                    className="input input-sm input-bordered"
+                    value={editDeadline !== undefined ? (editDeadline ?? "") : (item?.deadline ? new Date(item.deadline).toISOString().slice(0, 10) : "")}
+                    disabled={isUpdating}
+                    onChange={(e) => setEditDeadline(e.target.value || null)}
+                  />
+                  <button
+                    className="btn btn-sm btn-primary"
+                    disabled={isUpdating || editDeadline === undefined}
+                    onClick={() => { updateItem({ deadline: editDeadline ? new Date(editDeadline).toISOString() : null }); setEditDeadline(undefined); }}
+                  >
+                    Save
+                  </button>
                 </div>
               )}
               <div className="flex gap-2 ml-auto">
