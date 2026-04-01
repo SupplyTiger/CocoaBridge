@@ -186,13 +186,13 @@ export const chatTools = {
 
   get_calendar_events: tool({
     description:
-      "Returns upcoming opportunity deadlines and industry days for a given month/year or custom date range. Use for calendar views, 'what's due this month', or outreach planning.",
+      "Returns upcoming opportunity deadlines, inbox item deadlines, and industry days for a given month/year or custom date range. Use for calendar views, 'what's due this month', or outreach planning.",
     parameters: z.object({
       month: z.number().int().min(1).max(12).optional().describe("Month (1–12). Use with year for a monthly view."),
       year: z.number().int().min(2020).optional().describe("4-digit year. Use with month for a monthly view."),
       startDate: z.string().optional().describe("ISO 8601 start date (e.g. '2026-04-01'). Alternative to month/year."),
       endDate: z.string().optional().describe("ISO 8601 end date exclusive (e.g. '2026-05-01'). Alternative to month/year."),
-      type: z.enum(["deadline", "industry_day", "all"]).optional().describe("Filter by event type (default: all)"),
+      type: z.enum(["deadline", "industry_day", "inbox_deadline", "all"]).optional().describe("Filter by event type (default: all)"),
       industryDayStatus: z
         .array(z.enum(["OPEN", "NOT_ATTENDING", "ATTENDING", "ATTENDED", "PAST_EVENT"]))
         .optional()

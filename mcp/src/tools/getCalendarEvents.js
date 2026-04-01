@@ -7,15 +7,16 @@ export function registerGetCalendarEvents(server) {
     {
       title: "Get Calendar Events",
       description:
-        "Returns upcoming opportunity deadlines and industry days for a given month/year or custom date range. " +
+        "Returns upcoming opportunity deadlines, inbox item deadlines, and industry days for a given month/year or custom date range. " +
         "Deadlines are active opportunities with a responseDeadline in the range. " +
+        "Inbox deadlines are inbox items with status IN_REVIEW, QUALIFIED, or CONTACTED that have a deadline in the range. " +
         "Industry days are filtered by status (defaults to OPEN, ATTENDING, ATTENDED).",
       inputSchema: {
         month: z.number().int().min(1).max(12).optional().describe("Month (1-12). Used with year for a monthly view."),
         year: z.number().int().min(2020).optional().describe("4-digit year. Used with month for a monthly view."),
         startDate: z.string().optional().describe("ISO 8601 start date (e.g. '2026-04-01'). Alternative to month/year."),
         endDate: z.string().optional().describe("ISO 8601 end date exclusive (e.g. '2026-05-01'). Alternative to month/year."),
-        type: z.enum(["deadline", "industry_day", "all"]).optional().describe("Filter by event type (default: all)"),
+        type: z.enum(["deadline", "industry_day", "inbox_deadline", "all"]).optional().describe("Filter by event type (default: all)"),
         industryDayStatus: z.array(
           z.enum(["OPEN", "NOT_ATTENDING", "ATTENDING", "ATTENDED", "PAST_EVENT"])
         ).optional().describe("Industry day statuses to include (default: OPEN, ATTENDING, ATTENDED)"),
@@ -53,8 +54,8 @@ export function registerGetCalendarEvents(server) {
 
         const statusFilter = industryDayStatus ?? ["OPEN", "ATTENDING", "ATTENDED"];
 
-        const [opportunities, industryDays] = await Promise.all([
-          type !== "industry_day"
+        const [opportunities, industryDays, inboxItems] = await Promise.all([
+          type !== "industry_day" && type !== "inbox_deadline"
             ? prisma.opportunity.findMany({
                 where: {
                   active: true,
@@ -71,7 +72,7 @@ export function registerGetCalendarEvents(server) {
                 },
               })
             : Promise.resolve([]),
-          type !== "deadline"
+          type !== "deadline" && type !== "inbox_deadline"
             ? prisma.industryDay.findMany({
                 where: {
                   status: { in: statusFilter },
@@ -85,6 +86,24 @@ export function registerGetCalendarEvents(server) {
                   location: true,
                   host: true,
                   status: true,
+                  buyingOrganization: { select: { id: true, name: true } },
+                },
+              })
+            : Promise.resolve([]),
+          type !== "deadline" && type !== "industry_day"
+            ? prisma.inboxItem.findMany({
+                where: {
+                  deadline: { gte: start, lt: end },
+                  reviewStatus: { in: ["IN_REVIEW", "QUALIFIED", "CONTACTED"] },
+                },
+                orderBy: { deadline: "asc" },
+                select: {
+                  id: true,
+                  title: true,
+                  deadline: true,
+                  reviewStatus: true,
+                  opportunityId: true,
+                  awardId: true,
                   buyingOrganization: { select: { id: true, name: true } },
                 },
               })
@@ -111,6 +130,16 @@ export function registerGetCalendarEvents(server) {
             status: d.status,
             buyingOrganization: d.buyingOrganization ?? null,
           })),
+          ...inboxItems.map((item) => ({
+            type: "inbox_deadline",
+            id: item.id,
+            title: item.title ?? "Untitled Inbox Item",
+            date: item.deadline,
+            reviewStatus: item.reviewStatus,
+            opportunityId: item.opportunityId ?? null,
+            awardId: item.awardId ?? null,
+            buyingOrganization: item.buyingOrganization ?? null,
+          })),
         ].sort((a, b) => new Date(a.date) - new Date(b.date));
 
         return {
@@ -122,6 +151,7 @@ export function registerGetCalendarEvents(server) {
                   rangeStart: start.toISOString(),
                   rangeEnd: end.toISOString(),
                   totalDeadlines: opportunities.length,
+                  totalInboxDeadlines: inboxItems.length,
                   totalIndustryDays: industryDays.length,
                   events,
                 },
