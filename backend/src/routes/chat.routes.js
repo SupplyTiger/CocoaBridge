@@ -1,5 +1,5 @@
 import express from "express";
-import { protectRoute } from "../middleware/auth.middleware.js";
+import { protectRoute, readOnlyOrAbove } from "../middleware/auth.middleware.js";
 import {
   handleChat,
   listModels,
@@ -11,13 +11,13 @@ import {
 
 export const router = express.Router();
 
-// All chat routes require authentication (any role)
-router.post("/", ...protectRoute, handleChat);
-router.get("/models", ...protectRoute, listModels);
-router.get("/conversations", ...protectRoute, listConversations);
-router.get("/conversations/:id/messages", ...protectRoute, getConversationMessages);
-router.delete("/conversations/:id", ...protectRoute, deleteConversation);
-router.patch("/conversations/:id", ...protectRoute, updateConversation);
+// All chat routes require READ_ONLY or ADMIN role
+router.post("/", ...protectRoute, readOnlyOrAbove, handleChat);
+router.get("/models", ...protectRoute, readOnlyOrAbove, listModels);
+router.get("/conversations", ...protectRoute, readOnlyOrAbove, listConversations);
+router.get("/conversations/:id/messages", ...protectRoute, readOnlyOrAbove, getConversationMessages);
+router.delete("/conversations/:id", ...protectRoute, readOnlyOrAbove, deleteConversation);
+router.patch("/conversations/:id", ...protectRoute, readOnlyOrAbove, updateConversation);
 
 // v3 @ai-sdk/react sends GET /{chatId}/stream for reconnection — not supported in stateless mode
 router.get("/:chatId/stream", (_req, res) => {

@@ -130,22 +130,24 @@ const KNOWN_JOBS = [
   { jobId: "backfill-opportunity-attachments", jobName: "Backfill Attachment Metadata" },
   { jobId: "deactivate-expired-opportunities", jobName: "Deactivate Expired Opportunities" },
   { jobId: "mark-past-industry-days", jobName: "Mark Past Industry Days" },
+  { jobId: "cleanup-expired-chats", jobName: "Cleanup Expired Chats" },
 ];
 
 export const getSystemHealth = async (req, res) => {
   try {
     const results = await Promise.all(
-      // For each known job, fetch the most recent log entry to report last run time and status.  
       KNOWN_JOBS.map(({ jobId, jobName }) =>
         prisma.syncLog
-          .findFirst({
+          .findMany({
             where: { jobId },
             orderBy: { startedAt: "desc" },
+            take: 5,
           })
-          .then((log) => ({
+          .then((logs) => ({
             jobId,
             jobName,
-            lastRun: log ?? null,
+            lastRun: logs[0] ?? null,
+            history: logs,
           }))
       )
     );
@@ -219,6 +221,17 @@ const SYNC_JOBS = {
       return n > 0 ? `${n} attachment fetch error(s)` : null;
     },
   },
+  "cleanup-chats": {
+    jobId: "cleanup-expired-chats",
+    jobName: "Cleanup Expired Chats",
+    fn: async () => {
+      const deleted = await prisma.chatConversation.deleteMany({
+        where: { expiresAt: { lte: new Date() } },
+      });
+      return { deletedCount: deleted.count };
+    },
+    countFn: (r) => r?.deletedCount ?? null,
+  },
 };
 
 export const triggerSync = async (req, res) => {
@@ -246,6 +259,43 @@ export const triggerSync = async (req, res) => {
   }
 };
 
+// ─── DB Stats ─────────────────────────────────────────────────────────────────
+
+export const getDbStats = async (req, res) => {
+  try {
+    const [
+      activeOpps,
+      inactiveOpps,
+      awards,
+      contacts,
+      inboxByStatus,
+      chatConversations,
+    ] = await Promise.all([
+      prisma.opportunity.count({ where: { active: true } }),
+      prisma.opportunity.count({ where: { active: false } }),
+      prisma.award.count(),
+      prisma.contact.count(),
+      prisma.inboxItem.groupBy({ by: ["reviewStatus"], _count: { _all: true } }),
+      prisma.chatConversation.count(),
+    ]);
+
+    const inboxCounts = Object.fromEntries(
+      inboxByStatus.map(({ reviewStatus, _count }) => [reviewStatus, _count._all])
+    );
+
+    return res.json({
+      opportunities: { active: activeOpps, inactive: inactiveOpps },
+      awards,
+      contacts,
+      inbox: inboxCounts,
+      chatConversations,
+    });
+  } catch (error) {
+    console.error("Error fetching DB stats:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // ─── Filter Configuration ─────────────────────────────────────────────────────
 
 export const getFilterConfig = async (req, res) => {
@@ -263,6 +313,16 @@ export const getFilterConfig = async (req, res) => {
   }
 };
 
+export const getPublicConfig = async (req, res) => {
+  try {
+    const row = await prisma.appConfig.findUnique({ where: { key: "chatRetentionDays" } });
+    return res.status(200).json({ chatRetentionDays: row?.values ?? ["14"] });
+  } catch (error) {
+    console.error("Error fetching public config:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 export const updateFilterConfig = async (req, res) => {
   const { key } = req.params;
   const { values } = req.body;
@@ -275,11 +335,37 @@ export const updateFilterConfig = async (req, res) => {
   }
 
   try {
+    let finalValues = values;
+
+    // Deduplicate overlapping email rules — ADMIN always wins over READ_ONLY
+    if (key === "adminEmailRules" || key === "readOnlyEmailRules") {
+      const otherKey = key === "adminEmailRules" ? "readOnlyEmailRules" : "adminEmailRules";
+      const otherRow = await prisma.appConfig.findUnique({ where: { key: otherKey } });
+      const otherValues = otherRow?.values ?? [];
+
+      if (key === "adminEmailRules") {
+        // Remove newly-promoted admin entries from readOnlyEmailRules
+        const newAdminSet = new Set(values.map((v) => v.toLowerCase()));
+        const cleanedReadOnly = otherValues.filter((v) => !newAdminSet.has(v.toLowerCase()));
+        if (cleanedReadOnly.length !== otherValues.length) {
+          await prisma.appConfig.update({
+            where: { key: "readOnlyEmailRules" },
+            data: { values: cleanedReadOnly },
+          });
+        }
+      } else {
+        // Strip any entries that are already admin rules
+        const adminSet = new Set(otherValues.map((v) => v.toLowerCase()));
+        finalValues = values.filter((v) => !adminSet.has(v.toLowerCase()));
+      }
+    }
+
     const updated = await prisma.appConfig.upsert({
       where: { key },
-      update: { values },
-      create: { key, values },
+      update: { values: finalValues },
+      create: { key, values: finalValues },
     });
+
     return res.status(200).json({ key: updated.key, values: updated.values });
   } catch (error) {
     console.error(`Error updating filter config key ${key}:`, error);

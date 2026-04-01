@@ -5,7 +5,9 @@ import {
   updateUser,
   getSystemHealth,
   triggerSync,
+  getDbStats,
   getFilterConfig,
+  getPublicConfig,
   updateFilterConfig,
 } from "../controllers/admin.controller.js";
 
@@ -18,9 +20,13 @@ router.patch("/users/:id", ...protectRoute, adminOnly, updateUser);
 // System health
 router.get("/system-health", ...protectRoute, adminOnly, getSystemHealth);
 
+// DB stats
+router.get("/stats", ...protectRoute, adminOnly, getDbStats);
+
 // Manual sync triggers — type: sam-opportunities | usaspending-awards | sam-descriptions | sam-industry-days
 router.post("/sync/:type", ...protectRoute, adminOnly, triggerSync);
 
 // Filter configuration
+router.get("/config/public", ...protectRoute, getPublicConfig);
 router.get("/config", ...protectRoute, adminOnly, getFilterConfig);
 router.put("/config/:key", ...protectRoute, adminOnly, updateFilterConfig);

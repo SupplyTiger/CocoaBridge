@@ -16,6 +16,7 @@ import {
   MAX_PARSE_SIZE,
   SUPPORTED_PARSE_TYPES,
 } from "../utils/csv.js";
+import { resolveRoleForEmail } from "../utils/filterConfig.js";
 
 // pdf-parse v1 is CJS-only
 const require = createRequire(import.meta.url);
@@ -81,10 +82,10 @@ const upsertUserFromClerk = async ({
   });
 
   if (existingByEmail) {
-    // Linking an existing email-based account to Clerk — preserve the stored role
+    // Linking an existing email-based account to Clerk — apply resolved role
     return prisma.user.update({
       where: { id: existingByEmail.id },
-      data: { clerkId, email, name, imageUrl },
+      data: { clerkId, email, name, imageUrl, role },
     });
   }
 
@@ -109,9 +110,7 @@ export const createUser = async (event) => {
       return;
     }
 
-    const role = ENV.ADMIN_EMAILS.includes(email.toLowerCase())
-      ? UserRole.ADMIN
-      : UserRole.USER;
+    const role = await resolveRoleForEmail(prisma, email);
 
     await upsertUserFromClerk({ clerkId, email, name, imageUrl, role });
   } catch (error) {
@@ -139,9 +138,7 @@ export const updateUser = async (event) => {
       return;
     }
 
-    const role = ENV.ADMIN_EMAILS.includes(email.toLowerCase())
-      ? UserRole.ADMIN
-      : UserRole.USER;
+    const role = await resolveRoleForEmail(prisma, email);
 
     await upsertUserFromClerk({ clerkId, email, name, imageUrl, role });
   } catch (error) {

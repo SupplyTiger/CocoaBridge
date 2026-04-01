@@ -21,6 +21,7 @@ const SYNC_JOBS = [
   { type: "sam-descriptions", label: "Opportunity Descriptions" },
   { type: "sam-industry-days", label: "Industry Days" },
   { type: "sam-attachments", label: "Attachment Metadata" },
+  { type: "cleanup-chats", label: "Cleanup Expired Chats" },
 ];
 
 const timeAgo = (dateStr) => {
@@ -204,28 +205,107 @@ const SystemHealth = () => {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {health.map(({ jobId, jobName, lastRun }) => (
-        <div key={jobId} className="card card-compact bg-accent-content/10">
-          <div className="card-body gap-1">
-            <p className="text-sm font-medium">{jobName}</p>
-            <div className="flex items-center justify-between">
-              <StatusBadge status={lastRun?.status} />
-              <span className="text-xs opacity-60">{timeAgo(lastRun?.startedAt)}</span>
-            </div>
-            {lastRun?.recordsAffected != null && (
-              <p className="text-xs opacity-60">{lastRun.recordsAffected} records</p>
-            )}
-            {lastRun?.errorMessage && (
-              <p className="text-xs text-error truncate" title={lastRun.errorMessage}>
-                {lastRun.errorMessage}
-              </p>
-            )}
-          </div>
-        </div>
+      {health.map(({ jobId, jobName, lastRun, history = [] }) => (
+        <JobHealthCard key={jobId} jobName={jobName} lastRun={lastRun} history={history} />
       ))}
     </div>
   );
 }
+
+const JobHealthCard = ({ jobName, lastRun, history }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="card card-compact bg-accent-content/10">
+      <div className="card-body gap-1">
+        <p className="text-sm font-medium">{jobName}</p>
+        <div className="flex items-center justify-between">
+          <StatusBadge status={lastRun?.status} />
+          <span className="text-xs opacity-60">{timeAgo(lastRun?.startedAt)}</span>
+        </div>
+        {lastRun?.recordsAffected != null && (
+          <p className="text-xs opacity-60">{lastRun.recordsAffected} records</p>
+        )}
+        {lastRun?.errorMessage && (
+          <p className="text-xs text-error truncate" title={lastRun.errorMessage}>
+            {lastRun.errorMessage}
+          </p>
+        )}
+        {history.length > 1 && (
+          <div>
+            <button
+              type="button"
+              className="flex items-center gap-1 text-xs opacity-50 hover:opacity-80 mt-1"
+              onClick={() => setOpen((o) => !o)}
+            >
+              {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+              History ({history.length})
+            </button>
+            {open && (
+              <div className="flex flex-col gap-1 mt-1">
+                {history.slice(1).map((run) => (
+                  <div key={run.id} className="flex items-center justify-between text-xs opacity-60">
+                    <StatusBadge status={run.status} />
+                    <span>{timeAgo(run.startedAt)}</span>
+                    {run.recordsAffected != null && <span>{run.recordsAffected} rec</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── DB Stats Section ─────────────────────────────────────────────────────────
+
+const DbStats = () => {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["dbStats"],
+    queryFn: adminApi.getDbStats,
+    refetchInterval: 60000,
+  });
+
+  if (isLoading) {
+    return <div className="flex justify-center py-4"><Loader2 className="size-5 animate-spin opacity-50" /></div>;
+  }
+
+  const inboxTotal = Object.values(stats?.inbox ?? {}).reduce((s, n) => s + n, 0);
+
+  const tiles = [
+    { label: "Active Opps", value: stats?.opportunities?.active ?? 0 },
+    { label: "Inactive Opps", value: stats?.opportunities?.inactive ?? 0 },
+    { label: "Awards", value: stats?.awards ?? 0 },
+    { label: "Contacts", value: stats?.contacts ?? 0 },
+    { label: "Inbox Items", value: inboxTotal },
+    { label: "Chat Conversations", value: stats?.chatConversations ?? 0 },
+  ];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+        {tiles.map(({ label, value }) => (
+          <div key={label} className="card card-compact bg-accent-content/10">
+            <div className="card-body items-center text-center gap-0">
+              <p className="text-lg font-semibold">{value.toLocaleString()}</p>
+              <p className="text-xs opacity-60">{label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+      {stats?.inbox && Object.keys(stats.inbox).length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {Object.entries(stats.inbox).map(([status, count]) => (
+            <span key={status} className="badge badge-sm badge-ghost gap-1">
+              {status.replace("_", " ")}: {count}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ─── Filter Configuration Section ────────────────────────────────────────────
 
@@ -236,7 +316,7 @@ const FILTER_SECTIONS = [
   { label: "Industry Day Keywords", activeKey: "industryDayKeywords", bankKey: "industryDayKeywordsBank" },
 ];
 
-const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config }) => {
+const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config, hideBank = false, placeholder }) => {
   const queryClient = useQueryClient();
   const [activeInput, setActiveInput] = useState("");
   const [bankInput, setBankInput] = useState("");
@@ -294,7 +374,7 @@ const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config }) => {
       {/* Active list */}
       <div className="flex flex-wrap gap-1.5 min-h-8">
         {activeValues.map((v) => (
-          <span key={v} className="badge badge-accent gap-1">
+          <span key={v} className="badge badge-accent text-white gap-1">
             {v}
             <button
               type="button"
@@ -315,7 +395,7 @@ const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config }) => {
         <input
           type="text"
           className="input input-sm input-bordered flex-1 max-w-xs"
-          placeholder={`Add ${sectionLabel.toLowerCase()}…`}
+          placeholder={placeholder ?? `Add ${sectionLabel.toLowerCase()}…`}
           value={activeInput}
           onChange={(e) => setActiveInput(e.target.value)}
           onKeyDown={(e) => {
@@ -336,60 +416,62 @@ const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config }) => {
       </div>
 
       {/* Word bank */}
-      <div>
-        <button
-          type="button"
-          className="flex items-center gap-1 text-xs opacity-60 hover:opacity-90"
-          onClick={() => setBankOpen((o) => !o)}
-        >
-          {bankOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-          Word bank ({bankValues.length})
-        </button>
-        {bankOpen && (
-          <div className="mt-2 flex flex-col gap-2">
-            <div className="flex flex-wrap gap-1.5">
-              {bankValues.map((v) => (
-                <span key={v} className="badge badge-outline gap-1 cursor-pointer hover:badge-primary" onClick={() => moveChipToActive(v)}>
-                  {v}
-                  <button
-                    type="button"
-                    className="hover:opacity-70"
-                    onClick={(e) => { e.stopPropagation(); removeFromBank(v); }}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
-              {bankValues.length === 0 && (
-                <span className="text-xs opacity-40 italic">Bank is empty</span>
-              )}
+      {!hideBank && (
+        <div>
+          <button
+            type="button"
+            className="flex items-center gap-1 text-xs opacity-60 hover:opacity-90"
+            onClick={() => setBankOpen((o) => !o)}
+          >
+            {bankOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+            Word bank ({bankValues.length})
+          </button>
+          {bankOpen && (
+            <div className="mt-2 flex flex-col gap-2">
+              <div className="flex flex-wrap gap-1.5">
+                {bankValues.map((v) => (
+                  <span key={v} className="badge badge-secondary text-white gap-1 cursor-pointer hover:badge-primary" onClick={() => moveChipToActive(v)}>
+                    {v}
+                    <button
+                      type="button"
+                      className="hover:opacity-70"
+                      onClick={(e) => { e.stopPropagation(); removeFromBank(v); }}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+                {bankValues.length === 0 && (
+                  <span className="text-xs opacity-40 italic">Bank is empty</span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="input input-xs input-bordered flex-1 max-w-xs"
+                  placeholder="Add to bank…"
+                  value={bankInput}
+                  onChange={(e) => setBankInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      addToBank(bankInput);
+                      setBankInput("");
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-xs btn-ghost border border-base-300"
+                  disabled={!bankInput.trim()}
+                  onClick={() => { addToBank(bankInput); setBankInput(""); }}
+                >
+                  Add to bank
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                className="input input-xs input-bordered flex-1 max-w-xs"
-                placeholder="Add to bank…"
-                value={bankInput}
-                onChange={(e) => setBankInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    addToBank(bankInput);
-                    setBankInput("");
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="btn btn-xs btn-ghost border border-base-300"
-                disabled={!bankInput.trim()}
-                onClick={() => { addToBank(bankInput); setBankInput(""); }}
-              >
-                Add to bank
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -437,6 +519,102 @@ const FilterConfig = () => {
   );
 };
 
+// ─── Access Control Section ───────────────────────────────────────────────────
+
+const RetentionEditor = ({ initialDays }) => {
+  const queryClient = useQueryClient();
+  const [days, setDays] = useState(initialDays);
+
+  const { mutate: saveRetention, isPending: savingRetention } = useMutation({
+    mutationFn: (value) => adminApi.updateFilterConfig("chatRetentionDays", [String(value)]),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["filterConfig"] });
+      toast.success("Chat retention updated");
+    },
+    onError: () => toast.error("Failed to update chat retention"),
+  });
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-sm font-medium">Chat retention (days)</p>
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          min={1}
+          max={365}
+          className="input input-sm input-bordered w-24"
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+        />
+        <button
+          type="button"
+          className="btn btn-sm btn-primary"
+          disabled={savingRetention}
+          onClick={() => saveRetention(days)}
+        >
+          {savingRetention ? <Loader2 className="size-3 animate-spin" /> : "Save"}
+        </button>
+      </div>
+      <p className="text-xs opacity-50">Changes apply to new conversations only</p>
+    </div>
+  );
+};
+
+const AccessControl = () => {
+  const { data: config, isLoading } = useQuery({
+    queryKey: ["filterConfig"],
+    queryFn: adminApi.getFilterConfig,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="size-6 animate-spin opacity-50" />
+      </div>
+    );
+  }
+
+  const configDays = parseInt(config?.chatRetentionDays?.[0], 10);
+  const initialDays = isNaN(configDays) ? 14 : configDays;
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Email Rules */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-medium">Admin Email Rules</p>
+          <FilterListEditor
+            sectionLabel="Admin Email Rules"
+            activeKey="adminEmailRules"
+            bankKey=""
+            config={config ?? {}}
+            hideBank={true}
+            placeholder="Add email or @domain.com…"
+          />
+          <p className="text-xs opacity-50">Use exact email (user@example.com) or domain postfix (@example.com)</p>
+        </div>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-medium">Read-Only Email Rules</p>
+          <FilterListEditor
+            sectionLabel="Read-Only Email Rules"
+            activeKey="readOnlyEmailRules"
+            bankKey=""
+            config={config ?? {}}
+            hideBank={true}
+            placeholder="Add email or @domain.com…"
+          />
+          <p className="text-xs opacity-50">Use exact email (user@example.com) or domain postfix (@example.com)</p>
+        </div>
+      </div>
+
+      <div className="divider my-0" />
+
+      {/* Chat Retention */}
+      <RetentionEditor initialDays={initialDays} />
+    </div>
+  );
+};
+
 // ─── AdminPage ────────────────────────────────────────────────────────────────
 
 const AdminPage = () => {
@@ -451,6 +629,19 @@ const AdminPage = () => {
         </div>
       </section>
 
+      {/* Access Control */}
+      <section className="card bg-base-100 shadow-sm border border-base-300">
+        <div className="card-body gap-4">
+          <div>
+            <h2 className="card-title text-base">Access Control</h2>
+            <p className="text-sm opacity-60">
+              Configure default roles for new users at sign-up and set the chat conversation retention window.
+            </p>
+          </div>
+          <AccessControl />
+        </div>
+      </section>
+
       {/* Manual Sync */}
       <section className="card bg-base-100 shadow-sm border border-base-300">
         <div className="card-body gap-4">
@@ -459,6 +650,14 @@ const AdminPage = () => {
             <p className="text-sm opacity-60">Trigger a data sync on demand without waiting for the scheduled cron.</p>
           </div>
           <SyncControls />
+        </div>
+      </section>
+
+      {/* DB Stats */}
+      <section className="card bg-base-100 shadow-sm border border-base-300">
+        <div className="card-body gap-4">
+          <h2 className="card-title text-base">Database Stats</h2>
+          <DbStats />
         </div>
       </section>
 

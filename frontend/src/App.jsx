@@ -69,7 +69,7 @@ function App() {
         <Route path="recipients/:id" element={<DataOnlyRoute><RecipientDetail /></DataOnlyRoute>} />
         <Route path="buying-orgs/:id" element={<DataOnlyRoute><BuyingOrgDetail /></DataOnlyRoute>} />
         <Route path="flis-items/:id" element={<DataOnlyRoute><FLISItemDetail /></DataOnlyRoute>} />
-        <Route path="chat" element={<ChatPage />} />
+        <Route path="chat" element={<DataOnlyRoute><ChatPage /></DataOnlyRoute>} />
         <Route path="admin" element={<AdminRoute><AdminPage /></AdminRoute>} />
         <Route path="favorites" element={<DataOnlyRoute><FavoritesPage /></DataOnlyRoute>} />
 

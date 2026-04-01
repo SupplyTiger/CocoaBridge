@@ -210,9 +210,18 @@ export const adminApi = {
     const { data } = await axiosInstance.post(`/admin/sync/${type}`);
     return data;
   },
+  // DB stats (admin only)
+  getDbStats: async () => {
+    const { data } = await axiosInstance.get("/admin/stats");
+    return data;
+  },
   // Filter configuration (admin only)
   getFilterConfig: async () => {
     const { data } = await axiosInstance.get("/admin/config");
+    return data;
+  },
+  getPublicConfig: async () => {
+    const { data } = await axiosInstance.get("/admin/config/public");
     return data;
   },
   updateFilterConfig: async (key, values) => {

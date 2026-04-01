@@ -18,7 +18,15 @@ function getMessageText(msg) {
   return "";
 }
 
-const SYSTEM_PROMPT = `You are Mary from CocoaBridge, a federal procurement intelligence assistant for SupplyTiger (Prime Printer Solution Inc).
+async function getChatRetentionDays() {
+  const row = await prisma.appConfig.findUnique({ where: { key: "chatRetentionDays" } });
+  const val = parseInt(row?.values?.[0] ?? "14", 10);
+  return Number.isFinite(val) && val > 0 ? val : 14;
+}
+
+async function buildSystemPrompt() {
+  const days = await getChatRetentionDays();
+  return `You are Mary from CocoaBridge, a federal procurement intelligence assistant for SupplyTiger (Prime Printer Solution Inc).
 
 ## Company Profile
 - Legal Name: Prime Printer Solution Inc (dba SupplyTiger)
@@ -37,13 +45,13 @@ Help users search for and analyze federal contracting opportunities, awards, age
 - For competitive analysis, use get_intelligence_summary
 - Present results in clear, structured formats (tables, bullet points)
 - Flag opportunities that match SupplyTiger's NAICS/PSC codes
-- Note: Conversations are retained for 14 days`;
+- Note: Conversations are retained for ${days} days`;
+}
 
-const EXPIRY_DAYS = 14;
-
-function makeExpiresAt() {
+async function makeExpiresAt() {
+  const days = await getChatRetentionDays();
   const d = new Date();
-  d.setDate(d.getDate() + EXPIRY_DAYS);
+  d.setDate(d.getDate() + days);
   return d;
 }
 
@@ -69,7 +77,7 @@ export async function handleChat(req, res) {
         data: {
           userId,
           title,
-          expiresAt: makeExpiresAt(),
+          expiresAt: await makeExpiresAt(),
         },
       });
       convId = conversation.id;
@@ -104,7 +112,7 @@ export async function handleChat(req, res) {
 
     const result = streamText({
       model,
-      system: SYSTEM_PROMPT,
+      system: await buildSystemPrompt(),
       messages: coreMessages,
       tools: chatTools,
       stopWhen: stepCountIs(5),

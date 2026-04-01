@@ -2,6 +2,7 @@ import { requireAuth, clerkClient } from "@clerk/express";
 import { UserRole } from "@prisma/client";
 import prisma from "../config/db.js";
 import { ENV } from "../config/env.js";
+import { resolveRoleForEmail } from "../utils/filterConfig.js";
 
 export const protectRoute = [
   requireAuth(),
@@ -31,7 +32,7 @@ export const protectRoute = [
             const lastName = clerkUser.lastName ?? null;
             const name = [firstName, lastName].filter(Boolean).join(" ").trim() || "Unnamed User";
             const imageUrl = clerkUser.imageUrl ?? null;
-            const role = ENV.ADMIN_EMAILS.includes(email.toLowerCase()) ? UserRole.ADMIN : UserRole.USER;
+            const role = await resolveRoleForEmail(prisma, email);
             user = await prisma.user.upsert({
               where: { clerkId },
               create: { clerkId, email, name, imageUrl, role },

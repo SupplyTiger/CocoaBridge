@@ -67,10 +67,11 @@ const InboxItemDetail = () => {
   });
 
   const handleEdit = () => {
+    const deadlineSource = item.deadline ?? item.opportunity?.responseDeadline ?? null;
     setDraft({
       reviewStatus: item.reviewStatus,
       title: item.title ?? "",
-      deadline: item.deadline ? new Date(item.deadline).toISOString().slice(0, 10) : "",
+      deadline: deadlineSource ? new Date(deadlineSource).toISOString().slice(0, 10) : "",
       notes: item.notes ?? "",
     });
     setIsEditing(true);

@@ -7,7 +7,7 @@ import { useLocalStorage } from "../lib/useLocalStorage.js";
 import toast from "react-hot-toast";
 import ChatSidebar from "../components/chat/ChatSidebar.jsx";
 import ChatMessage from "../components/chat/ChatMessage.jsx";
-import { chatApi } from "../lib/api.js";
+import { chatApi, adminApi } from "../lib/api.js";
 
 const API_BASE =
   import.meta.env.VITE_ENV === "production"
@@ -16,7 +16,17 @@ const API_BASE =
 
 const RETENTION_TOAST_KEY = "chat_retention_toast_shown";
 
+
+
 const ChatPage = () => {
+    const { data: config } = useQuery({
+    queryKey: ["publicConfig"],
+    queryFn: adminApi.getPublicConfig,
+  });
+
+  const configDays = config?.["chatRetentionDays"];
+  const retentionDays = configDays ? parseInt(configDays) : 14;
+
   const queryClient = useQueryClient();
   const messagesEndRef = useRef(null);
   const [activeConversationId, setActiveConversationId] = useState(null);
@@ -30,13 +40,13 @@ const ChatPage = () => {
   // Show retention toast once per session
   useEffect(() => {
     if (!sessionStorage.getItem(RETENTION_TOAST_KEY)) {
-      toast("Conversations are retained for 14 days.", {
+      toast(`Conversations are retained for ${retentionDays} days.`, {
         icon: "ℹ️",
         duration: 5000,
       });
       sessionStorage.setItem(RETENTION_TOAST_KEY, "true");
     }
-  }, []);
+  }, [retentionDays]);
 
   // Fetch available models
   const { data: models } = useQuery({
@@ -233,7 +243,7 @@ const ChatPage = () => {
 
           <div className="flex items-center gap-3">
             {/* Retention info */}
-            <div className="tooltip tooltip-left" data-tip="Conversations are retained for 14 days">
+            <div className="tooltip tooltip-left" data-tip={`Conversations are retained for ${retentionDays} days`}>
               <Info className="size-4 text-base-content/40" />
             </div>
 
