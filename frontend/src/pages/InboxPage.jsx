@@ -1,13 +1,14 @@
 import { useState, useCallback } from 'react'
 import { usePageParam } from "../lib/usePageParam.js";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { Trash2, CheckCircle, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { dbApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import Table from "../components/Table.jsx";
 import SearchBar from '../components/SearchBar.jsx';
 import ExportToolbar from "../components/ExportToolbar.jsx";
+import TabsJoinButton from "../components/TabsJoinButton.jsx";
 
 const INBOX_CSV_COLUMNS = [
   { header: "Title", accessor: "title", format: (val) => val ?? "" },
@@ -27,9 +28,116 @@ const STATUS_BADGE = {
 
 const STATUSES = ["NEW", "IN_REVIEW", "QUALIFIED", "DISMISSED", "CONTACTED", "CLOSED"];
 
-const InboxPage = () => {
+function SignalPills({ signals }) {
+  if (!signals || signals.length === 0) return <span className="text-base-content/40 text-xs">—</span>;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {signals.map((s, i) => (
+        <span key={i} className="badge badge-sm badge-outline text-xs" title={s.type}>
+          {s.value}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function PendingReviewTab({ isAdmin }) {
   const [page, setPage] = usePageParam();
-  // pendingDeleteId is the id of the item we're currently confirming deletion for (null if not confirming any)
+  const queryClient = useQueryClient();
+
+  const { data: result, isLoading, isError, error } = useQuery({
+    queryKey: ["scoringQueue", page],
+    queryFn: () => dbApi.listScoringQueue({ page, limit: 50 }),
+  });
+
+  const { mutate: approve, isPending: isApproving } = useMutation({
+    mutationFn: (id) => dbApi.approveScoringQueueItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inboxItems"] });
+      queryClient.invalidateQueries({ queryKey: ["scoringQueue"] });
+      toast.success("Approved — item added to inbox");
+    },
+    onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to approve"),
+  });
+
+  const { mutate: dismiss, isPending: isDismissing } = useMutation({
+    mutationFn: (id) => dbApi.dismissScoringQueueItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["scoringQueue"] });
+      toast.success("Dismissed");
+    },
+    onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to dismiss"),
+  });
+
+  const columns = [
+    {
+      accessor: "opportunity",
+      header: "Title",
+      render: (opp) => opp?.title ?? "—",
+    },
+    {
+      accessor: "score",
+      header: "Score",
+      render: (val) => <span className="badge badge-warning font-mono">{val}</span>,
+    },
+    {
+      accessor: "matchedSignals",
+      header: "Matched Signals",
+      render: (val) => <SignalPills signals={val} />,
+    },
+    {
+      accessor: "opportunity",
+      header: "Type",
+      render: (opp) => opp?.type ? <span className="badge badge-info text-white">{opp.type}</span> : "—",
+    },
+    {
+      accessor: "expiresAt",
+      header: "Expires",
+      render: (val) => val ? new Date(val).toLocaleDateString() : "—",
+    },
+    ...(isAdmin ? [
+      {
+        accessor: "id",
+        header: "",
+        render: (id) => (
+          <div className="flex gap-1">
+            <button
+              className="btn btn-xs btn-success"
+              disabled={isApproving || isDismissing}
+              onClick={(e) => { e.stopPropagation(); approve(id); }}
+            >
+              <CheckCircle className="size-3" /> Approve
+            </button>
+            <button
+              className="btn btn-xs btn-error btn-outline"
+              disabled={isApproving || isDismissing}
+              onClick={(e) => { e.stopPropagation(); dismiss(id); }}
+            >
+              <XCircle className="size-3" /> Dismiss
+            </button>
+          </div>
+        ),
+      },
+    ] : []),
+  ];
+
+  return (
+    <Table
+      columns={columns}
+      data={result?.data ?? []}
+      isLoading={isLoading}
+      isError={isError}
+      error={error}
+      meta={result?.meta}
+      page={page}
+      onPageChange={setPage}
+    />
+  );
+}
+
+const InboxPage = () => {
+  const [activeTab, setActiveTab] = useState("inbox");
+  const [page, setPage] = usePageParam();
   const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -60,6 +168,13 @@ const InboxPage = () => {
       ...(sort.field && { sortBy: sort.field, sortDir: sort.dir }),
     }),
   });
+
+  const { data: scoringQueueResult } = useQuery({
+    queryKey: ["scoringQueue", 1],
+    queryFn: () => dbApi.listScoringQueue({ page: 1, limit: 1 }),
+    enabled: isAdmin,
+  });
+  const pendingCount = scoringQueueResult?.meta?.total ?? 0;
 
   const { mutate: updateStatus } = useMutation({
     mutationFn: ({ id, body }) => dbApi.updateInboxItem(id, body),
@@ -152,49 +267,75 @@ const InboxPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <SearchBar
-          placeholder="Search by title..."
-          onSearch={(val) => { setDebouncedSearch(val); setSort({ field: null, dir: "asc" }); setPage(1); setSelectedIds(new Set()); }}
-        />
-        <select
-          className="select select-bordered select-sm"
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); setSelectedIds(new Set()); }}
-        >
-          <option value="">All Statuses</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-      </div>
+      {/* Tab switcher */}
+      <TabsJoinButton
+        tabs={[
+          { value: "inbox", label: "Inbox" },
+          ...(isAdmin ? [{
+            value: "pending",
+            label: (
+              <span className="flex items-center gap-1.5">
+                Pending Review
+                {pendingCount > 0 && <span className="badge badge-warning badge-sm">{pendingCount}</span>}
+              </span>
+            ),
+          }] : []),
+        ]}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
 
-      <ExportToolbar
-        selectedIds={selectedIds}
-        data={result?.data ?? []}
-        csvColumns={INBOX_CSV_COLUMNS}
-        entityName="inbox-items"
-        exportAllFn={dbApi.exportInboxItems}
-        filterParams={{ ...(debouncedSearch && { title: debouncedSearch }) }}
-        onDeleteSelected={() => setShowBulkDeleteConfirm(true)}
-        isAdmin={isAdmin}
-      />
-      <Table
-        columns={columns}
-        data={result?.data ?? []}
-        isLoading={isLoading}
-        isError={isError}
-        error={error}
-        meta={result?.meta}
-        page={page}
-        onPageChange={setPage}
-        basePath="/inbox"
-        sort={sort}
-        onSort={handleSort}
-        selectable
-        selectedIds={selectedIds}
-        onSelectionChange={setSelectedIds}
-      />
+      {activeTab === "inbox" && (
+        <>
+          <div className="flex items-center gap-2">
+            <SearchBar
+              placeholder="Search by title..."
+              onSearch={(val) => { setDebouncedSearch(val); setSort({ field: null, dir: "asc" }); setPage(1); setSelectedIds(new Set()); }}
+            />
+            <select
+              className="select select-bordered select-sm"
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); setSelectedIds(new Set()); }}
+            >
+              <option value="">All Statuses</option>
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+
+          <ExportToolbar
+            selectedIds={selectedIds}
+            data={result?.data ?? []}
+            csvColumns={INBOX_CSV_COLUMNS}
+            entityName="inbox-items"
+            exportAllFn={dbApi.exportInboxItems}
+            filterParams={{ ...(debouncedSearch && { title: debouncedSearch }) }}
+            onDeleteSelected={() => setShowBulkDeleteConfirm(true)}
+            isAdmin={isAdmin}
+          />
+          <Table
+            columns={columns}
+            data={result?.data ?? []}
+            isLoading={isLoading}
+            isError={isError}
+            error={error}
+            meta={result?.meta}
+            page={page}
+            onPageChange={setPage}
+            basePath="/inbox"
+            sort={sort}
+            onSort={handleSort}
+            selectable
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+          />
+        </>
+      )}
+
+      {activeTab === "pending" && isAdmin && (
+        <PendingReviewTab isAdmin={isAdmin} />
+      )}
 
       {pendingDeleteId && (
         <dialog open className="modal modal-open">
@@ -206,11 +347,11 @@ const InboxPage = () => {
             <h3 className="font-bold text-lg">Delete Inbox Item</h3>
             <p className="py-4">Are you sure you want to delete this inbox item? This cannot be undone.</p>
             <div className="modal-action">
-              <button className="btn btn-ghost" onClick={() => setPendingDeleteId(null)}>
+              <button className="btn btn-info text-white" onClick={() => setPendingDeleteId(null)}>
                 Cancel
               </button>
               <button
-                className="btn btn-error"
+                className="btn btn-error text-white"
                 disabled={isDeleting}
                 onClick={() => deleteItem(pendingDeleteId)}
               >
@@ -230,9 +371,9 @@ const InboxPage = () => {
             <h3 className="font-bold text-lg">Delete {selectedIds.size} Item{selectedIds.size !== 1 ? "s" : ""}</h3>
             <p className="py-4">Are you sure you want to delete these items? This cannot be undone.</p>
             <div className="modal-action">
-              <button className="btn btn-ghost" onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</button>
+              <button className="btn btn-info text-white" onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</button>
               <button
-                className="btn btn-error"
+                className="btn btn-error text-white"
                 disabled={isBulkDeleting}
                 onClick={() => bulkDelete([...selectedIds])}
               >

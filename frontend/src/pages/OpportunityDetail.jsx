@@ -147,7 +147,7 @@ const OpportunityDetail = () => {
                   ))}
                   {isAdmin && (
                     <button
-                      className="btn btn-error btn-sm"
+                      className="btn btn-error btn-sm text-white"
                       onClick={() => setShowDeleteConfirm(true)}
                     >
                       <Trash2 className="size-4" />
@@ -256,11 +256,11 @@ const OpportunityDetail = () => {
             <h3 className="font-bold text-lg">Delete Opportunity</h3>
             <p className="py-4">Are you sure you want to delete this opportunity? This cannot be undone.</p>
             <div className="modal-action">
-              <button className="btn btn-accent" onClick={() => setShowDeleteConfirm(false)}>
+              <button className="btn btn-info text-white" onClick={() => setShowDeleteConfirm(false)}>
                 Cancel
               </button>
               <button
-                className="btn btn-error"
+                className="btn btn-error text-white"
                 disabled={isDeleting}
                 onClick={() => deleteItem()}
               >

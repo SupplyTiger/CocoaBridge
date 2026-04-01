@@ -158,11 +158,11 @@ const AwardDetail = () => {
             <h3 className="font-bold text-lg">Delete Award</h3>
             <p className="py-4">Are you sure you want to delete this award? This cannot be undone.</p>
             <div className="modal-action">
-              <button className="btn btn-accent" onClick={() => setShowDeleteConfirm(false)}>
+              <button className="btn btn-info text-white" onClick={() => setShowDeleteConfirm(false)}>
                 Cancel
               </button>
               <button
-                className="btn btn-error"
+                className="btn btn-error text-white"
                 disabled={isDeleting}
                 onClick={() => deleteItem()}
               >

@@ -163,9 +163,9 @@ const ContactsPage = () => {
               Are you sure you want to delete <strong>{deleteTarget.fullName ?? "this contact"}</strong>? This cannot be undone.
             </p>
             <div className="modal-action">
-              <button className="btn btn-accent" onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button className="btn btn-info text-white" onClick={() => setDeleteTarget(null)}>Cancel</button>
               <button
-                className="btn btn-error"
+                className="btn btn-error text-white"
                 disabled={isDeleting}
                 onClick={() => deleteContact(deleteTarget.id)}
               >

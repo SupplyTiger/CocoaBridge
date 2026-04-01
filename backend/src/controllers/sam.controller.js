@@ -26,6 +26,8 @@ import {
 
 import { MICROPURCHASE_THRESHOLD, samGovIndustryDayPTypes, samGovSolicitationPTypes } from "../utils/globals.js";
 
+const SUPPLY_TIGER_PSC = ['8925', '8950', '8970'];
+
 /*
   Helper functions to fetch opportunities from SAM.gov with pagination
 
@@ -451,31 +453,10 @@ async function upsertOpportunityFromSam(prisma, opportunity, filterConfig = null
     });
   }
 
-  // Build the pending inbox event (if new) so the caller can emit it
-  // AFTER the surrounding transaction commits — avoids emitting events
-  // for rows that get rolled back.
-  let pendingInboxEvent = null;
-  if (!existingOpportunity && opp.tag !== OppTag.INDUSTRY_DAY) {
-    const title = buildInboxTitle({
-      entityLabel: "Opportunity",
-      naicsCodes: normalized.naicsCodes,
-      pscCode: normalized.pscCode,
-      text: normalized.title ?? null,
-      maxLen: 160,
-    });
-
-    pendingInboxEvent = {
-      source: opp.source,
-      opportunityId: opp.id,
-      op: "CREATED",
-      title,
-      summary: buildInboxSummary(normalized.description ?? null, 250),
-      type: opp.type ?? "OTHER",
-      tag: opp.tag ?? "GENERAL",
-      buyingOrganizationId: opp.buyingOrganizationId ?? null,
-      acquisitionPath: AcquisitionPath.OPEN_MARKET,
-    };
-  }
+  // Opportunities are admitted to the inbox only via the daily scoring job
+  // (scoreNewOpportunityAttachmentsDaily), which enforces PSC gate + score thresholds.
+  // Emitting internal/opportunity.upserted here would bypass scoring entirely.
+  opp.pendingInboxEvent = null;
 
   if (opportunity?.award?.number) {
     await upsertAwardAndRecipientFromSam(prisma, opportunity, opp.id);
@@ -488,7 +469,6 @@ async function upsertOpportunityFromSam(prisma, opportunity, filterConfig = null
     buyingOrganizationId,
   );
 
-  opp.pendingInboxEvent = pendingInboxEvent;
   return opp;
 }
 

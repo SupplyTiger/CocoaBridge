@@ -1,7 +1,8 @@
 import prisma from "../config/db.js";
 import { runCurrentOpportunitiesSyncFromSam, runIndustryDaySyncFromSam } from "./sam.controller.js";
 import { runAwardsSyncFromUsaspending } from "./usaspending.controller.js";
-import { runBackfillNullOpportunityDescriptionsFromSam, runBackfillOpportunityAttachments } from "./db.controller.js";
+import { runBackfillNullOpportunityDescriptionsFromSam, runBackfillOpportunityAttachments, runScoreAllParsedAttachments } from "./db.controller.js";
+import { runScoreNewOpportunityAttachments } from "../utils/inboxScoring.js";
 import { loadFilterConfig, VALID_CONFIG_KEYS } from "../utils/filterConfig.js";
 
 // ─── SyncLog helper ──────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ export const listUsers = async (req, res) => {
         updatedAt: true,
       },
     });
-    return res.json(users);
+    return res.status(200).json(users);
   } catch (error) {
     console.error("Error listing users:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -109,7 +110,7 @@ export const updateUser = async (req, res) => {
         createdAt: true,
       },
     });
-    return res.json(user);
+    return res.status(200).json(user);
   } catch (error) {
     // Handle case where user with given ID does not exist
     if (error.code === "P2025") {
@@ -131,6 +132,7 @@ const KNOWN_JOBS = [
   { jobId: "deactivate-expired-opportunities", jobName: "Deactivate Expired Opportunities" },
   { jobId: "mark-past-industry-days", jobName: "Mark Past Industry Days" },
   { jobId: "cleanup-expired-chats", jobName: "Cleanup Expired Chats" },
+  { jobId: "score-parsed-attachments", jobName: "Score Parsed Attachments" },
 ];
 
 export const getSystemHealth = async (req, res) => {
@@ -151,7 +153,7 @@ export const getSystemHealth = async (req, res) => {
           }))
       )
     );
-    return res.json(results);
+    return res.status(200).json(results);
   } catch (error) {
     console.error("Error fetching system health:", error);
     return res.status(500).json({ message: "Internal server error" });
@@ -232,6 +234,26 @@ const SYNC_JOBS = {
     },
     countFn: (r) => r?.deletedCount ?? null,
   },
+  "score-attachments": {
+    jobId: "score-parsed-attachments",
+    jobName: "Score Parsed Attachments",
+    fn: () => runScoreAllParsedAttachments(),
+    countFn: (r) => r?.results?.scored ?? null,
+    failFn: (r) => {
+      const n = r?.results?.failed ?? 0;
+      return n > 0 ? `${n} attachment scoring error(s)` : null;
+    },
+  },
+  "score-opportunity-attachments": {
+    jobId: "score-new-opportunity-attachments",
+    jobName: "Score New Opportunity Attachments",
+    fn: () => runScoreNewOpportunityAttachments(),
+    countFn: (r) => r?.results?.scored ?? null,
+    failFn: (r) => {
+      const n = r?.results?.errors ?? 0;
+      return n > 0 ? `${n} scoring error(s)` : null;
+    },
+  },
 };
 
 export const triggerSync = async (req, res) => {
@@ -245,7 +267,7 @@ export const triggerSync = async (req, res) => {
   try {
     const result = await withSyncLog(job.jobId, job.jobName, job.fn, job.countFn, job.failFn ?? null);
     const recordsAffected = job.countFn ? job.countFn(result) : null;
-    return res.json({
+    return res.status(200).json({
       ok: true,
       jobId: job.jobId,
       jobName: job.jobName,
@@ -283,7 +305,7 @@ export const getDbStats = async (req, res) => {
       inboxByStatus.map(({ reviewStatus, _count }) => [reviewStatus, _count._all])
     );
 
-    return res.json({
+    return res.status(200).json({
       opportunities: { active: activeOpps, inactive: inactiveOpps },
       awards,
       contacts,

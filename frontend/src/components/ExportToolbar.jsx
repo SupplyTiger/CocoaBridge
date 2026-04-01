@@ -37,7 +37,7 @@ const ExportToolbar = ({ selectedIds, data, csvColumns, entityName, exportAllFn,
       </button>
       {isAdmin && onDeleteSelected && (
         <button
-          className="btn btn-sm btn-error gap-1"
+          className="btn btn-sm btn-error text-white gap-1"
           disabled={selectedCount === 0}
           onClick={onDeleteSelected}
         >

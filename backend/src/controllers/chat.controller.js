@@ -165,7 +165,7 @@ export async function handleChat(req, res) {
 // GET /api/chat/models
 export async function listModels(req, res) {
   try {
-    res.json(getAvailableModels());
+    res.status(200).json(getAvailableModels());
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -186,7 +186,7 @@ export async function listConversations(req, res) {
       },
     });
 
-    res.json(conversations);
+    res.status(200).json(conversations);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -216,7 +216,7 @@ export async function getConversationMessages(req, res) {
       orderBy: { createdAt: "asc" },
     });
 
-    res.json(messages);
+    res.status(200).json(messages);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -241,7 +241,7 @@ export async function deleteConversation(req, res) {
     }
 
     await prisma.chatConversation.delete({ where: { id } });
-    res.json({ ok: true });
+    res.status(200).json({ ok: true });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -275,7 +275,7 @@ export async function updateConversation(req, res) {
       data,
     });
 
-    res.json(updated);
+    res.status(200).json(updated);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

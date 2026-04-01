@@ -65,6 +65,14 @@ enum OppTag {
   @@schema("public")
 }
 
+enum ScoringQueueStatus {
+  PENDING
+  APPROVED
+  DISMISSED
+
+  @@schema("public")
+}
+
 enum ContactType {
   PRIMARY
   SECONDARY
@@ -287,7 +295,8 @@ model Opportunity {
   buyingOrganization   BuyingOrganization? @relation(fields: [buyingOrganizationId], references: [id], onDelete: SetNull)
 
   // Inbox workflow
-  inboxItems InboxItem[]
+  inboxItems   InboxItem[]
+  scoringQueue ScoringQueue?
 
   // Contacts scraped from SAM for this opportunity (optional but useful)
   contactLinks ContactLink[]
@@ -322,6 +331,10 @@ model OpportunityAttachment {
   // Step Two fields (on-demand PDF parsing)
   parsedText String?
   parsedAt   DateTime?
+
+  // Step Three fields (automated opportunity scoring)
+  scoreResult Json?
+  scoredAt    DateTime?
 
   opportunityId String
   opportunity   Opportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
@@ -447,6 +460,9 @@ model InboxItem {
   reviewedBy   String?
   reviewedAt   DateTime?
 
+  attachmentScore Int?
+  matchedSignals  Json?
+
   buyingOrganizationId String?
   buyingOrganization   BuyingOrganization? @relation(fields: [buyingOrganizationId], references: [id], onDelete: SetNull)
 
@@ -454,7 +470,7 @@ model InboxItem {
   award   Award?  @relation(fields: [awardId], references: [id], onDelete: SetNull)
 
   opportunityId String?
-  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   contactLinks ContactLink[]
 
@@ -542,5 +558,23 @@ model CommercialItemDesc {
   updatedAt DateTime @updatedAt
 
   @@index([pscCode])
+  @@schema("public")
+}
+
+model ScoringQueue {
+  id            String             @id @default(cuid())
+  opportunityId String             @unique
+  opportunity   Opportunity        @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  score         Int
+  matchedSignals Json              // Array of { type, value, source } objects
+  status        ScoringQueueStatus @default(PENDING)
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  expiresAt     DateTime           // set to min(createdAt+14d, opportunity.responseDeadline)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([status])
+  @@index([expiresAt])
   @@schema("public")
 }

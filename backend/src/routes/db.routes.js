@@ -1,5 +1,6 @@
 import express from "express";
 import { protectRoute, adminOnly, readOnlyOrAbove } from "../middleware/auth.middleware.js";
+import { scoringQueueRouter } from "./scoringQueue.routes.js";
 import {
   getRecipientAnalytics,
   getPscAnalytics,
@@ -53,7 +54,7 @@ export const router = express.Router();
 router.get("/ping", ...protectRoute, (_req, res) => res.json({ ok: true }));
 
 // Current authenticated user's DB profile (all roles can access)
-router.get("/me", ...protectRoute, (req, res) => res.json(req.user));
+router.get("/me", ...protectRoute, (req, res) => res.status(200).json(req.user));
 
 // InboxItems
 router.get("/inbox-items/export", ...protectRoute, readOnlyOrAbove, exportInboxItems);
@@ -115,6 +116,9 @@ router.delete("/contacts/:id", ...protectRoute, adminOnly, deleteContact);
 // Favorites
 router.get("/favorites", ...protectRoute, readOnlyOrAbove, listFavorites);
 router.post("/favorites", ...protectRoute, readOnlyOrAbove, toggleFavorite);
+
+// Scoring Queue
+router.use("/scoring-queue", scoringQueueRouter);
 
 // Analytics
 router.get("/analytics/recipients", ...protectRoute, readOnlyOrAbove, getRecipientAnalytics);

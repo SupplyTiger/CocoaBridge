@@ -147,6 +147,20 @@ export const dbApi = {
     return data;
   },
 
+  // Scoring Queue
+  listScoringQueue: async (params) => {
+    const { data } = await axiosInstance.get("/db/scoring-queue", { params });
+    return data;
+  },
+  approveScoringQueueItem: async (id) => {
+    const { data } = await axiosInstance.post(`/db/scoring-queue/${id}/approve`);
+    return data;
+  },
+  dismissScoringQueueItem: async (id) => {
+    const { data } = await axiosInstance.post(`/db/scoring-queue/${id}/dismiss`);
+    return data;
+  },
+
   // CSV Exports
   exportOpportunities: (params) => axiosInstance.get("/db/opportunities/export", { params, responseType: "blob" }),
   exportAwards: (params) => axiosInstance.get("/db/awards/export", { params, responseType: "blob" }),

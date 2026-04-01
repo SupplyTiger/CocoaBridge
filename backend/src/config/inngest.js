@@ -1,8 +1,4 @@
-import {
-  AcquisitionPath,
-  OppTag,
-  Type,
-} from "@prisma/client";
+import { OppTag, Type } from "@prisma/client";
 import prisma from "./db.js";
 import { inngestClient } from "./inngestClient.js";
 import {
@@ -13,10 +9,13 @@ import {
   runBackfillNullOpportunityDescriptionsFromSam,
   runBackfillOpportunityAttachments,
   markPastIndustryDays,
+  scoreAttachment,
+  runScoreAllParsedAttachments,
 } from "../controllers/db.controller.js";
 import { runCurrentOpportunitiesSyncFromSam, runIndustryDaySyncFromSam } from "../controllers/sam.controller.js";
 import { runAwardsSyncFromUsaspending } from "../controllers/usaspending.controller.js";
 import { withSyncLog } from "../controllers/admin.controller.js";
+import { runScoreNewOpportunityAttachments, runCleanupExpiredScoringQueue } from "../utils/inboxScoring.js";
 
 // Public export consumed by server route registration.
 export const inngest = inngestClient;
@@ -339,6 +338,89 @@ export const backfillAttachmentMetadataDaily = inngest.createFunction(
   },
 );
 
+// Score an attachment's opportunity immediately after its text is saved
+const scoreAttachmentOnParsed = inngest.createFunction(
+  {
+    id: "score-attachment-on-parsed",
+    name: "Score Attachment on Parsed",
+    description: "Scores the linked opportunity when attachment text is saved and stores the result on the attachment",
+  },
+  { event: "internal/attachment.parsed" },
+  async ({ event }) => {
+    const { attachmentId, opportunityId } = event?.data ?? {};
+
+    if (!attachmentId || !opportunityId) {
+      return { skipped: true, reason: "Missing attachmentId or opportunityId" };
+    }
+
+    const scoreResult = await scoreAttachment(attachmentId, opportunityId);
+    return { ok: true, attachmentId, opportunityId, overallScore: scoreResult.overallScore };
+  },
+);
+
+// Weekly batch job to score all parsed attachments that haven't been scored yet
+export const scoreAllParsedAttachmentsWeekly = inngest.createFunction(
+  {
+    id: "score-all-parsed-attachments-weekly",
+    name: "Score All Parsed Attachments Weekly",
+    description: "Weekly cron to score parsed attachments missing a score result, runs Sundays at 2:00 AM EST",
+  },
+  { cron: "0 7 * * 0" }, // 2:00 AM EST / 7:00 AM UTC on Sundays
+  async () => {
+    return await withSyncLog(
+      "score-parsed-attachments",
+      "Score Parsed Attachments",
+      () => runScoreAllParsedAttachments(),
+      (r) => r?.results?.scored ?? null,
+      (r) => {
+        const n = r?.results?.failed ?? 0;
+        return n > 0 ? `${n} attachment scoring error(s)` : null;
+      },
+    );
+  },
+);
+
+// Daily scoring job: score new PSC-matching opportunities against FLIS + signals
+export const scoreNewOpportunityAttachmentsDaily = inngest.createFunction(
+  {
+    id: "score-new-opportunity-attachments-daily",
+    name: "Score New Opportunity Attachments Daily",
+    description:
+      "Daily cron to score new PSC 8925/8950/8970 opportunities using FLIS item matching and keyword signals, runs at 1:15 AM EST",
+  },
+  { cron: "15 6 * * *" }, // 1:15 AM EST / 6:15 AM UTC — after attachment metadata backfill at 1:00 AM
+  async () => {
+    return await withSyncLog(
+      "score-new-opportunity-attachments",
+      "Score New Opportunity Attachments",
+      () => runScoreNewOpportunityAttachments(),
+      (r) => r?.results?.scored ?? null,
+      (r) => {
+        const n = r?.results?.errors ?? 0;
+        return n > 0 ? `${n} scoring error(s)` : null;
+      },
+    );
+  },
+);
+
+// Daily cleanup of expired/stale ScoringQueue PENDING items
+export const cleanupExpiredScoringQueueDaily = inngest.createFunction(
+  {
+    id: "cleanup-expired-scoring-queue-daily",
+    name: "Cleanup Expired Scoring Queue Daily",
+    description: "Daily cron to delete expired PENDING ScoringQueue items, runs at 4:00 AM UTC",
+  },
+  { cron: "0 4 * * *" }, // Daily at 4:00 AM UTC
+  async () => {
+    return await withSyncLog(
+      "cleanup-expired-scoring-queue",
+      "Cleanup Expired Scoring Queue",
+      () => runCleanupExpiredScoringQueue(),
+      (r) => r?.count ?? null,
+    );
+  },
+);
+
 // Daily cleanup of expired chat conversations (14-day retention)
 export const cleanupExpiredChats = inngest.createFunction(
   {
@@ -368,5 +450,9 @@ export const functions = [
   markPastIndustryDaysDaily,
   syncAwardsFromUsaspendingBiWeekly,
   backfillAttachmentMetadataDaily,
+  scoreAttachmentOnParsed,
+  scoreAllParsedAttachmentsWeekly,
+  scoreNewOpportunityAttachmentsDaily,
+  cleanupExpiredScoringQueueDaily,
   cleanupExpiredChats,
 ];

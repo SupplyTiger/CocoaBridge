@@ -17,6 +17,9 @@ import {
   SUPPORTED_PARSE_TYPES,
 } from "../utils/csv.js";
 import { resolveRoleForEmail } from "../utils/filterConfig.js";
+import { emitInternalEventSafe } from "../config/inngestClient.js";
+import { scoreOpportunity } from "../utils/opportunityScoring.js";
+import { parseAttachmentContent } from "../utils/parseAttachmentContent.js";
 
 // pdf-parse v1 is CJS-only
 const require = createRequire(import.meta.url);
@@ -475,7 +478,7 @@ export const listInboxItems = async (req, res) => {
       }),
     ]);
 
-    return res.json({
+    return res.status(200).json({
       meta: { total, page, limit, returned: items.length },
       data: items,
     });
@@ -529,7 +532,7 @@ export const getInboxItem = async (req, res) => {
       include: { opportunity: true, award: true, contactLinks: true },
     });
     if (!item) return res.status(404).json({ error: "InboxItem not found" });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     console.error("getInboxItem error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -552,7 +555,7 @@ export const updateInboxItem = async (req, res) => {
       where: { id: req.params.id },
       data,
     });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     if (error?.code === "P2025") return res.status(404).json({ error: "InboxItem not found" });
     console.error("updateInboxItem error:", error);
@@ -563,7 +566,7 @@ export const updateInboxItem = async (req, res) => {
 export const deleteInboxItem = async (req, res) => {
   try {
     await prisma.inboxItem.delete({ where: { id: req.params.id } });
-    return res.json({ data: { id: req.params.id } });
+    return res.status(200).json({ data: { id: req.params.id } });
   } catch (error) {
     if (error?.code === "P2025") return res.status(404).json({ error: "InboxItem not found" });
     console.error("deleteInboxItem error:", error);
@@ -577,7 +580,7 @@ export const bulkDeleteInboxItems = async (req, res) => {
     if (!Array.isArray(ids) || ids.length === 0)
       return res.status(400).json({ error: "ids must be a non-empty array" });
     const { count } = await prisma.inboxItem.deleteMany({ where: { id: { in: ids } } });
-    return res.json({ count });
+    return res.status(200).json({ count });
   } catch (error) {
     console.error("bulkDeleteInboxItems error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -618,7 +621,7 @@ export const listOpportunities = async (req, res) => {
       }),
     ]);
 
-    return res.json({
+    return res.status(200).json({
       meta: { total, page, limit, returned: items.length },
       data: items,
     });
@@ -656,7 +659,7 @@ export const getOpportunity = async (req, res) => {
       },
     });
     if (!item) return res.status(404).json({ error: "Opportunity not found" });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     console.error("getOpportunity error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -682,7 +685,7 @@ export const deleteOpportunity = async (req, res) => {
     });
 
     await prisma.opportunity.delete({ where: { id } });
-    return res.json({ data: { id } });
+    return res.status(200).json({ data: { id } });
   } catch (error) {
     if (error?.code === "P2025") return res.status(404).json({ error: "Opportunity not found" });
     console.error("deleteOpportunity error:", error);
@@ -718,7 +721,7 @@ export const listAwards = async (req, res) => {
       }),
     ]);
 
-    return res.json({
+    return res.status(200).json({
       meta: { total, page, limit, returned: items.length },
       data: items,
     });
@@ -735,7 +738,7 @@ export const getAward = async (req, res) => {
       include: { recipient: true, buyingOrganization: true, inboxItems: true },
     });
     if (!item) return res.status(404).json({ error: "Award not found" });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     console.error("getAward error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -745,7 +748,7 @@ export const getAward = async (req, res) => {
 export const deleteAward = async (req, res) => {
   try {
     await prisma.award.delete({ where: { id: req.params.id } });
-    return res.json({ data: { id: req.params.id } });
+    return res.status(200).json({ data: { id: req.params.id } });
   } catch (error) {
     if (error?.code === "P2025") return res.status(404).json({ error: "Award not found" });
     console.error("deleteAward error:", error);
@@ -771,7 +774,7 @@ export const listIndustryDays = async (req, res) => {
       }),
     ]);
 
-    return res.json({
+    return res.status(200).json({
       meta: { total, page, limit, returned: items.length },
       data: items,
     });
@@ -788,7 +791,7 @@ export const getIndustryDay = async (req, res) => {
       include: { opportunity: true, buyingOrganization: true, contactLinks: true },
     });
     if (!item) return res.status(404).json({ error: "IndustryDay not found" });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     console.error("getIndustryDay error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -807,7 +810,7 @@ export const updateIndustryDay = async (req, res) => {
       where: { id: req.params.id },
       data,
     });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     if (error?.code === "P2025") return res.status(404).json({ error: "IndustryDay not found" });
     console.error("updateIndustryDay error:", error);
@@ -860,7 +863,7 @@ export const listCalendarEvents = async (req, res) => {
       })),
     ];
 
-    return res.json({ data: events });
+    return res.status(200).json({ data: events });
   } catch (error) {
     console.error("listCalendarEvents error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -892,7 +895,7 @@ export const listBuyingOrgs = async (req, res) => {
       }),
     ]);
 
-    return res.json({
+    return res.status(200).json({
       meta: { total, page, limit, returned: items.length },
       data: items,
     });
@@ -912,7 +915,7 @@ export const getBuyingOrg = async (req, res) => {
       },
     });
     if (!item) return res.status(404).json({ error: "BuyingOrganization not found" });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     console.error("getBuyingOrg error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -926,7 +929,7 @@ export const updateBuyingOrg = async (req, res) => {
     if (website !== undefined) data.website = website?.trim() || null;
     if (Object.keys(data).length === 0) return res.status(400).json({ error: "No fields to update" });
     const item = await prisma.buyingOrganization.update({ where: { id: req.params.id }, data });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     if (error?.code === "P2025") return res.status(404).json({ error: "BuyingOrganization not found" });
     console.error("updateBuyingOrg error:", error);
@@ -960,7 +963,7 @@ export const listRecipients = async (req, res) => {
         take: limit,
       }),
     ]);
-    return res.json({ meta: { total, page, limit, returned: items.length }, data: items });
+    return res.status(200).json({ meta: { total, page, limit, returned: items.length }, data: items });
   } catch (error) {
     console.error("listRecipients error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -976,7 +979,7 @@ export const getRecipient = async (req, res) => {
       },
     });
     if (!item) return res.status(404).json({ error: "Recipient not found" });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     console.error("getRecipient error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -990,7 +993,7 @@ export const updateRecipient = async (req, res) => {
     if (website !== undefined) data.website = website?.trim() || null;
     if (Object.keys(data).length === 0) return res.status(400).json({ error: "No fields to update" });
     const item = await prisma.recipient.update({ where: { id: req.params.id }, data });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     if (error?.code === "P2025") return res.status(404).json({ error: "Recipient not found" });
     console.error("updateRecipient error:", error);
@@ -1032,7 +1035,7 @@ export const listContacts = async (req, res) => {
         },
       }),
     ]);
-    return res.json({ meta: { total, page, limit, returned: items.length }, data: items });
+    return res.status(200).json({ meta: { total, page, limit, returned: items.length }, data: items });
   } catch (error) {
     console.error("listContacts error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -1054,7 +1057,7 @@ export const getContact = async (req, res) => {
       },
     });
     if (!item) return res.status(404).json({ error: "Contact not found" });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     console.error("getContact error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -1069,7 +1072,7 @@ export const updateContact = async (req, res) => {
     if (title !== undefined) data.title = title?.trim() || null;
     if (Object.keys(data).length === 0) return res.status(400).json({ error: "No fields to update" });
     const item = await prisma.contact.update({ where: { id: req.params.id }, data });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     if (error?.code === "P2025") return res.status(404).json({ error: "Contact not found" });
     console.error("updateContact error:", error);
@@ -1088,7 +1091,7 @@ export const deleteContact = async (req, res) => {
       return res.status(409).json({ error: "Cannot delete a contact that is linked to an opportunity" });
     }
     await prisma.contact.delete({ where: { id: req.params.id } });
-    return res.json({ data: { id: req.params.id } });
+    return res.status(200).json({ data: { id: req.params.id } });
   } catch (error) {
     console.error("deleteContact error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -1112,7 +1115,7 @@ export const listFavorites = async (req, res) => {
         select: { id: true, description: true, obligatedAmount: true, pscCode: true, naicsCodes: true, startDate: true, endDate: true },
       }),
     ]);
-    return res.json({ opportunities, awards });
+    return res.status(200).json({ opportunities, awards });
   } catch (error) {
     console.error("listFavorites error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -1154,7 +1157,7 @@ export const listFLISItems = async (req, res) => {
       }),
     ]);
 
-    return res.json({
+    return res.status(200).json({
       meta: { total, page, limit, returned: items.length },
       data: items,
     });
@@ -1173,7 +1176,7 @@ export const getFLISItem = async (req, res) => {
       },
     });
     if (!item) return res.status(404).json({ error: "FLIS item not found" });
-    return res.json({ data: item });
+    return res.status(200).json({ data: item });
   } catch (error) {
     console.error("getFLISItem error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
@@ -1221,6 +1224,7 @@ export const toggleFavorite = async (req, res) => {
 // ---------- Attachment parsing (Step Two) ----------
 
 // Preview only — downloads, extracts, returns text but does NOT save to DB
+// Uses 10MB cap for HTTP route (background job uses 5MB via parseAttachmentContent utility)
 export const parseAttachment = async (req, res) => {
   try {
     const attachment = await prisma.opportunityAttachment.findUnique({
@@ -1230,6 +1234,7 @@ export const parseAttachment = async (req, res) => {
       return res.status(404).json({ error: "Attachment not found" });
     }
 
+    // HTTP route enforces 10MB cap; parseAttachmentContent enforces 5MB for background jobs
     const ext = resolveFileExtension(attachment);
     if (!SUPPORTED_PARSE_TYPES.includes(ext)) {
       return res.status(400).json({
@@ -1243,41 +1248,18 @@ export const parseAttachment = async (req, res) => {
       });
     }
 
-    // Download from SAM.gov
-    const response = await fetch(attachment.downloadUrl, {
-      signal: AbortSignal.timeout(30000),
-    });
-    if (!response.ok) {
-      return res.status(502).json({
-        error: `Failed to download file from SAM.gov (HTTP ${response.status})`,
-      });
-    }
-    const buffer = Buffer.from(await response.arrayBuffer());
+    const result = await parseAttachmentContent(attachment);
 
-    if (buffer.length > MAX_PARSE_SIZE) {
-      return res.status(400).json({
-        error: `File too large (${(buffer.length / 1024 / 1024).toFixed(1)}MB). Max: 10MB`,
-      });
+    if (result.skip) {
+      // Map utility errors back to HTTP responses
+      if (result.error?.startsWith("Unsupported")) return res.status(400).json({ error: result.error });
+      if (result.error?.startsWith("File too large")) return res.status(400).json({ error: result.error });
+      if (result.error?.startsWith("SAM.gov download failed")) return res.status(502).json({ error: result.error });
+      if (result.error?.includes("No text extracted")) return res.status(422).json({ error: "No text could be extracted from this file (may be scanned/image-based)" });
+      return res.status(500).json({ error: result.error });
     }
 
-    let rawText;
-    if (ext === ".pdf") {
-      const result = await pdfParse(buffer);
-      rawText = result.text;
-    } else {
-      const result = await mammoth.extractRawText({ buffer });
-      rawText = result.value;
-    }
-
-    if (!rawText || rawText.trim().length === 0) {
-      return res.status(422).json({
-        error: "No text could be extracted from this file (may be scanned/image-based)",
-      });
-    }
-
-    const parsedText = extractRelevantSections(rawText);
-
-    return res.json({ parsedText });
+    return res.status(200).json({ parsedText: result.parsedText });
   } catch (error) {
     console.error("parseAttachment error:", error);
     return res.status(500).json({
@@ -1297,7 +1279,7 @@ export const saveParsedAttachment = async (req, res) => {
 
     const attachment = await prisma.opportunityAttachment.findUnique({
       where: { id: req.params.id },
-      select: { id: true },
+      select: { id: true, opportunityId: true },
     });
     if (!attachment) {
       return res.status(404).json({ error: "Attachment not found" });
@@ -1309,7 +1291,12 @@ export const saveParsedAttachment = async (req, res) => {
       data: { parsedText, parsedAt },
     });
 
-    return res.json({ parsedAt });
+    await emitInternalEventSafe("internal/attachment.parsed", {
+      attachmentId: attachment.id,
+      opportunityId: attachment.opportunityId,
+    });
+
+    return res.status(200).json({ parsedAt });
   } catch (error) {
     console.error("saveParsedAttachment error:", error);
     return res.status(500).json({ error: "Failed to save parsed text" });
@@ -1325,7 +1312,7 @@ export const getAttachmentText = async (req, res) => {
     if (!attachment) {
       return res.status(404).json({ error: "Attachment not found" });
     }
-    return res.json(attachment);
+    return res.status(200).json(attachment);
   } catch (error) {
     console.error("getAttachmentText error:", error);
     return res.status(500).json({ error: "Internal server error" });
@@ -1345,12 +1332,56 @@ export const deleteParsedAttachment = async (req, res) => {
       where: { id: attachment.id },
       data: { parsedText: null, parsedAt: null },
     });
-    return res.json({ ok: true });
+    return res.status(200).json({ ok: true });
   } catch (error) {
     console.error("deleteParsedAttachment error:", error);
     return res.status(500).json({ error: "Failed to delete parsed text" });
   }
 };
+
+/**
+ * Score a single parsed attachment: run opportunity scoring and persist the result.
+ * Updates scoreResult + scoredAt on the attachment. Non-destructive to InboxItems.
+ */
+export async function scoreAttachment(attachmentId, opportunityId) {
+  const scoreResult = await scoreOpportunity(opportunityId);
+  await prisma.opportunityAttachment.update({
+    where: { id: attachmentId },
+    data: {
+      scoreResult,
+      scoredAt: new Date(),
+    },
+  });
+  return scoreResult;
+}
+
+/**
+ * Batch-score all parsed attachments that have not yet been scored.
+ * Safe to re-run — skips attachments already having a scoredAt value.
+ */
+export async function runScoreAllParsedAttachments() {
+  const attachments = await prisma.opportunityAttachment.findMany({
+    where: { parsedText: { not: null }, scoredAt: null },
+    select: { id: true, opportunityId: true },
+  });
+
+  let scored = 0;
+  let failed = 0;
+  const errors = [];
+
+  for (const attachment of attachments) {
+    try {
+      await scoreAttachment(attachment.id, attachment.opportunityId);
+      scored++;
+    } catch (err) {
+      failed++;
+      errors.push({ attachmentId: attachment.id, error: err.message });
+      console.error(`[scoreAttachments] Failed to score attachment ${attachment.id}:`, err.message);
+    }
+  }
+
+  return { results: { scored, failed }, errors };
+}
 
 // ---------------------------------------------------------------------------
 // CSV Export Controllers

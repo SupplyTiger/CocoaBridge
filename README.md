@@ -415,6 +415,12 @@ All endpoints under `/api/db` and `/api/admin` require authentication via Clerk 
 | POST | `/api/admin/sync/usaspending-awards` | ADMIN | Manually trigger USASpending sync |
 | POST | `/api/admin/sync/sam-descriptions` | ADMIN | Manually trigger description backfill |
 | POST | `/api/admin/sync/sam-industry-days` | ADMIN | Manually trigger industry day sync |
+| POST | `/api/admin/sync/sam-attachments` | ADMIN | Manually trigger attachment metadata backfill |
+| POST | `/api/admin/sync/score-opportunity-attachments` | ADMIN | Manually trigger inbox scoring pipeline |
+| POST | `/api/admin/sync/cleanup-chats` | ADMIN | Manually trigger expired chat cleanup |
+| GET | `/api/admin/config` | ADMIN | Get all filter + access config values |
+| GET | `/api/admin/config/public` | Any authenticated | Get `chatRetentionDays` (used by chat widget) |
+| PATCH | `/api/admin/config/:key` | ADMIN | Update a config value (`solicitationKeywords`, `naicsCodes`, `pscPrefixes`, `industryDayKeywords`, `adminEmailRules`, `readOnlyEmailRules`, `chatRetentionDays`, and their bank variants) |
 
 ### SAM.gov Endpoints (`/api/samgov`)
 
@@ -453,6 +459,8 @@ Cron jobs run automatically. All jobs write a `SyncLog` entry to the database on
 | Backfill Opportunity Descriptions | Daily 12:30 AM EST | Fills in missing descriptions from SAM.gov |
 | Sync Industry Days | Daily 12:45 AM EST | Syncs industry day events from SAM.gov |
 | Backfill Attachment Metadata | Daily 1:00 AM EST | Fetches attachment metadata from SAM.gov for opportunities with resource links |
+| Score New Opportunity Attachments | Daily 1:30 AM EST | Downloads + parses attachments for unprocessed PSC-matched opps; routes to inbox or scoring queue based on score |
+| Cleanup Expired Scoring Queue | Daily 2:00 AM EST | Removes PENDING scoring queue entries that have expired or belong to inactive opportunities |
 | Sync USASpending Awards | Every 3 days 1:00 AM EST | Pulls recent contract awards |
 
 **Event-driven jobs:**
@@ -484,9 +492,68 @@ Key models in the Prisma schema:
 | **OpportunityAttachment** | Solicitation documents linked to opportunities (PDF/DOCX metadata, parsed text) |
 | **FederalLogisticsInformationSystem** | DLA Publog/FLIS supply item data (NSN, NIIN, PSC, item descriptions) |
 | **Favorite** | User bookmarks for opportunities and awards |
+| **ScoringQueue** | Pending opportunities scored 4–7 awaiting manual review; stores `matchedSignals` JSON and expiry |
+| **AppConfig** | Key-value store for runtime config: filter lists, email rules, chat retention |
 | **SyncLog** | History of automated and manual sync job runs |
 | **ChatConversation** | Conversation metadata with expiry tracking (chat schema) |
 | **ChatMessage** | Individual messages with role, content, tool calls (chat schema) |
+
+---
+
+## Inbox Item Upsertion Pipeline
+
+New opportunities are evaluated and routed into the inbox through a multi-stage scoring pipeline rather than being admitted wholesale.
+
+### Trigger
+
+The **Score New Opportunity Attachments** job (manually triggerable from Admin → Manual Sync, and schedulable via Inngest) runs against all active opportunities that:
+- Have a PSC code in SupplyTiger's target set (`8925`, `8950`, `8970`)
+- Have no existing `InboxItem`
+- Have no pending `ScoringQueue` entry
+
+### Scoring Algorithm
+
+Each opportunity is scored against two layers:
+
+**Layer 1 — Metadata signals** (evaluated against the opportunity record):
+
+| Signal | Points | Source |
+|--------|--------|--------|
+| NAICS code matches active filter config | +2 | opportunity |
+| Agency has prior award history in target NAICS/PSC | +1 | awards table |
+| Response deadline ≥ 14 days away | +1 | opportunity |
+| Response deadline < 7 days away | -1 | opportunity |
+| Title/description keyword match (solicitation keywords) | +2 per match | opportunity |
+
+**Layer 2 — Attachment signals** (evaluated against parsed PDF/DOCX content; falls back to metadata text if no attachments):
+
+| Signal | Points | Source |
+|--------|--------|--------|
+| NSN found in text matches a FLIS item | +5 per NSN | attachment |
+| FLIS item name found in text | +3 | attachment |
+| FLIS common name found in text | +2 | attachment |
+| Target PSC code found in text | +1 | attachment |
+| Keyword match not already caught in metadata | +2 per match | attachment |
+
+The best-scoring attachment contributes its signals; others are discarded to avoid double-counting.
+
+### Routing by Score
+
+| Score | Action |
+|-------|--------|
+| **≥ 8** | **Auto-admit** — creates an `InboxItem` immediately. Attachment text is persisted to `OpportunityAttachment.parsedText`. |
+| **4–7** | **Queue for review** — creates a `ScoringQueue` entry. Expires at the earlier of 14 days or the opportunity deadline. Attachment text is persisted. |
+| **< 4** | **Drop** — no record created; opportunity is skipped on future runs until it changes. |
+
+### ML-Friendly Architecture
+
+All scoring decisions are stored alongside the raw evidence that drove them:
+
+- **`InboxItem.attachmentScore`** — the final numeric score at admission time
+- **`InboxItem.matchedSignals`** / **`ScoringQueue.matchedSignals`** — a JSON array of every signal that fired, with `{ type, value, source }` (e.g. `{ type: "NSN_MATCH", value: "8925-01-234-5678", source: "attachment" }`). This makes the scoring auditable and can serve as labeled training data for a future ML classifier.
+- **`OpportunityAttachment.parsedText`** — the full extracted text stored alongside the opportunity so it can be re-scored or used as a feature corpus without re-downloading the file.
+
+Signal types: `NAICS_MATCH`, `AGENCY_HISTORY`, `DEADLINE_FAVORABLE`, `KEYWORD`, `NSN_MATCH`, `ITEM_NAME`, `COMMON_NAME`, `PSC_IN_TEXT`.
 
 ---
 
@@ -495,10 +562,24 @@ Key models in the Prisma schema:
 The `/admin` page (ADMIN role only) provides:
 
 - **User Management** — view all users, change their role via dropdown, toggle active/inactive status
-- **Manual Sync Controls** — trigger any of the 4 data sync jobs on demand with live feedback
+- **Access Control** — configure default role assignment rules and chat retention window (see below)
+- **Manual Sync Controls** — trigger any data sync job on demand with live feedback (includes Score New Opportunities)
 - **System Health** — status cards showing last run time, success/failure, and records affected for each sync job
 - **Filter Configuration** — tabbed keyword/code editor for the 4 sync filter types (Solicitation Keywords, NAICS Codes, PSC Prefixes, Industry Day Keywords); each filter has an active list and a word bank for quick re-adding
   > **Note:** Filter Configuration applies to SAM.gov and USASpending data ingest only. Publog data was manually inserted.
+
+### Access Control
+
+The **Access Control** card under Admin has two sub-sections:
+
+**Email Rules** — controls the role automatically assigned when a new user signs up via Clerk:
+
+- **Admin Email Rules** — exact emails (`user@example.com`) or domain postfixes (`@example.com`) that get the `ADMIN` role on first sign-in. Adding a domain here automatically removes any matching entries from the Read-Only rules to prevent conflicts.
+- **Read-Only Email Rules** — same format; matched users get `READ_ONLY`. Entries that already exist in the Admin rules are silently stripped to enforce precedence (`ADMIN` always wins).
+
+Rules are stored in `AppConfig` (`adminEmailRules` / `readOnlyEmailRules` keys) and evaluated in the Clerk `user.created` Inngest handler. Unmatched users default to `USER`.
+
+**Chat Retention Days** — a numeric input (1–365) that sets how long new chat conversations are retained before auto-expiry. Stored in `AppConfig` under `chatRetentionDays`. Changes apply to conversations created after the save; existing conversations keep their original expiry.
 
 ## Admin Inline Editing
 

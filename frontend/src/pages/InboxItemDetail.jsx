@@ -106,6 +106,9 @@ const InboxItemDetail = () => {
     { label: "Reviewed At", value: item?.reviewedAt, render: (val) => val ? new Date(val).toLocaleString() : "—" },
     { label: "Created", value: item?.createdAt, render: (val) => val ? new Date(val).toLocaleString() : "—" },
     { label: "Deadline", value: item?.deadline, render: (val) => val ? new Date(val).toLocaleDateString() : "—" },
+    ...(item?.attachmentScore != null ? [
+      { label: "Attachment Score", value: item.attachmentScore, render: (val) => <span className="badge badge-warning font-mono">{val}</span> },
+    ] : []),
   ];
 
   return (
@@ -159,7 +162,7 @@ const InboxItemDetail = () => {
                  <div className="flex gap-2 ml-auto flex-wrap">
                               {isAdmin && (
                 <button
-                  className="btn btn-error btn-sm"
+                  className="btn btn-error text-white btn-sm"
                   onClick={() => setShowDeleteConfirm(true)}
                 >
                   <Trash2 className="size-4" />
@@ -167,9 +170,22 @@ const InboxItemDetail = () => {
                 </button>
               )}
               {isAdmin && !isEditing && (
-                <button className="btn btn-success btn-sm" onClick={handleEdit}>Edit</button>
+                <button className="btn btn-success text-white btn-sm" onClick={handleEdit}>Edit</button>
               )}
                             </div>
+
+            {item.matchedSignals?.length > 0 && (
+              <div>
+                <p className="font-semibold text-sm mb-1">Matched Signals</p>
+                <div className="flex flex-wrap gap-1">
+                  {item.matchedSignals.map((s, i) => (
+                    <span key={i} className="badge badge-sm badge-outline" title={s.type}>
+                      {s.value}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {!isEditing && item.notes && (
               <div>
@@ -250,11 +266,11 @@ const InboxItemDetail = () => {
             <h3 className="font-bold text-lg">Delete Inbox Item</h3>
             <p className="py-4">Are you sure you want to delete this inbox item? This cannot be undone.</p>
             <div className="modal-action">
-              <button className="btn btn-accent" onClick={() => setShowDeleteConfirm(false)}>
+              <button className="btn btn-info text-white" onClick={() => setShowDeleteConfirm(false)}>
                 Cancel
               </button>
               <button
-                className="btn btn-error"
+                className="btn btn-error text-white"
                 disabled={isDeleting}
                 onClick={() => deleteItem()}
               >
