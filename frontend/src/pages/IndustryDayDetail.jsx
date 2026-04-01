@@ -113,7 +113,7 @@ const IndustryDayDetail = () => {
               </Link>
             )}
             {isAdmin && !isEditing && (
-              <button className="btn btn-success btn-sm" onClick={handleEdit}>Edit</button>
+              <button className="btn btn-success text-white btn-sm" onClick={handleEdit}>Edit</button>
             )}
           </div>
 

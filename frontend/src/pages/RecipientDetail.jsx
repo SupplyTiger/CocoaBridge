@@ -78,11 +78,11 @@ const RecipientDetail = () => {
         {isAdmin && item && (
           <div className="flex justify-end gap-2">
             {!isEditing ? (
-              <button className="btn btn-success btn-sm" onClick={handleEdit}>Edit</button>
+              <button className="btn btn-success text-white btn-sm" onClick={handleEdit}>Edit</button>
             ) : (
               <>
                 <button className="btn btn-ghost btn-sm" onClick={handleCancel}>Cancel</button>
-                <button className="btn btn-primary btn-sm" disabled={isSaving} onClick={() => saveRecipient()}>
+                <button className="btn btn-primary text-white btn-sm" disabled={isSaving} onClick={() => saveRecipient()}>
                   {isSaving ? <span className="loading loading-spinner loading-xs" /> : "Save"}
                 </button>
               </>
