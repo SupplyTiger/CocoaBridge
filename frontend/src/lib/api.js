@@ -147,6 +147,16 @@ export const dbApi = {
     return data;
   },
 
+  // Manual Scoring
+  getManualScorePreview: async (id) => {
+    const { data } = await axiosInstance.get(`/db/opportunities/${id}/manual-score/preview`);
+    return data;
+  },
+  submitManualScore: async (id, signals) => {
+    const { data } = await axiosInstance.post(`/db/opportunities/${id}/manual-score`, { signals });
+    return data;
+  },
+
   // Scoring Queue
   listScoringQueue: async (params) => {
     const { data } = await axiosInstance.get("/db/scoring-queue", { params });

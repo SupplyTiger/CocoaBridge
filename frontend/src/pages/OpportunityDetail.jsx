@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, Inbox, FileText, Download, ScanSearch, Eye, FileDown } from "lucide-react";
+import { Trash2, Inbox, FileText, Download, ScanSearch, Eye, FileDown, FlaskConical } from "lucide-react";
 import toast from "react-hot-toast";
 import { dbApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import ItemDetail from "../components/ItemDetail.jsx";
 import RelatedRecordsCard from "../components/RelatedRecordsCard.jsx";
 import AddToInboxModal from "../components/AddToInboxModal.jsx";
+import ManualScoreModal from "../components/ManualScoreModal.jsx";
 import FavoriteButton from "../components/FavoriteButton.jsx";
 import ParsedTextModal from "../components/ParsedTextModal.jsx";
 import { exportDetailToCsv, csvFilename } from "../lib/csvExport.js";
@@ -28,6 +29,7 @@ const OpportunityDetail = () => {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAddToInbox, setShowAddToInbox] = useState(false);
+  const [showManualScore, setShowManualScore] = useState(false);
   const [modalAttachment, setModalAttachment] = useState(null);
 
   const { data: result, isLoading, isError, error } = useQuery({
@@ -145,6 +147,22 @@ const OpportunityDetail = () => {
                       Add to Inbox
                     </button>
                   ))}
+                  {isAdmin && item.active && !item.attachments?.some(isParseable) && (
+                    <div className="tooltip" data-tip={
+                      item.scoringQueue?.status === "PENDING"
+                        ? "Pending review — approve or dismiss it before running a manual score"
+                        : undefined
+                    }>
+                      <button
+                        className="btn btn-success text-white btn-sm gap-1"
+                        disabled={item.scoringQueue?.status === "PENDING"}
+                        onClick={() => setShowManualScore(true)}
+                      >
+                        <FlaskConical className="size-4" />
+                        Manual Score
+                      </button>
+                    </div>
+                  )}
                   {isAdmin && (
                     <button
                       className="btn btn-error btn-sm text-white"
@@ -284,6 +302,13 @@ const OpportunityDetail = () => {
           attachment={modalAttachment}
           opportunityId={id}
           onClose={() => setModalAttachment(null)}
+        />
+      )}
+
+      {showManualScore && (
+        <ManualScoreModal
+          opportunityId={id}
+          onClose={() => setShowManualScore(false)}
         />
       )}
     </>

@@ -128,7 +128,16 @@ const InboxItemDetail = () => {
         {hasReadAccess && item && (
           <div className="flex flex-col gap-3">
                        
-            <div className="flex gap-2 ml-auto flex-wrap">
+           
+
+            {item.matchedSignals?.length > 0 && (
+              <div>
+                <p className="font-semibold text-sm mb-1">Matched Signals</p>
+                <SignalPills signals={item.matchedSignals} />
+              </div>
+            )}
+
+             <div className="flex gap-2 ml-auto flex-wrap">
               <button
                 className="btn btn-secondary btn-sm gap-1"
                 onClick={() => exportDetailToCsv([
@@ -173,14 +182,7 @@ const InboxItemDetail = () => {
               {isAdmin && !isEditing && (
                 <button className="btn btn-success text-white btn-sm" onClick={handleEdit}>Edit</button>
               )}
-                            </div>
-
-            {item.matchedSignals?.length > 0 && (
-              <div>
-                <p className="font-semibold text-sm mb-1">Matched Signals</p>
-                <SignalPills signals={item.matchedSignals} />
-              </div>
-            )}
+                  </div>
 
             {!isEditing && item.notes && (
               <div>
