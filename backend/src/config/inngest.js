@@ -1,4 +1,4 @@
-import { OppTag, Type } from "@prisma/client";
+import { OppTag, Type, AcquisitionPath } from "@prisma/client";
 import prisma from "./db.js";
 import { inngestClient } from "./inngestClient.js";
 import {
@@ -15,7 +15,9 @@ import {
 import { runCurrentOpportunitiesSyncFromSam, runIndustryDaySyncFromSam } from "../controllers/sam.controller.js";
 import { runAwardsSyncFromUsaspending } from "../controllers/usaspending.controller.js";
 import { withSyncLog } from "../controllers/admin.controller.js";
-import { runScoreNewOpportunityAttachments, runCleanupExpiredScoringQueue } from "../utils/inboxScoring.js";
+import { runScoreNewOpportunityAttachments, runCleanupExpiredScoringQueue, scoreOpportunityForInbox } from "../utils/inboxScoring.js";
+import { loadFilterConfig } from "../utils/filterConfig.js";
+import { FLIS_PSC } from "../utils/globals.js";
 
 // Public export consumed by server route registration.
 export const inngest = inngestClient;
@@ -338,23 +340,65 @@ export const backfillAttachmentMetadataDaily = inngest.createFunction(
   },
 );
 
-// Score an attachment's opportunity immediately after its text is saved
+// Re-score opportunity using FLIS pipeline when attachment text is saved; update linked InboxItem
 const scoreAttachmentOnParsed = inngest.createFunction(
   {
     id: "score-attachment-on-parsed",
     name: "Score Attachment on Parsed",
-    description: "Scores the linked opportunity when attachment text is saved and stores the result on the attachment",
+    description: "Re-runs FLIS inbox scoring when attachment text is saved and updates the linked InboxItem's attachmentScore and matchedSignals",
   },
   { event: "internal/attachment.parsed" },
   async ({ event }) => {
-    const { attachmentId, opportunityId } = event?.data ?? {};
+    const { opportunityId } = event?.data ?? {};
 
-    if (!attachmentId || !opportunityId) {
-      return { skipped: true, reason: "Missing attachmentId or opportunityId" };
+    if (!opportunityId) {
+      return { skipped: true, reason: "Missing opportunityId" };
     }
 
-    const scoreResult = await scoreAttachment(attachmentId, opportunityId);
-    return { ok: true, attachmentId, opportunityId, overallScore: scoreResult.overallScore };
+    const [filterConfig, flisItems, opportunity] = await Promise.all([
+      loadFilterConfig(prisma),
+      prisma.federalLogisticsInformationSystem.findMany({
+        where: { pscCode: { in: FLIS_PSC } },
+        select: { nsn: true, itemName: true, commonName: true },
+      }),
+      prisma.opportunity.findUnique({
+        where: { id: opportunityId },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          naicsCodes: true,
+          pscCode: true,
+          responseDeadline: true,
+          buyingOrganizationId: true,
+          attachments: {
+            select: { id: true, downloadUrl: true, size: true, mimeType: true, name: true, parsedText: true },
+          },
+        },
+      }),
+    ]);
+
+    if (!opportunity) {
+      return { skipped: true, reason: "Opportunity not found" };
+    }
+
+    const { score, matchedSignals } = await scoreOpportunityForInbox(opportunity, flisItems, filterConfig);
+
+    const inboxItem = await prisma.inboxItem.findFirst({
+      where: { opportunityId },
+      select: { id: true },
+    });
+
+    if (!inboxItem) {
+      return { skipped: true, reason: "No InboxItem for opportunity", opportunityId, score };
+    }
+
+    await prisma.inboxItem.update({
+      where: { id: inboxItem.id },
+      data: { attachmentScore: score, matchedSignals },
+    });
+
+    return { ok: true, opportunityId, score, signalCount: matchedSignals.length };
   },
 );
 
@@ -386,7 +430,7 @@ export const scoreNewOpportunityAttachmentsDaily = inngest.createFunction(
     id: "score-new-opportunity-attachments-daily",
     name: "Score New Opportunity Attachments Daily",
     description:
-      "Daily cron to score new PSC 8925/8950/8970 opportunities using FLIS item matching and keyword signals, runs at 1:15 AM EST",
+      "Daily cron to score new opportunities matching configured PSC or NAICS codes using FLIS item matching and keyword signals, runs at 1:15 AM EST",
   },
   { cron: "15 6 * * *" }, // 1:15 AM EST / 6:15 AM UTC — after attachment metadata backfill at 1:00 AM
   async () => {

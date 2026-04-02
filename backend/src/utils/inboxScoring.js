@@ -3,8 +3,7 @@ import prisma from "../config/db.js";
 import { parseAttachmentContent } from "./parseAttachmentContent.js";
 import { loadFilterConfig } from "./filterConfig.js";
 import { buildInboxTitle } from "./inboxText.js";
-
-export const SUPPLY_TIGER_PSC = ['8925', '8950', '8970'];
+import { CORE_PSC, CORE_NAICS, FLIS_PSC } from "./globals.js";
 
 // NSN format: 4-digit FSC + 2-digit country code + 3-digit item number + 4-digit variant
 const NSN_REGEX = /\b\d{4}-\d{2}-\d{3}-\d{4}\b/g;
@@ -13,7 +12,7 @@ const NSN_REGEX = /\b\d{4}-\d{2}-\d{3}-\d{4}\b/g;
  * Score an opportunity against its attachments and metadata using FLIS-based signal matching.
  * Returns { score, matchedSignals, parsedTexts }.
  */
-async function scoreOpportunityForInbox(opportunity, flisItems, filterConfig) {
+export async function scoreOpportunityForInbox(opportunity, flisItems, filterConfig) {
   const matchedSignals = [];
   let score = 0;
 
@@ -23,7 +22,7 @@ async function scoreOpportunityForInbox(opportunity, flisItems, filterConfig) {
 
   const metaText = [opportunity.title ?? "", opportunity.description ?? ""].join(" ");
 
-  // NAICS match
+  // NAICS match — base +2, additional +3 if core code
   if (
     opportunity.naicsCodes?.length > 0 &&
     opportunity.naicsCodes.some(code =>
@@ -32,6 +31,22 @@ async function scoreOpportunityForInbox(opportunity, flisItems, filterConfig) {
   ) {
     score += 2;
     matchedSignals.push({ type: "NAICS_MATCH", value: opportunity.naicsCodes[0], source: "opportunity" });
+
+    if (opportunity.naicsCodes.some(code => CORE_NAICS.includes(code))) {
+      score += 3;
+      matchedSignals.push({ type: "NAICS_PRIORITY", value: opportunity.naicsCodes.find(c => CORE_NAICS.includes(c)), source: "opportunity" });
+    }
+  }
+
+  // PSC match — base +2, additional +2 if core code
+  if (opportunity.pscCode && filterConfig.pscPrefixes.some(p => opportunity.pscCode.startsWith(p))) {
+    score += 2;
+    matchedSignals.push({ type: "PSC_MATCH", value: opportunity.pscCode, source: "opportunity" });
+
+    if (CORE_PSC.includes(opportunity.pscCode)) {
+      score += 2;
+      matchedSignals.push({ type: "PSC_PRIORITY", value: opportunity.pscCode, source: "opportunity" });
+    }
   }
 
   // Agency award history
@@ -41,7 +56,7 @@ async function scoreOpportunityForInbox(opportunity, flisItems, filterConfig) {
         buyingOrganizationId: opportunity.buyingOrganizationId,
         OR: [
           { naicsCodes: { hasSome: filterConfig.naicsCodes } },
-          { pscCode: { in: SUPPLY_TIGER_PSC } },
+          { pscCode: { in: filterConfig.pscPrefixes } },
         ],
       },
     });
@@ -117,7 +132,7 @@ async function scoreOpportunityForInbox(opportunity, flisItems, filterConfig) {
       }
     }
 
-    if (SUPPLY_TIGER_PSC.some(psc => text.includes(psc))) {
+    if (filterConfig.pscPrefixes.some(psc => text.includes(psc))) {
       attachScore += 1;
       attachSignals.push({ type: "PSC_IN_TEXT", value: opportunity.pscCode, source });
     }
@@ -142,23 +157,26 @@ async function scoreOpportunityForInbox(opportunity, flisItems, filterConfig) {
 }
 
 export async function runScoreNewOpportunityAttachments() {
-  const [flisItems, filterConfig] = await Promise.all([
+  const filterConfig = await loadFilterConfig(prisma);
+
+  const [flisItems, opportunities] = await Promise.all([
     prisma.federalLogisticsInformationSystem.findMany({
-      where: { pscCode: { in: SUPPLY_TIGER_PSC } },
+      where: { pscCode: { in: FLIS_PSC } },
       select: { nsn: true, itemName: true, commonName: true },
     }),
-    loadFilterConfig(prisma),
+    prisma.opportunity.findMany({
+      where: {
+        active: true,
+        OR: [
+          { pscCode: { in: filterConfig.pscPrefixes } },
+          { naicsCodes: { hasSome: filterConfig.naicsCodes } },
+        ],
+        inboxItems: { none: {} },
+        scoringQueue: { is: null },
+      },
+      include: { attachments: true },
+    }),
   ]);
-
-  const opportunities = await prisma.opportunity.findMany({
-    where: {
-      active: true,
-      pscCode: { in: SUPPLY_TIGER_PSC },
-      inboxItems: { none: {} },
-      scoringQueue: null,
-    },
-    include: { attachments: true },
-  });
 
   const results = { scored: 0, autoAdmitted: 0, queued: 0, dropped: 0, errors: 0 };
 
@@ -223,6 +241,71 @@ export async function runScoreNewOpportunityAttachments() {
   }
 
   return { results };
+}
+
+/**
+ * Backfill attachmentScore + matchedSignals on InboxItems that have parsed attachment text
+ * but no attachmentScore yet. Null-only — does not overwrite existing scores.
+ */
+export async function runBackfillInboxItemScores() {
+  const [filterConfig, flisItems] = await Promise.all([
+    loadFilterConfig(prisma),
+    prisma.federalLogisticsInformationSystem.findMany({
+      where: { pscCode: { in: FLIS_PSC } },
+      select: { nsn: true, itemName: true, commonName: true },
+    }),
+  ]);
+
+  const inboxItems = await prisma.inboxItem.findMany({
+    where: {
+      opportunityId: { not: null },
+      attachmentScore: null,
+      opportunity: {
+        attachments: { some: { parsedText: { not: null } } },
+      },
+    },
+    select: { id: true, opportunityId: true },
+  });
+
+  const opportunityIds = inboxItems.map(i => i.opportunityId).filter(Boolean);
+  const opportunities = await prisma.opportunity.findMany({
+    where: { id: { in: opportunityIds } },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      naicsCodes: true,
+      pscCode: true,
+      responseDeadline: true,
+      buyingOrganizationId: true,
+      attachments: {
+        select: { id: true, downloadUrl: true, size: true, mimeType: true, name: true, parsedText: true },
+      },
+    },
+  });
+  const oppMap = Object.fromEntries(opportunities.map(o => [o.id, o]));
+
+  const results = { scored: 0, failed: 0 };
+  const errors = [];
+
+  for (const item of inboxItems) {
+    const opp = oppMap[item.opportunityId];
+    if (!opp) continue;
+    try {
+      const { score, matchedSignals } = await scoreOpportunityForInbox(opp, flisItems, filterConfig);
+      await prisma.inboxItem.update({
+        where: { id: item.id },
+        data: { attachmentScore: score, matchedSignals },
+      });
+      results.scored++;
+    } catch (err) {
+      results.failed++;
+      errors.push({ inboxItemId: item.id, error: err.message });
+      console.error(`runBackfillInboxItemScores: error on inbox item ${item.id}:`, err.message);
+    }
+  }
+
+  return { results, errors };
 }
 
 export async function runCleanupExpiredScoringQueue() {

@@ -44,6 +44,7 @@ function SignalPills({ signals }) {
 function PendingReviewTab({ isAdmin }) {
   const [page, setPage] = usePageParam();
   const queryClient = useQueryClient();
+  const [pendingDismissId, setPendingDismissId] = useState(null);
 
   const { data: result, isLoading, isError, error } = useQuery({
     queryKey: ["scoringQueue", page],
@@ -65,8 +66,12 @@ function PendingReviewTab({ isAdmin }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scoringQueue"] });
       toast.success("Dismissed");
+      setPendingDismissId(null);
     },
-    onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to dismiss"),
+    onError: (err) => {
+      toast.error(err?.response?.data?.error ?? "Failed to dismiss");
+      setPendingDismissId(null);
+    },
   });
 
   const columns = [
@@ -111,7 +116,7 @@ function PendingReviewTab({ isAdmin }) {
             <button
               className="btn btn-xs btn-error btn-outline"
               disabled={isApproving || isDismissing}
-              onClick={(e) => { e.stopPropagation(); dismiss(id); }}
+              onClick={(e) => { e.stopPropagation(); setPendingDismissId(id); }}
             >
               <XCircle className="size-3" /> Dismiss
             </button>
@@ -122,16 +127,40 @@ function PendingReviewTab({ isAdmin }) {
   ];
 
   return (
-    <Table
-      columns={columns}
-      data={result?.data ?? []}
-      isLoading={isLoading}
-      isError={isError}
-      error={error}
-      meta={result?.meta}
-      page={page}
-      onPageChange={setPage}
-    />
+    <>
+      <Table
+        columns={columns}
+        data={result?.data ?? []}
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        meta={result?.meta}
+        page={page}
+        onPageChange={setPage}
+      />
+      {pendingDismissId && (
+        <dialog open className="modal modal-open">
+          <div className="modal-box">
+            <button
+              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+              onClick={() => setPendingDismissId(null)}
+            >✕</button>
+            <h3 className="font-bold text-lg">Dismiss Opportunity</h3>
+            <p className="py-4">This opportunity will be <span className="font-semibold">permanently excluded</span> from scoring and will never be re-queued, even if the filter config changes.</p>
+            <div className="modal-action">
+              <button className="btn btn-info text-white" onClick={() => setPendingDismissId(null)}>Cancel</button>
+              <button
+                className="btn btn-error text-white"
+                disabled={isDismissing}
+                onClick={() => dismiss(pendingDismissId)}
+              >
+                {isDismissing ? <span className="loading loading-spinner loading-xs" /> : "Dismiss"}
+              </button>
+            </div>
+          </div>
+        </dialog>
+      )}
+    </>
   );
 }
 

@@ -16,13 +16,15 @@ const ROLE_LABELS = {
 };
 
 const SYNC_JOBS = [
-  { type: "sam-opportunities", label: "SAM Opportunities" },
-  { type: "usaspending-awards", label: "USASpending Awards" },
-  { type: "sam-descriptions", label: "Opportunity Descriptions" },
-  { type: "sam-industry-days", label: "Industry Days" },
-  { type: "sam-attachments", label: "Attachment Metadata" },
-  { type: "score-opportunity-attachments", label: "Score New Opportunities" },
-  { type: "cleanup-chats", label: "Cleanup Expired Chats" },
+  { type: "sam-opportunities", label: "SAM Opportunities", description: "Pull current active opportunities from SAM.gov and upsert into the database." },
+  { type: "usaspending-awards", label: "USASpending Awards", description: "Sync recent federal contract awards from USASpending.gov across all configured presets." },
+  { type: "sam-descriptions", label: "Opportunity Descriptions", description: "Backfill missing descriptions for opportunities that were synced without full text." },
+  { type: "sam-industry-days", label: "Industry Days", description: "Sync industry day and outreach events from SAM.gov." },
+  { type: "sam-attachments", label: "Attachment Metadata", description: "Fetch file metadata (name, size, type) for opportunity attachments from the SAM.gov resources endpoint." },
+  { type: "score-opportunity-attachments", label: "Score New Opportunities", description: "Run FLIS-based scoring on unprocessed PSC/NAICS-matched opportunities. High scores are auto-admitted to inbox; mid-range scores go to the review queue." },
+  { type: "score-attachments", label: "Score Parsed Attachments", description: "Run MCP scoring on attachments that have parsed text but no score result yet. Writes score to the attachment record." },
+  { type: "backfill-inbox-scores", label: "Backfill Inbox Scores", description: "Re-score inbox items that have parsed attachment text but no attachment score. One-time catch-up for items created before the scoring pipeline was live." },
+  { type: "cleanup-chats", label: "Cleanup Expired Chats", description: "Delete chat conversations that have passed their retention expiry date." },
 ];
 
 const timeAgo = (dateStr) => {
@@ -165,22 +167,24 @@ const SyncControls = () => {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {SYNC_JOBS.map(({ type, label }) => {
+      {SYNC_JOBS.map(({ type, label, description }) => {
         const mutation = mutations[type];
         return (
-          <button
-            key={type}
-            className="btn btn-sm gap-2 bg-accent-content/10 hover:bg-accent-content/20 border-0 text-accent-content"
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <RefreshCw className="size-4" />
-            )}
-            {label}
-          </button>
+          <div key={type} className="flex flex-col gap-1.5 p-3 rounded-lg bg-accent-content/10">
+            <button
+              className="btn btn-sm gap-2 bg-accent-content/10 hover:bg-accent-content/20 border-0 text-accent-content self-start"
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <RefreshCw className="size-4" />
+              )}
+              {label}
+            </button>
+            {description && <p className="text-xs opacity-50 leading-snug">{description}</p>}
+          </div>
         );
       })}
     </div>

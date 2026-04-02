@@ -48,7 +48,17 @@ export const solicitationTitleKeywords = [
 ];
 
 // NAICS and Classification codes relevant to Supply Tiger's focus
-export const classificationPrefixes = ["8925"]; // 89: Subsistence (8925)
+export const classificationPrefixes = ["8925", "8950", "8970"]; // 89: Subsistence
+
+// Core PSC codes — highest confidence, used for priority scoring boost in inbox pipeline
+export const CORE_PSC = ["8925", "8950", "8970"];
+
+// Core NAICS codes — highest confidence (grocery/wholesale), used for priority scoring boost
+export const CORE_NAICS = ["424450", "424410", "424490"];
+
+// PSC codes used for FLIS/NSN item lookup (8970 excluded — not a designated SupplyTiger PSC code)
+export const FLIS_PSC = ["8925", "8950"];
+
 export const naicsPrefixes = [
   "311340",
   "311351",

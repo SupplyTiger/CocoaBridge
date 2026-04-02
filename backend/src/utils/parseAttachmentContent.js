@@ -82,6 +82,9 @@ export async function parseAttachmentContent(attachment) {
     return { error: "No text extracted (may be scanned/image-based)", skip: true };
   }
 
-  const parsedText = extractRelevantSections(rawText);
+  // Strip null bytes — some PDFs produce \x00 characters that PostgreSQL UTF8 rejects
+  const cleanText = rawText.replace(/\x00/g, "");
+
+  const parsedText = extractRelevantSections(cleanText);
   return { parsedText };
 }
