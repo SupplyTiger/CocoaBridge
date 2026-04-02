@@ -8,6 +8,7 @@ import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import Table from "../components/Table.jsx";
 import SearchBar from "../components/SearchBar.jsx";
 import ExportToolbar from "../components/ExportToolbar.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
 
 const CONTACT_CSV_COLUMNS = [
   { header: "Name", accessor: "fullName", format: (val) => val ?? "" },
@@ -151,30 +152,16 @@ const ContactsPage = () => {
         emptySubMessage={debouncedSearch ? `No contacts match "${debouncedSearch}".` : "Contacts will appear here once available."}
       />
 
-      {deleteTarget && (
-        <dialog open className="modal modal-open">
-          <div className="modal-box">
-            <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-              onClick={() => setDeleteTarget(null)}
-            >✕</button>
-            <h3 className="font-bold text-lg">Delete Contact</h3>
-            <p className="py-4">
-              Are you sure you want to delete <strong>{deleteTarget.fullName ?? "this contact"}</strong>? This cannot be undone.
-            </p>
-            <div className="modal-action">
-              <button className="btn btn-info text-white" onClick={() => setDeleteTarget(null)}>Cancel</button>
-              <button
-                className="btn btn-error text-white"
-                disabled={isDeleting}
-                onClick={() => deleteContact(deleteTarget.id)}
-              >
-                {isDeleting ? <span className="loading loading-spinner loading-xs" /> : "Delete"}
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteContact(deleteTarget.id)}
+        title="Delete Contact"
+        confirmLabel="Delete"
+        isPending={isDeleting}
+      >
+        Are you sure you want to delete <strong>{deleteTarget?.fullName ?? "this contact"}</strong>? This cannot be undone.
+      </ConfirmModal>
     </div>
   );
 };

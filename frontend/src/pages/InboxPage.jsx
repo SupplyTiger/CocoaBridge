@@ -10,6 +10,7 @@ import SearchBar from '../components/SearchBar.jsx';
 import ExportToolbar from "../components/ExportToolbar.jsx";
 import TabsJoinButton from "../components/TabsJoinButton.jsx";
 import SignalPills from "../components/SignalPills.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
 
 const INBOX_CSV_COLUMNS = [
   { header: "Title", accessor: "title", format: (val) => val ?? "" },
@@ -139,28 +140,16 @@ function PendingReviewTab({ isAdmin }) {
         sort={sort}
         onSort={handleSort}
       />
-      {pendingDismissId && (
-        <dialog open className="modal modal-open">
-          <div className="modal-box">
-            <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-              onClick={() => setPendingDismissId(null)}
-            >✕</button>
-            <h3 className="font-bold text-lg">Dismiss Opportunity</h3>
-            <p className="py-4">This opportunity will be <span className="font-semibold">permanently excluded</span> from scoring and will never be re-queued, even if the filter config changes.</p>
-            <div className="modal-action">
-              <button className="btn btn-info text-white" onClick={() => setPendingDismissId(null)}>Cancel</button>
-              <button
-                className="btn btn-error text-white"
-                disabled={isDismissing}
-                onClick={() => dismiss(pendingDismissId)}
-              >
-                {isDismissing ? <span className="loading loading-spinner loading-xs" /> : "Dismiss"}
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
+      <ConfirmModal
+        open={!!pendingDismissId}
+        onClose={() => setPendingDismissId(null)}
+        onConfirm={() => dismiss(pendingDismissId)}
+        title="Dismiss Opportunity"
+        confirmLabel="Dismiss"
+        isPending={isDismissing}
+      >
+        This opportunity will be <span className="font-semibold">permanently excluded</span> from scoring and will never be re-queued, even if the filter config changes.
+      </ConfirmModal>
     </>
   );
 }
@@ -372,52 +361,26 @@ const InboxPage = () => {
         <PendingReviewTab isAdmin={isAdmin} />
       )}
 
-      {pendingDeleteId && (
-        <dialog open className="modal modal-open">
-          <div className="modal-box">
-            <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-              onClick={() => setPendingDeleteId(null)}
-            >✕</button>
-            <h3 className="font-bold text-lg">Delete Inbox Item</h3>
-            <p className="py-4">Are you sure you want to delete this inbox item? This cannot be undone.</p>
-            <div className="modal-action">
-              <button className="btn btn-info text-white" onClick={() => setPendingDeleteId(null)}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-error text-white"
-                disabled={isDeleting}
-                onClick={() => deleteItem(pendingDeleteId)}
-              >
-                {isDeleting ? <span className="loading loading-spinner loading-xs" /> : "Delete"}
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
-      {showBulkDeleteConfirm && (
-        <dialog open className="modal modal-open">
-          <div className="modal-box">
-            <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-              onClick={() => setShowBulkDeleteConfirm(false)}
-            >✕</button>
-            <h3 className="font-bold text-lg">Delete {selectedIds.size} Item{selectedIds.size !== 1 ? "s" : ""}</h3>
-            <p className="py-4">Are you sure you want to delete these items? This cannot be undone.</p>
-            <div className="modal-action">
-              <button className="btn btn-info text-white" onClick={() => setShowBulkDeleteConfirm(false)}>Cancel</button>
-              <button
-                className="btn btn-error text-white"
-                disabled={isBulkDeleting}
-                onClick={() => bulkDelete([...selectedIds])}
-              >
-                {isBulkDeleting ? <span className="loading loading-spinner loading-xs" /> : "Delete"}
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
+      <ConfirmModal
+        open={!!pendingDeleteId}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={() => deleteItem(pendingDeleteId)}
+        title="Delete Inbox Item"
+        confirmLabel="Delete"
+        isPending={isDeleting}
+      >
+        Are you sure you want to delete this inbox item? This cannot be undone.
+      </ConfirmModal>
+      <ConfirmModal
+        open={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={() => bulkDelete([...selectedIds])}
+        title={`Delete ${selectedIds.size} Item${selectedIds.size !== 1 ? "s" : ""}`}
+        confirmLabel="Delete"
+        isPending={isBulkDeleting}
+      >
+        Are you sure you want to delete these items? This cannot be undone.
+      </ConfirmModal>
     </div>
   );
 };

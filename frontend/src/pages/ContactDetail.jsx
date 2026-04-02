@@ -7,6 +7,7 @@ import { dbApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import ItemDetail from "../components/ItemDetail.jsx";
 import RelatedRecordsCard from "../components/RelatedRecordsCard.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
 import { exportDetailToCsv, csvFilename } from "../lib/csvExport.js";
 
 // Deduplicate ContactLink rows by the linked entity's own id.
@@ -201,7 +202,7 @@ const ContactDetail = () => {
                     </button>
                   )}
                   {isAdmin && (
-                    <button className="btn btn-success btn-sm" onClick={handleEdit}>Edit</button>
+                    <button className="btn btn-success text-white btn-sm" onClick={handleEdit}>Edit</button>
                   )}
                 </div>
               )}
@@ -217,30 +218,16 @@ const ContactDetail = () => {
         )}
       </div>
 
-      {showDeleteConfirm && (
-        <dialog open className="modal modal-open">
-          <div className="modal-box">
-            <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-              onClick={() => setShowDeleteConfirm(false)}
-            >✕</button>
-            <h3 className="font-bold text-lg">Delete Contact</h3>
-            <p className="py-4">
-              Are you sure you want to delete <strong>{item?.fullName ?? "this contact"}</strong>? This cannot be undone.
-            </p>
-            <div className="modal-action">
-              <button className="btn btn-accent" onClick={() => setShowDeleteConfirm(false)}>Cancel</button>
-              <button
-                className="btn btn-error"
-                disabled={isDeleting}
-                onClick={() => deleteContact()}
-              >
-                {isDeleting ? <span className="loading loading-spinner loading-xs" /> : "Delete"}
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => deleteContact()}
+        title="Delete Contact"
+        confirmLabel="Delete"
+        isPending={isDeleting}
+      >
+        Are you sure you want to delete <strong>{item?.fullName ?? "this contact"}</strong>? This cannot be undone.
+      </ConfirmModal>
     </>
   );
 };

@@ -8,6 +8,7 @@ import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import ItemDetail from "../components/ItemDetail.jsx";
 import RelatedRecordsCard from "../components/RelatedRecordsCard.jsx";
 import AddToInboxModal from "../components/AddToInboxModal.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
 import ManualScoreModal from "../components/ManualScoreModal.jsx";
 import FavoriteButton from "../components/FavoriteButton.jsx";
 import ParsedTextModal from "../components/ParsedTextModal.jsx";
@@ -264,30 +265,16 @@ const OpportunityDetail = () => {
         )}
       </div>
 
-      {showDeleteConfirm && (
-        <dialog open className="modal modal-open">
-          <div className="modal-box">
-            <button
-              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-              onClick={() => setShowDeleteConfirm(false)}
-            >✕</button>
-            <h3 className="font-bold text-lg">Delete Opportunity</h3>
-            <p className="py-4">Are you sure you want to delete this opportunity? This cannot be undone.</p>
-            <div className="modal-action">
-              <button className="btn btn-info text-white" onClick={() => setShowDeleteConfirm(false)}>
-                Cancel
-              </button>
-              <button
-                className="btn btn-error text-white"
-                disabled={isDeleting}
-                onClick={() => deleteItem()}
-              >
-                {isDeleting ? <span className="loading loading-spinner loading-xs" /> : "Delete"}
-              </button>
-            </div>
-          </div>
-        </dialog>
-      )}
+      <ConfirmModal
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={() => deleteItem()}
+        title="Delete Opportunity"
+        confirmLabel="Delete"
+        isPending={isDeleting}
+      >
+        Are you sure you want to delete this opportunity? This cannot be undone.
+      </ConfirmModal>
 
       {showAddToInbox && (
         <AddToInboxModal

@@ -82,7 +82,7 @@ const AddToInboxModal = ({ opportunityId, awardId, defaultType = "", onClose }) 
           </label>
         </div>
         <div className="modal-action">
-          <button className="btn btn-accent" onClick={onClose}>
+          <button className="btn btn-info text-white" onClick={onClose}>
             Cancel
           </button>
           <button
