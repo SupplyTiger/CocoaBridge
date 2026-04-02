@@ -9,6 +9,7 @@ import Table from "../components/Table.jsx";
 import SearchBar from '../components/SearchBar.jsx';
 import ExportToolbar from "../components/ExportToolbar.jsx";
 import TabsJoinButton from "../components/TabsJoinButton.jsx";
+import SignalPills from "../components/SignalPills.jsx";
 
 const INBOX_CSV_COLUMNS = [
   { header: "Title", accessor: "title", format: (val) => val ?? "" },
@@ -28,27 +29,21 @@ const STATUS_BADGE = {
 
 const STATUSES = ["NEW", "IN_REVIEW", "QUALIFIED", "DISMISSED", "CONTACTED", "CLOSED"];
 
-function SignalPills({ signals }) {
-  if (!signals || signals.length === 0) return <span className="text-base-content/40 text-xs">—</span>;
-  return (
-    <div className="flex flex-wrap gap-1">
-      {signals.map((s, i) => (
-        <span key={i} className="badge badge-sm badge-outline text-xs" title={s.type}>
-          {s.value}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 function PendingReviewTab({ isAdmin }) {
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState({ field: "score", dir: "desc" });
   const queryClient = useQueryClient();
   const [pendingDismissId, setPendingDismissId] = useState(null);
 
+  const handleSort = (field) => {
+    setSort((prev) => ({ field, dir: prev.field === field && prev.dir === "desc" ? "asc" : "desc" }));
+    setPage(1);
+  };
+
   const { data: result, isLoading, isError, error } = useQuery({
-    queryKey: ["scoringQueueList", page],
-    queryFn: () => dbApi.listScoringQueue({ page, limit: 50 }),
+    queryKey: ["scoringQueueList", page, sort],
+    queryFn: () => dbApi.listScoringQueue({ page, limit: 50, sortBy: sort.field, sortDir: sort.dir }),
   });
 
   const { mutate: approve, isPending: isApproving } = useMutation({
@@ -90,6 +85,7 @@ function PendingReviewTab({ isAdmin }) {
         {
       accessor: "score",
       header: "Score",
+      sortable: true,
       render: (val) => <span className="badge badge-warning font-mono">{val}</span>,
     },
     {
@@ -140,6 +136,8 @@ function PendingReviewTab({ isAdmin }) {
         meta={result?.meta}
         page={page}
         onPageChange={setPage}
+        sort={sort}
+        onSort={handleSort}
       />
       {pendingDismissId && (
         <dialog open className="modal modal-open">
@@ -247,12 +245,8 @@ const InboxPage = () => {
     {
       accessor: "attachmentScore",
       header: "Score",
+      sortable: true,
       render: (val) => val != null ? <span className="badge badge-warning font-mono">{val}</span> : <span className="text-base-content/40">—</span>,
-    },
-    {
-      accessor: "matchedSignals",
-      header: "Matched Signals",
-      render: (val) => val?.length > 0 ? <SignalPills signals={val} /> : <span className="text-base-content/40">—</span>,
     },
     {
       accessor: "reviewStatus",

@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { dbApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import ItemDetail from "../components/ItemDetail.jsx";
+import SignalPills from "../components/SignalPills.jsx";
 import { exportDetailToCsv, csvFilename } from "../lib/csvExport.js";
 
 const STATUS_BADGE = {
@@ -177,13 +178,7 @@ const InboxItemDetail = () => {
             {item.matchedSignals?.length > 0 && (
               <div>
                 <p className="font-semibold text-sm mb-1">Matched Signals</p>
-                <div className="flex flex-wrap gap-1">
-                  {item.matchedSignals.map((s, i) => (
-                    <span key={i} className="badge badge-sm badge-outline" title={s.type}>
-                      {s.value}
-                    </span>
-                  ))}
-                </div>
+                <SignalPills signals={item.matchedSignals} />
               </div>
             )}
 

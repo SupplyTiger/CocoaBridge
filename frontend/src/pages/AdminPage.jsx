@@ -24,6 +24,7 @@ const SYNC_JOBS = [
   { type: "score-opportunity-attachments", label: "Score New Opportunities", description: "Run FLIS-based scoring on unprocessed PSC/NAICS-matched opportunities. High scores are auto-admitted to inbox; mid-range scores go to the review queue." },
   { type: "score-attachments", label: "Score Parsed Attachments", description: "Run MCP scoring on attachments that have parsed text but no score result yet. Writes score to the attachment record." },
   { type: "backfill-inbox-scores", label: "Backfill Inbox Scores", description: "Re-score inbox items that have parsed attachment text but no attachment score. One-time catch-up for items created before the scoring pipeline was live." },
+  { type: "backfill-award-inbox-scores", label: "Backfill Award Inbox Scores", description: "Score award-linked inbox items that have no score yet. Uses NAICS/PSC/keyword/micropurchase signals. Does not delete items below threshold." },
   { type: "cleanup-chats", label: "Cleanup Expired Chats", description: "Delete chat conversations that have passed their retention expiry date." },
 ];
 
