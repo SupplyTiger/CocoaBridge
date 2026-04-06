@@ -7,7 +7,7 @@ const TabsJoinButton = ({ tabs, activeTab, setActiveTab}) => {
                 tabs.map((tab) => (
                     <button
                         key={tab.value}
-                        className={`join-item btn btn-sm ${activeTab === tab.value ? "btn-primary border-primary-content/20 text-secondary-content" : "bg-accent/40 hover:bg-accent/60 border border-accent-content/40 text-accent-content"}`}
+                        className={`join-item btn btn-sm text-sm ${activeTab === tab.value ? "btn-primary border-primary-content/20 text-secondary-content" : "bg-accent/40 hover:bg-accent/60 border border-accent-content/40 text-accent-content"}`}
                         onClick={() => setActiveTab(tab.value)}
                     >
                         {tab.label}

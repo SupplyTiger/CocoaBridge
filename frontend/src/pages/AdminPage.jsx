@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, AlertCircle, CheckCircle, XCircle, Clock, Loader2, ChevronDown, ChevronRight, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { adminApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
+import TabsJoinButton from "../components/TabsJoinButton.jsx";
+import PaginationButton from "../components/PaginationButton.jsx";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // Testing
@@ -28,6 +30,14 @@ const SYNC_JOBS = [
   { type: "cleanup-chats", label: "Cleanup Expired Chats", description: "Delete chat conversations that have passed their retention expiry date." },
 ];
 
+const ADMIN_TABS = [
+  { value: "users", label: "Users" },
+  { value: "access", label: "Access" },
+  { value: "sync", label: "Sync" },
+  { value: "health", label: "Health" },
+  { value: "filters", label: "Filters" },
+];
+
 const timeAgo = (dateStr) => {
   if (!dateStr) return "Never";
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -49,9 +59,12 @@ const StatusBadge = ({ status }) => {
 
 // ─── User Management Section ─────────────────────────────────────────────────
 
+const PAGE_SIZE = 10;
+
 const UserManagement = () => {
   const currentUser = useCurrentUser();
   const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["adminUsers"],
@@ -69,6 +82,9 @@ const UserManagement = () => {
     },
   });
 
+  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+  const paginated = users.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-8">
@@ -78,63 +94,74 @@ const UserManagement = () => {
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="table table-sm">
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Active</th>
-            <th>Joined</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => {
-            const isSelf = u.id === currentUser?.id;
-            return (
-              <tr key={u.id} className={isSelf ? "opacity-50" : ""}>
-                <td>
-                  <div className="flex items-center gap-2">
-                    {u.imageUrl ? (
-                      <img src={u.imageUrl} alt={u.name} className="w-8 h-8 rounded-full shrink-0" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-base-300 shrink-0" />
-                    )}
-                    <span className="font-medium text-sm">{u.name ?? "—"}</span>
-                    {isSelf && <span className="badge badge-ghost badge-xs">you</span>}
-                  </div>
-                </td>
-                <td className="text-sm opacity-70">{u.email}</td>
-                <td>
-                  <select
-                    className="select select-xs select-bordered"
-                    value={u.role}
-                    disabled={isSelf}
-                    onChange={(e) => updateUser({ id: u.id, body: { role: e.target.value } })}
-                  >
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    className="toggle toggle-sm toggle-success"
-                    checked={u.isActive}
-                    disabled={isSelf}
-                    onChange={(e) => updateUser({ id: u.id, body: { isActive: e.target.checked } })}
-                  />
-                </td>
-                <td className="text-xs opacity-60">
-                  {new Date(u.createdAt).toLocaleDateString()}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="flex flex-col gap-3">
+      <div className="overflow-x-auto">
+        <table className="table table-sm">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Active</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.map((u) => {
+              const isSelf = u.id === currentUser?.id;
+              return (
+                <tr key={u.id} className={isSelf ? "opacity-50" : ""}>
+                  <td>
+                    <div className="flex items-center gap-2">
+                      {u.imageUrl ? (
+                        <img src={u.imageUrl} alt={u.name} className="w-8 h-8 rounded-full shrink-0" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-base-300 shrink-0" />
+                      )}
+                      <span className="font-medium text-sm">{u.name ?? "—"}</span>
+                      {isSelf && <span className="badge badge-ghost badge-xs">you</span>}
+                    </div>
+                  </td>
+                  <td className="text-sm opacity-70">{u.email}</td>
+                  <td>
+                    <select
+                      className="select select-xs select-bordered"
+                      value={u.role}
+                      disabled={isSelf}
+                      onChange={(e) => updateUser({ id: u.id, body: { role: e.target.value } })}
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-sm toggle-success"
+                      checked={u.isActive}
+                      disabled={isSelf}
+                      onChange={(e) => updateUser({ id: u.id, body: { isActive: e.target.checked } })}
+                    />
+                  </td>
+                  <td className="text-sm opacity-60">
+                    {new Date(u.createdAt).toLocaleDateString()}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {totalPages > 1 && (
+        <PaginationButton
+          totalPages={totalPages}
+          currentPage={page}
+          onPageChange={setPage}
+          size="sm"
+          justify="center"
+        />
+      )}
     </div>
   );
 }
@@ -167,13 +194,27 @@ const SyncControls = () => {
   );
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1 text-sm opacity-60">
+        <p className="font-medium opacity-80">Recommended run order for a full sync:</p>
+        <ol className="list-decimal list-inside flex flex-col gap-0.5">
+          <li>SAM Opportunities — pull current opp records first</li>
+          <li>Opportunity Descriptions — backfill missing descriptions</li>
+          <li>Industry Days — sync events linked to opportunities</li>
+          <li>Attachment Metadata — fetch file metadata for resource links</li>
+          <li>Score New Opportunities — parse + score unprocessed opps</li>
+          <li>USASpending Awards — independent; run any time</li>
+          <li>Backfill Award Inbox Scores — score award-linked inbox items</li>
+        </ol>
+        <p className="mt-1">Cleanup and backfill jobs can run at any time.</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
       {SYNC_JOBS.map(({ type, label, description }) => {
         const mutation = mutations[type];
         return (
           <div key={type} className="flex flex-col gap-1.5 p-3 rounded-lg bg-accent-content/10">
             <button
-              className="btn btn-sm gap-2 bg-accent-content/10 hover:bg-accent-content/20 border-0 text-accent-content self-start"
+              className="btn btn-sm gap-2 bg-accent-content/10 hover:bg-accent-content/20 border-0 text-accent-content text-md self-start"
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending}
             >
@@ -184,10 +225,11 @@ const SyncControls = () => {
               )}
               {label}
             </button>
-            {description && <p className="text-xs opacity-50 leading-snug">{description}</p>}
+            {description && <p className="text-sm opacity-50 leading-snug">{description}</p>}
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -226,13 +268,13 @@ const JobHealthCard = ({ jobName, lastRun, history }) => {
         <p className="text-sm font-medium">{jobName}</p>
         <div className="flex items-center justify-between">
           <StatusBadge status={lastRun?.status} />
-          <span className="text-xs opacity-60">{timeAgo(lastRun?.startedAt)}</span>
+          <span className="text-sm opacity-60">{timeAgo(lastRun?.startedAt)}</span>
         </div>
         {lastRun?.recordsAffected != null && (
-          <p className="text-xs opacity-60">{lastRun.recordsAffected} records</p>
+          <p className="text-sm opacity-60">{lastRun.recordsAffected} records</p>
         )}
         {lastRun?.errorMessage && (
-          <p className="text-xs text-error truncate" title={lastRun.errorMessage}>
+          <p className="text-sm text-error truncate" title={lastRun.errorMessage}>
             {lastRun.errorMessage}
           </p>
         )}
@@ -240,7 +282,7 @@ const JobHealthCard = ({ jobName, lastRun, history }) => {
           <div>
             <button
               type="button"
-              className="flex items-center gap-1 text-xs opacity-50 hover:opacity-80 mt-1"
+              className="flex items-center gap-1 text-sm opacity-50 hover:opacity-80 mt-1"
               onClick={() => setOpen((o) => !o)}
             >
               {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
@@ -249,7 +291,7 @@ const JobHealthCard = ({ jobName, lastRun, history }) => {
             {open && (
               <div className="flex flex-col gap-1 mt-1">
                 {history.slice(1).map((run) => (
-                  <div key={run.id} className="flex items-center justify-between text-xs opacity-60">
+                  <div key={run.id} className="flex items-center justify-between text-sm opacity-60">
                     <StatusBadge status={run.status} />
                     <span>{timeAgo(run.startedAt)}</span>
                     {run.recordsAffected != null && <span>{run.recordsAffected} rec</span>}
@@ -295,7 +337,7 @@ const DbStats = () => {
           <div key={label} className="card card-compact bg-accent-content/10">
             <div className="card-body items-center text-center gap-0">
               <p className="text-lg font-semibold">{value.toLocaleString()}</p>
-              <p className="text-xs opacity-60">{label}</p>
+              <p className="text-sm opacity-60">{label}</p>
             </div>
           </div>
         ))}
@@ -392,7 +434,7 @@ const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config, hideBank =
           </span>
         ))}
         {activeValues.length === 0 && (
-          <span className="text-xs opacity-40 italic">No active values — sync runs without this filter</span>
+          <span className="text-sm opacity-40 italic">No active values — sync runs without this filter</span>
         )}
       </div>
 
@@ -426,7 +468,7 @@ const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config, hideBank =
         <div>
           <button
             type="button"
-            className="flex items-center gap-1 text-xs opacity-60 hover:opacity-90"
+            className="flex items-center gap-1 text-sm opacity-60 hover:opacity-90"
             onClick={() => setBankOpen((o) => !o)}
           >
             {bankOpen ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
@@ -448,13 +490,13 @@ const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config, hideBank =
                   </span>
                 ))}
                 {bankValues.length === 0 && (
-                  <span className="text-xs opacity-40 italic">Bank is empty</span>
+                  <span className="text-sm opacity-40 italic">Bank is empty</span>
                 )}
               </div>
               <div className="flex gap-2">
                 <input
                   type="text"
-                  className="input input-xs input-bordered flex-1 max-w-xs"
+                  className="input input-sm input-bordered flex-1 max-w-xs"
                   placeholder="Add to bank…"
                   value={bankInput}
                   onChange={(e) => setBankInput(e.target.value)}
@@ -467,7 +509,7 @@ const FilterListEditor = ({ sectionLabel, activeKey, bankKey, config, hideBank =
                 />
                 <button
                   type="button"
-                  className="btn btn-xs btn-ghost border border-base-300"
+                  className="btn btn-sm btn-ghost border border-base-300"
                   disabled={!bankInput.trim()}
                   onClick={() => { addToBank(bankInput); setBankInput(""); }}
                 >
@@ -531,6 +573,10 @@ const RetentionEditor = ({ initialDays }) => {
   const queryClient = useQueryClient();
   const [days, setDays] = useState(initialDays);
 
+  useEffect(() => {
+    setDays(initialDays);
+  }, [initialDays]);
+
   const { mutate: saveRetention, isPending: savingRetention } = useMutation({
     mutationFn: (value) => adminApi.updateFilterConfig("chatRetentionDays", [String(value)]),
     onSuccess: () => {
@@ -561,7 +607,7 @@ const RetentionEditor = ({ initialDays }) => {
           {savingRetention ? <Loader2 className="size-3 animate-spin" /> : "Save"}
         </button>
       </div>
-      <p className="text-xs opacity-50">Changes apply to new conversations only</p>
+      <p className="text-sm opacity-50">Changes apply to new conversations only</p>
     </div>
   );
 };
@@ -597,7 +643,7 @@ const AccessControl = () => {
             hideBank={true}
             placeholder="Add email or @domain.com…"
           />
-          <p className="text-xs opacity-50">Use exact email (user@example.com) or domain postfix (@example.com)</p>
+          <p className="text-sm opacity-50">Use exact email (user@example.com) or domain postfix (@example.com)</p>
         </div>
         <div className="flex flex-col gap-3">
           <p className="text-sm font-medium">Read-Only Email Rules</p>
@@ -609,7 +655,7 @@ const AccessControl = () => {
             hideBank={true}
             placeholder="Add email or @domain.com…"
           />
-          <p className="text-xs opacity-50">Use exact email (user@example.com) or domain postfix (@example.com)</p>
+          <p className="text-sm opacity-50">Use exact email (user@example.com) or domain postfix (@example.com)</p>
         </div>
       </div>
 
@@ -623,66 +669,40 @@ const AccessControl = () => {
 
 // ─── AdminPage ────────────────────────────────────────────────────────────────
 
+const TAB_CONTENT = {
+  users: { title: "User Management" },
+  access: { title: "Access Control", description: "Configure default roles for new users at sign-up and set the chat conversation retention window." },
+  sync: { title: "Manual Sync", description: "Trigger a data sync on demand without waiting for the scheduled cron." },
+  health: { title: "Health" },
+  filters: { title: "Filter Configuration", description: "Manage the keywords and codes used to filter SAM.gov and USASpending syncs. Changes take effect on the next sync run." },
+};
+
 const AdminPage = () => {
+  const [activeTab, setActiveTab] = useState("users");
+  const { title, description } = TAB_CONTENT[activeTab];
+
   return (
-    <div className="flex flex-col gap-8 max-w-5xl">
+    <div className="flex flex-col gap-4">
+      <TabsJoinButton tabs={ADMIN_TABS} activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* User Management */}
-      <section className="card bg-base-100 shadow-sm border border-base-300">
-        <div className="card-body gap-4">
-          <h2 className="card-title text-base">User Management</h2>
-          <UserManagement />
-        </div>
-      </section>
-
-      {/* Access Control */}
       <section className="card bg-base-100 shadow-sm border border-base-300">
         <div className="card-body gap-4">
           <div>
-            <h2 className="card-title text-base">Access Control</h2>
-            <p className="text-sm opacity-60">
-              Configure default roles for new users at sign-up and set the chat conversation retention window.
-            </p>
+            <h2 className="card-title text-base text-md">{title}</h2>
+            {description && <p className="text-sm opacity-60">{description}</p>}
           </div>
-          <AccessControl />
-        </div>
-      </section>
 
-      {/* Manual Sync */}
-      <section className="card bg-base-100 shadow-sm border border-base-300">
-        <div className="card-body gap-4">
-          <div>
-            <h2 className="card-title text-base">Manual Sync</h2>
-            <p className="text-sm opacity-60">Trigger a data sync on demand without waiting for the scheduled cron.</p>
-          </div>
-          <SyncControls />
-        </div>
-      </section>
-
-      {/* DB Stats */}
-      <section className="card bg-base-100 shadow-sm border border-base-300">
-        <div className="card-body gap-4">
-          <h2 className="card-title text-base">Database Stats</h2>
-          <DbStats />
-        </div>
-      </section>
-
-      {/* System Health */}
-      <section className="card bg-base-100 shadow-sm border border-base-300">
-        <div className="card-body gap-4">
-          <h2 className="card-title text-base">System Health</h2>
-          <SystemHealth />
-        </div>
-      </section>
-
-      {/* Filter Configuration */}
-      <section className="card bg-base-100 shadow-sm border border-base-300">
-        <div className="card-body gap-4">
-          <div>
-            <h2 className="card-title text-base">Filter Configuration</h2>
-            <p className="text-sm opacity-60">Manage the keywords and codes used to filter SAM.gov and USASpending syncs. Changes take effect on the next sync run.</p>
-          </div>
-          <FilterConfig />
+          {activeTab === "users" && <UserManagement />}
+          {activeTab === "access" && <AccessControl />}
+          {activeTab === "sync" && <SyncControls />}
+          {activeTab === "health" && (
+            <div className="flex flex-col gap-6">
+              <DbStats />
+              <div className="divider my-0" />
+              <SystemHealth />
+            </div>
+          )}
+          {activeTab === "filters" && <FilterConfig />}
         </div>
       </section>
     </div>
