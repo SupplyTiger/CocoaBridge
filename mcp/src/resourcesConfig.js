@@ -1,6 +1,6 @@
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import prisma from "./db.js";
-import { COMPANY_PROFILE } from "./resources/companyProfile.js";
+import { loadCompanyProfileFromDb } from "./resources/companyProfile.js";
 import { BID_TEMPLATE } from "./resources/bidTemplate.js";
 import { CID_SPECS } from "./resources/cidSpecs.js";
 
@@ -15,7 +15,7 @@ export function registerResources(server) {
         {
           uri: "supplytiger://company/profile",
           mimeType: "application/json",
-          text: JSON.stringify(COMPANY_PROFILE, null, 2),
+          text: JSON.stringify(await loadCompanyProfileFromDb(), null, 2),
         },
       ],
     }),

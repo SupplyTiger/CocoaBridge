@@ -1,6 +1,24 @@
 // Single source of truth for SupplyTiger's company profile.
 // Used by resources.js (MCP resource) and tools/scoring.js (opportunity scoring).
 
+import prisma from "../db.js";
+
+/**
+ * Load the company profile from AppConfig at runtime.
+ * Falls back to the hardcoded COMPANY_PROFILE constant if no DB record exists.
+ */
+export async function loadCompanyProfileFromDb() {
+  try {
+    const row = await prisma.appConfig.findUnique({ where: { key: "companyProfile" } });
+    if (row?.values?.[0]) {
+      return JSON.parse(row.values[0]);
+    }
+  } catch {
+    // parse error or DB failure — fall through to hardcoded constant
+  }
+  return COMPANY_PROFILE;
+}
+
 export const COMPANY_PROFILE = {
   legalName: "Prime Printer Solution Inc",
   dba: "SupplyTiger",

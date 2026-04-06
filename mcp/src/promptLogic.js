@@ -1,5 +1,5 @@
 import prisma from "./db.js";
-import { COMPANY_PROFILE, COMPANY_PSC_CODES } from "./resources/companyProfile.js";
+import { loadCompanyProfileFromDb } from "./resources/companyProfile.js";
 import { BID_TEMPLATE } from "./resources/bidTemplate.js";
 import { getCidSpecsByPsc, CID_PSC_CODES } from "./resources/cidSpecs.js";
 
@@ -163,7 +163,7 @@ export async function buildBidDraftPrompt(opportunityId) {
   if (!opportunity) return notFoundResult(opportunityId);
 
   const [companyJson, templateJson, keywords, { inboxItem, queueEntry }] = await Promise.all([
-    Promise.resolve(JSON.stringify(COMPANY_PROFILE, null, 2)),
+    loadCompanyProfileFromDb().then((p) => JSON.stringify(p, null, 2)),
     Promise.resolve(JSON.stringify(BID_TEMPLATE, null, 2)),
     loadKeywords(),
     loadInboxContext(opportunityId),
@@ -254,9 +254,10 @@ export async function buildOpportunityFitPrompt(opportunityId) {
 
   if (!opportunity) return notFoundResult(opportunityId);
 
-  const [keywords, { inboxItem, queueEntry }] = await Promise.all([
+  const [keywords, { inboxItem, queueEntry }, companyProfile] = await Promise.all([
     loadKeywords(),
     loadInboxContext(opportunityId),
+    loadCompanyProfileFromDb(),
   ]);
   const inboxContextSection = buildInboxContextSection(inboxItem, queueEntry);
 
@@ -325,7 +326,7 @@ export async function buildOpportunityFitPrompt(opportunityId) {
     2
   );
 
-  const companyJson = JSON.stringify(COMPANY_PROFILE, null, 2);
+  const companyJson = JSON.stringify(companyProfile, null, 2);
 
   const promptText = `Perform a deep-dive opportunity fit analysis for SupplyTiger (Prime Printer Solution Inc) on the following federal procurement opportunity.
 
@@ -474,7 +475,7 @@ export async function buildOutreachDraftPrompt(inboxItemId) {
   const primaryContact =
     allContacts.find((c) => c.role === "PRIMARY") ?? allContacts[0] ?? null;
 
-  const companyJson = JSON.stringify(COMPANY_PROFILE, null, 2);
+  const companyJson = JSON.stringify(await loadCompanyProfileFromDb(), null, 2);
 
   const promptText = `You are drafting a professional outreach email on behalf of SupplyTiger (Prime Printer Solution Inc) in response to a federal procurement opportunity currently tracked in the SupplyTiger inbox.
 
@@ -559,10 +560,12 @@ export async function buildFulfillmentPrompt(opportunityId) {
 
   if (!opportunity) return notFoundResult(opportunityId);
 
-  const [keywords, { inboxItem, queueEntry }] = await Promise.all([
+  const [keywords, { inboxItem, queueEntry }, companyProfile] = await Promise.all([
     loadKeywords(),
     loadInboxContext(opportunityId),
+    loadCompanyProfileFromDb(),
   ]);
+  const companyPscCodes = companyProfile.pscCodes.map((p) => p.code);
   const inboxContextSection = buildInboxContextSection(inboxItem, queueEntry);
 
   const orConditions = [
@@ -575,7 +578,7 @@ export async function buildFulfillmentPrompt(opportunityId) {
   const [supplyTigerItems, opportunityItems, relatedAwards] = await Promise.all(
     [
       prisma.federalLogisticsInformationSystem.findMany({
-        where: { pscCode: { in: COMPANY_PSC_CODES } },
+        where: { pscCode: { in: companyPscCodes } },
         select: {
           nsn: true,
           niin: true,
@@ -648,9 +651,9 @@ export async function buildFulfillmentPrompt(opportunityId) {
     2
   );
 
-  const companyJson = JSON.stringify(COMPANY_PROFILE, null, 2);
+  const companyJson = JSON.stringify(companyProfile, null, 2);
   const pscOverlap =
-    opportunity.pscCode && COMPANY_PSC_CODES.includes(opportunity.pscCode);
+    opportunity.pscCode && companyPscCodes.includes(opportunity.pscCode);
   const cidSection = buildCidSection(opportunity.pscCode);
 
   const promptText = `Perform a fulfillment capability analysis for SupplyTiger (Prime Printer Solution Inc) on the following federal procurement opportunity. Determine whether SupplyTiger should pursue a FULL submission, a PARTIAL/line-item bid, or NO-BID.
@@ -678,7 +681,7 @@ ${companyJson}
 
 ---
 
-## SUPPLYTIGER'S PRODUCT CATALOG (PSC ${COMPANY_PSC_CODES.join(", ")})
+## SUPPLYTIGER'S PRODUCT CATALOG (PSC ${companyPscCodes.join(", ")})
 
 These are items SupplyTiger can supply from its core product lines:
 
@@ -720,7 +723,7 @@ State **FULL**, **PARTIAL**, or **NO-BID** prominently at the top with a one-sen
 ### 2. PSC & NAICS ALIGNMENT
 
 Analyze how the opportunity's PSC code and NAICS codes compare to SupplyTiger's:
-- SupplyTiger PSC codes: ${COMPANY_PSC_CODES.join(", ")}
+- SupplyTiger PSC codes: ${companyPscCodes.join(", ")}
 - SupplyTiger NAICS codes: 424450, 424410, 424490
 - Is confectionery the primary focus of this opportunity, a component, or not present at all?
 

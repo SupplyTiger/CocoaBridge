@@ -1,6 +1,6 @@
 import { z } from "zod";
 import prisma from "../db.js";
-import { COMPANY_NAICS_CODES, COMPANY_PSC_CODES } from "../resources/companyProfile.js";
+import { loadCompanyProfileFromDb } from "../resources/companyProfile.js";
 
 /**
  * Load the active filter config from AppConfig table.
@@ -134,8 +134,8 @@ export function registerScoreOpportunity(server) {
     },
     async ({ id }) => {
       try {
-        // Load opportunity and filter config in parallel
-        const [opportunity, filterConfig] = await Promise.all([
+        // Load opportunity, filter config, and company profile in parallel
+        const [opportunity, filterConfig, companyProfile] = await Promise.all([
           prisma.opportunity.findUnique({
             where: { id },
             select: {
@@ -150,7 +150,10 @@ export function registerScoreOpportunity(server) {
             },
           }),
           loadFilterConfig(),
+          loadCompanyProfileFromDb(),
         ]);
+        const companyNaicsCodes = companyProfile.naicsCodes.map((n) => n.code);
+        const companyPscCodes = companyProfile.pscCodes.map((p) => p.code);
 
         if (!opportunity) {
           return {
@@ -187,8 +190,8 @@ export function registerScoreOpportunity(server) {
             where: {
               buyingOrganizationId: opportunity.buyingOrganizationId,
               OR: [
-                { naicsCodes: { hasSome: COMPANY_NAICS_CODES } },
-                { pscCode: { in: COMPANY_PSC_CODES } },
+                { naicsCodes: { hasSome: companyNaicsCodes } },
+                { pscCode: { in: companyPscCodes } },
               ],
             },
           });
