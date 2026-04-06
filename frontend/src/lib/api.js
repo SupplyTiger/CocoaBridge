@@ -239,6 +239,15 @@ export const adminApi = {
     const { data } = await axiosInstance.get("/admin/stats");
     return data;
   },
+  // Company Profile (admin only)
+  getCompanyProfile: async () => {
+    const { data } = await axiosInstance.get("/admin/company-profile");
+    return data;
+  },
+  updateCompanyProfile: async (profile) => {
+    const { data } = await axiosInstance.put("/admin/company-profile", profile);
+    return data;
+  },
   // Parsed Documents — OpportunityAttachment overview (admin only)
   getParsedDocumentStats: async () => {
     const { data } = await axiosInstance.get("/admin/parsed-documents/stats");

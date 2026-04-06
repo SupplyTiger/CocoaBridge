@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, AlertCircle, CheckCircle, XCircle, Clock, Loader2, ChevronDown, ChevronRight, X } from "lucide-react";
+import { RefreshCw, AlertCircle, CheckCircle, XCircle, Clock, Loader2, ChevronDown, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 import { adminApi } from "../lib/api.js";
 import { useCurrentUser } from "../lib/CurrentUserContext.jsx";
 import TabsJoinButton from "../components/TabsJoinButton.jsx";
 import PaginationButton from "../components/PaginationButton.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
+import { COMPANY_PROFILE_DEFAULT } from "../lib/companyProfile.js";
+import { PairsListEditor, ChipListEditor } from "../components/ListEditors.jsx";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 // Testing
@@ -37,6 +40,7 @@ const ADMIN_TABS = [
   { value: "health", label: "Health" },
   { value: "filters", label: "Filters" },
   { value: "parsedDocs", label: "Parsed Docs" },
+  { value: "companyProfile", label: "Company Profile" },
 ];
 
 const timeAgo = (dateStr) => {
@@ -813,6 +817,135 @@ const ParsedDocumentsPanel = () => {
   );
 };
 
+// ─── Company Profile Editor ───────────────────────────────────────────────────
+
+const SectionHeading = ({ children }) => (
+  <p className="text-sm font-semibold opacity-70 uppercase tracking-wide mt-2">{children}</p>
+);
+
+const CompanyProfileEditor = () => {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState(null);
+  const [resetOpen, setResetOpen] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["companyProfile"],
+    queryFn: adminApi.getCompanyProfile,
+  });
+
+  // Initialize form from query data once it arrives (render-time update per React's
+  // "storing information from previous renders" pattern — avoids effect cascading).
+  if (data != null && form === null) setForm(data);
+
+  const { mutate: save, isPending: saving } = useMutation({
+    mutationFn: () => adminApi.updateCompanyProfile(form),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["companyProfile"] });
+      toast.success("Company profile saved");
+    },
+    onError: (err) => toast.error(err?.response?.data?.message ?? "Failed to save profile"),
+  });
+
+  const set = (field, value) => setForm((f) => ({ ...f, [field]: value }));
+  const setContact = (field, value) => setForm((f) => ({ ...f, contact: { ...f.contact, [field]: value } }));
+
+  if (isLoading || !form) {
+    return <div className="flex justify-center py-8"><Loader2 className="size-6 animate-spin opacity-50" /></div>;
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <SectionHeading>Identity</SectionHeading>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          { label: "Legal Name", field: "legalName" },
+          { label: "DBA", field: "dba" },
+          { label: "UEI", field: "uei", mono: true, maxLength: 12 },
+          { label: "CAGE Code", field: "cageCode", mono: true, maxLength: 5 },
+          { label: "SAM Status", field: "samStatus" },
+          { label: "GSA Schedule", field: "gsaSchedule" },
+          { label: "Business Type", field: "businessType" },
+        ].map(({ label, field, mono, maxLength }) => (
+          <div key={field} className="flex flex-col gap-1">
+            <label className="text-sm opacity-60">{label}</label>
+            <input
+              type="text"
+              className={`input input-sm input-bordered${mono ? " font-mono" : ""}`}
+              value={form[field] ?? ""}
+              maxLength={maxLength}
+              onChange={(e) => set(field, e.target.value)}
+            />
+          </div>
+        ))}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm opacity-60">Established</label>
+          <input
+            type="number"
+            className="input input-sm input-bordered w-28"
+            min={1900}
+            max={new Date().getFullYear()}
+            value={form.established ?? ""}
+            onChange={(e) => set("established", parseInt(e.target.value, 10) || "")}
+          />
+        </div>
+      </div>
+
+      <SectionHeading>NAICS Codes</SectionHeading>
+      <PairsListEditor label="NAICS" value={form.naicsCodes} onChange={(v) => set("naicsCodes", v)} />
+
+      <SectionHeading>PSC Codes</SectionHeading>
+      <PairsListEditor label="PSC" value={form.pscCodes} onChange={(v) => set("pscCodes", v)} />
+
+      <SectionHeading>Acquisition Paths</SectionHeading>
+      <ChipListEditor value={form.acquisitionPaths} onChange={(v) => set("acquisitionPaths", v)} placeholder="e.g. GSA" />
+
+      <SectionHeading>Core Competencies</SectionHeading>
+      <ChipListEditor value={form.coreCompetencies} onChange={(v) => set("coreCompetencies", v)} placeholder="Add competency…" />
+
+      <SectionHeading>Contact</SectionHeading>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          { label: "Name", field: "name" },
+          { label: "Phone", field: "phone" },
+          { label: "Email", field: "email" },
+          { label: "Website", field: "website" },
+          { label: "Address", field: "address" },
+        ].map(({ label, field }) => (
+          <div key={field} className="flex flex-col gap-1">
+            <label className="text-sm opacity-60">{label}</label>
+            <input
+              type="text"
+              className="input input-sm input-bordered"
+              value={form.contact?.[field] ?? ""}
+              onChange={(e) => setContact(field, e.target.value)}
+            />
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2 pt-2">
+        <button type="button" className="btn btn-sm btn-info text-white" onClick={() => setResetOpen(true)}>
+          Reset to Defaults
+        </button>
+        <button type="button" className="btn btn-sm btn-primary" disabled={saving} onClick={() => save()}>
+          {saving ? <Loader2 className="size-3 animate-spin" /> : "Save"}
+        </button>
+      </div>
+
+      <ConfirmModal
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        onConfirm={() => { setForm(COMPANY_PROFILE_DEFAULT); setResetOpen(false); }}
+        title="Reset to Defaults"
+        confirmLabel="Reset"
+        variant="error"
+      >
+        This will restore all fields to the hardcoded default values. You still need to click Save to persist the change.
+      </ConfirmModal>
+    </div>
+  );
+};
+
 // ─── AdminPage ────────────────────────────────────────────────────────────────
 
 const TAB_CONTENT = {
@@ -822,6 +955,7 @@ const TAB_CONTENT = {
   health: { title: "Health" },
   filters: { title: "Filter Configuration", description: "Manage the keywords and codes used to filter SAM.gov and USASpending syncs. Changes take effect on the next sync run." },
   parsedDocs: { title: "Parsed Documents", description: "Attachment files collected from SAM.gov opportunities — view parse and score status across all records." },
+  companyProfile: { title: "Company Profile", description: "Manage SupplyTiger's registered identity, codes, and contact information used by the AI assistant." },
 };
 
 const AdminPage = () => {
@@ -851,6 +985,7 @@ const AdminPage = () => {
           )}
           {activeTab === "filters" && <FilterConfig />}
           {activeTab === "parsedDocs" && <ParsedDocumentsPanel />}
+          {activeTab === "companyProfile" && <CompanyProfileEditor />}
         </div>
       </section>
     </div>

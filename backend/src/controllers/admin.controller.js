@@ -368,6 +368,79 @@ export const getPublicConfig = async (req, res) => {
   }
 };
 
+// ─── Company Profile ─────────────────────────────────────────────────────────
+
+const COMPANY_PROFILE_DEFAULT = {
+  legalName: "Prime Printer Solution Inc",
+  dba: "SupplyTiger",
+  uei: "REMMPZ6DUJ88",
+  cageCode: "4Z7K1",
+  samStatus: "Active",
+  gsaSchedule: "In progress",
+  established: 2006,
+  businessType: "S Corporation",
+  naicsCodes: [
+    { code: "424450", description: "Confectionery Merchant Wholesalers" },
+    { code: "424410", description: "General Line Grocery Merchant Wholesalers" },
+    { code: "424490", description: "Other Grocery And Related Products Merchant Wholesalers" },
+  ],
+  pscCodes: [
+    { code: "8925", description: "Sugar, Confectionery, And Nuts" },
+    { code: "8950", description: "Condiments and Related Products" },
+  ],
+  acquisitionPaths: ["MICROPURCHASE", "GSA", "SUBCONTRACTING"],
+  coreCompetencies: [
+    "Climate-controlled chocolate fulfillment",
+    "Bulk distribution of food products (candy, chocolate, spice sets)",
+    "Fulfillment & eCommerce expertise (Amazon, Walmart, B2B)",
+  ],
+  contact: {
+    name: "Ryan Spahr, CEO",
+    phone: "610-400-8127",
+    email: "gov@primeprinter.net",
+    website: "www.supplytiger.fun",
+    address: "1595 South Mount Joy Street, Suite 002, Elizabethtown PA 17022",
+  },
+};
+
+export const getCompanyProfile = async (req, res) => {
+  try {
+    const row = await prisma.appConfig.findUnique({ where: { key: "companyProfile" } });
+    if (row?.values?.[0]) {
+      return res.status(200).json(JSON.parse(row.values[0]));
+    }
+    return res.status(200).json(COMPANY_PROFILE_DEFAULT);
+  } catch (error) {
+    console.error("Error fetching company profile:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const updateCompanyProfile = async (req, res) => {
+  const body = req.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return res.status(400).json({ message: "Body must be an object" });
+  }
+  if (!Array.isArray(body.naicsCodes) || !Array.isArray(body.pscCodes)) {
+    return res.status(400).json({ message: "naicsCodes and pscCodes must be arrays" });
+  }
+  if (!body.contact || typeof body.contact !== "object") {
+    return res.status(400).json({ message: "contact must be an object" });
+  }
+
+  try {
+    await prisma.appConfig.upsert({
+      where: { key: "companyProfile" },
+      update: { values: [JSON.stringify(body)] },
+      create: { key: "companyProfile", values: [JSON.stringify(body)] },
+    });
+    return res.status(200).json(body);
+  } catch (error) {
+    console.error("Error updating company profile:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 // ─── Parsed Documents (OpportunityAttachment) ────────────────────────────────
 
 const PARSED_DOCUMENT_FILTERS = {

@@ -9,6 +9,8 @@ import {
   getFilterConfig,
   getPublicConfig,
   updateFilterConfig,
+  getCompanyProfile,
+  updateCompanyProfile,
   getParsedDocumentStats,
   listParsedDocuments,
 } from "../controllers/admin.controller.js";
@@ -32,6 +34,10 @@ router.post("/sync/:type", ...protectRoute, adminOnly, triggerSync);
 router.get("/config/public", ...protectRoute, getPublicConfig);
 router.get("/config", ...protectRoute, adminOnly, getFilterConfig);
 router.put("/config/:key", ...protectRoute, adminOnly, updateFilterConfig);
+
+// Company Profile
+router.get("/company-profile", ...protectRoute, adminOnly, getCompanyProfile);
+router.put("/company-profile", ...protectRoute, adminOnly, updateCompanyProfile);
 
 // Parsed Documents (OpportunityAttachment)
 router.get("/parsed-documents/stats", ...protectRoute, adminOnly, getParsedDocumentStats);
