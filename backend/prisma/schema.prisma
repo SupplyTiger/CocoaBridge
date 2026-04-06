@@ -81,6 +81,17 @@ enum ContactType {
   @@schema("public")
 }
 
+enum OutreachStatus {
+  SENT
+  RESPONDED
+  NO_REPLY
+  FOLLOW_UP
+  MEETING_SCHEDULED
+  CLOSED
+
+  @@schema("public")
+}
+
 enum IndustryDayStatus {
   OPEN
   NOT_ATTENDING
@@ -120,8 +131,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  favorites         Favorite[]
-  chatConversations ChatConversation[]
+  favorites           Favorite[]
+  chatConversations   ChatConversation[]
+  contactInteractions ContactInteraction[]
+  inboxItemNotes      InboxItemNote[]
 
   @@schema("public")
 }
@@ -167,7 +180,8 @@ model Contact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  links ContactLink[]
+  links        ContactLink[]
+  interactions ContactInteraction[]
 
   @@index([email])
   @@index([phone])
@@ -456,7 +470,6 @@ model InboxItem {
 
   title    String?
   summary  String?
-  notes    String?
   deadline DateTime?
 
   reviewStatus InboxStatus @default(NEW)
@@ -476,6 +489,7 @@ model InboxItem {
   opportunity   Opportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
 
   contactLinks ContactLink[]
+  notes        InboxItemNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -544,6 +558,40 @@ model FederalLogisticsInformationSystem {
   @@index([pscCode])
   @@index([itemName])
   @@index([commonName])
+  @@schema("public")
+}
+
+model ContactInteraction {
+  id        String         @id @default(cuid())
+
+  contactId String
+  contact   Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  status    OutreachStatus
+  note      String?
+
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  loggedAt  DateTime       @default(now())
+
+  @@index([contactId, loggedAt])
+  @@schema("public")
+}
+
+model InboxItemNote {
+  id          String    @id @default(cuid())
+
+  inboxItemId String
+  inboxItem   InboxItem @relation(fields: [inboxItemId], references: [id], onDelete: Cascade)
+
+  text      String
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime  @default(now())
+
+  @@index([inboxItemId, createdAt])
   @@schema("public")
 }
 

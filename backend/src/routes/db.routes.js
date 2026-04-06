@@ -30,10 +30,16 @@ import {
   listRecipients,
   getRecipient,
   updateRecipient,
+  listInboxItemNotes,
+  createInboxItemNote,
+  deleteInboxItemNote,
   listContacts,
   getContact,
   updateContact,
   deleteContact,
+  listContactInteractions,
+  createContactInteraction,
+  deleteContactInteraction,
   listFavorites,
   toggleFavorite,
   listFLISItems,
@@ -64,6 +70,9 @@ router.post("/inbox-items", ...protectRoute, adminOnly, createInboxItem);
 router.patch("/inbox-items/:id", ...protectRoute, adminOnly, updateInboxItem);
 router.delete("/inbox-items", ...protectRoute, adminOnly, bulkDeleteInboxItems);
 router.delete("/inbox-items/:id", ...protectRoute, adminOnly, deleteInboxItem);
+router.get("/inbox-items/:id/notes", ...protectRoute, readOnlyOrAbove, listInboxItemNotes);
+router.post("/inbox-items/:id/notes", ...protectRoute, adminOnly, createInboxItemNote);
+router.delete("/inbox-items/:id/notes/:noteId", ...protectRoute, adminOnly, deleteInboxItemNote);
 
 // Opportunities
 router.get("/opportunities/export", ...protectRoute, readOnlyOrAbove, exportOpportunities);
@@ -113,6 +122,9 @@ router.get("/contacts", ...protectRoute, readOnlyOrAbove, listContacts);
 router.get("/contacts/:id", ...protectRoute, readOnlyOrAbove, getContact);
 router.patch("/contacts/:id", ...protectRoute, adminOnly, updateContact);
 router.delete("/contacts/:id", ...protectRoute, adminOnly, deleteContact);
+router.get("/contacts/:id/interactions", ...protectRoute, readOnlyOrAbove, listContactInteractions);
+router.post("/contacts/:id/interactions", ...protectRoute, adminOnly, createContactInteraction);
+router.delete("/contacts/:id/interactions/:interactionId", ...protectRoute, deleteContactInteraction);
 
 // Favorites
 router.get("/favorites", ...protectRoute, readOnlyOrAbove, listFavorites);

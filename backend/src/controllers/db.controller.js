@@ -544,13 +544,12 @@ export const getInboxItem = async (req, res) => {
 
 export const updateInboxItem = async (req, res) => {
   try {
-    const { reviewStatus, notes, deadline, title } = req.body;
+    const { reviewStatus, deadline, title } = req.body;
     const data = {
       reviewedBy: req.user.name,
       reviewedAt: new Date(),
     };
     if (reviewStatus !== undefined) data.reviewStatus = reviewStatus;
-    if (notes !== undefined) data.notes = notes;
     if (deadline !== undefined) data.deadline = deadline;
     if (title !== undefined) data.title = title;
 
@@ -1497,6 +1496,106 @@ export const exportContacts = async (req, res) => {
     writeCsv(res, "contacts-export.csv", headers, rows);
   } catch (error) {
     console.error("exportContacts error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+// --- InboxItemNote controllers ---
+
+export const listInboxItemNotes = async (req, res) => {
+  try {
+    const items = await prisma.inboxItemNote.findMany({
+      where: { inboxItemId: req.params.id },
+      orderBy: { createdAt: "desc" },
+      include: { user: { select: { id: true, name: true } } },
+    });
+    return res.status(200).json({ data: items });
+  } catch (error) {
+    console.error("listInboxItemNotes error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const createInboxItemNote = async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ error: "text is required" });
+    const inboxItem = await prisma.inboxItem.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!inboxItem) return res.status(404).json({ error: "InboxItem not found" });
+    const item = await prisma.inboxItemNote.create({
+      data: { inboxItemId: req.params.id, text: text.trim(), userId: req.user.id },
+      include: { user: { select: { id: true, name: true } } },
+    });
+    return res.status(201).json({ data: item });
+  } catch (error) {
+    console.error("createInboxItemNote error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const deleteInboxItemNote = async (req, res) => {
+  try {
+    const note = await prisma.inboxItemNote.findUnique({
+      where: { id: req.params.noteId },
+      select: { id: true, inboxItemId: true },
+    });
+    if (!note || note.inboxItemId !== req.params.id) return res.status(404).json({ error: "Note not found" });
+    await prisma.inboxItemNote.delete({ where: { id: note.id } });
+    return res.status(200).json({ data: { id: note.id } });
+  } catch (error) {
+    console.error("deleteInboxItemNote error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+// --- ContactInteraction controllers ---
+
+export const listContactInteractions = async (req, res) => {
+  try {
+    const items = await prisma.contactInteraction.findMany({
+      where: { contactId: req.params.id },
+      orderBy: { loggedAt: "desc" },
+      include: { user: { select: { id: true, name: true } } },
+    });
+    return res.status(200).json({ data: items });
+  } catch (error) {
+    console.error("listContactInteractions error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const createContactInteraction = async (req, res) => {
+  try {
+    const { status, note } = req.body;
+    if (!status) return res.status(400).json({ error: "status is required" });
+    const contact = await prisma.contact.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!contact) return res.status(404).json({ error: "Contact not found" });
+    const item = await prisma.contactInteraction.create({
+      data: { contactId: req.params.id, status, note: note?.trim() || null, userId: req.user.id },
+      include: { user: { select: { id: true, name: true } } },
+    });
+    return res.status(201).json({ data: item });
+  } catch (error) {
+    console.error("createContactInteraction error:", error);
+    return res.status(500).json({ error: "Internal server error", details: error.message });
+  }
+};
+
+export const deleteContactInteraction = async (req, res) => {
+  try {
+    const item = await prisma.contactInteraction.findUnique({
+      where: { id: req.params.interactionId },
+      select: { id: true, contactId: true, userId: true },
+    });
+    if (!item || item.contactId !== req.params.id) return res.status(404).json({ error: "Interaction not found" });
+    const isAdmin = req.user.role === "ADMIN";
+    if (!isAdmin && item.userId !== req.user.id) {
+      return res.status(403).json({ error: "Cannot delete another user's interaction" });
+    }
+    await prisma.contactInteraction.delete({ where: { id: item.id } });
+    return res.status(200).json({ data: { id: item.id } });
+  } catch (error) {
+    console.error("deleteContactInteraction error:", error);
     return res.status(500).json({ error: "Internal server error", details: error.message });
   }
 };

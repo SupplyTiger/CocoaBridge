@@ -190,6 +190,8 @@ const SyncControls = () => {
               : `${data.jobName} completed`
           );
           queryClient.invalidateQueries({ queryKey: ["systemHealth"] });
+          queryClient.invalidateQueries({ queryKey: ["parsedDocuments"] });
+          queryClient.invalidateQueries({ queryKey: ["parsedDocumentStats"] });
         },
         onError: (err) => {
           toast.error(err?.response?.data?.message ?? "Sync failed");
