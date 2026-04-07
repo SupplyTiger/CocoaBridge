@@ -6,6 +6,7 @@ import {
   getPscAnalytics,
   getNaicsAnalytics,
   getAgencyAnalytics,
+  getWeeklyMetrics,
 } from "../controllers/analytics.controller.js";
 import {
   listInboxItems,
@@ -138,3 +139,4 @@ router.get("/analytics/recipients", ...protectRoute, readOnlyOrAbove, getRecipie
 router.get("/analytics/psc",        ...protectRoute, readOnlyOrAbove, getPscAnalytics);
 router.get("/analytics/naics",      ...protectRoute, readOnlyOrAbove, getNaicsAnalytics);
 router.get("/analytics/agencies",   ...protectRoute, readOnlyOrAbove, getAgencyAnalytics);
+router.get("/analytics/weekly-metrics", ...protectRoute, readOnlyOrAbove, getWeeklyMetrics);

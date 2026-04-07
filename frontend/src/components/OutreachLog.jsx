@@ -42,6 +42,7 @@ const OutreachLog = ({ contactId }) => {
     mutationFn: () => dbApi.createContactInteraction(contactId, { status, note }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contactInteractions", contactId] });
+      queryClient.invalidateQueries({ queryKey: ["weeklyMetrics"] });
       setShowForm(false);
       setStatus("SENT");
       setNote("");
@@ -54,6 +55,7 @@ const OutreachLog = ({ contactId }) => {
     mutationFn: (interactionId) => dbApi.deleteContactInteraction(contactId, interactionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contactInteractions", contactId] });
+      queryClient.invalidateQueries({ queryKey: ["weeklyMetrics"] });
       toast.success("Interaction deleted");
     },
     onError: (err) => toast.error(err?.response?.data?.error ?? "Failed to delete"),

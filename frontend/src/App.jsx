@@ -25,6 +25,7 @@ import FavoritesPage from "./pages/FavoritesPage";
 import ChatPage from "./pages/ChatPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import IndustryDayDetail from "./pages/IndustryDayDetail";
+import WeeklyMetricsPage from "./pages/WeeklyMetricsPage";
 import { useCurrentUser } from "./lib/CurrentUserContext.jsx";
 
 // Requires READ_ONLY or ADMIN role — USER role is redirected to dashboard
@@ -62,6 +63,7 @@ function App() {
         <Route path="awards/:id" element={<DataOnlyRoute><AwardDetail /></DataOnlyRoute>} />
         <Route path="market-intelligence" element={<DataOnlyRoute><MarketIntelligencePage /></DataOnlyRoute>} />
         <Route path="analytics" element={<DataOnlyRoute><AnalyticsPage /></DataOnlyRoute>} />
+        <Route path="metrics" element={<DataOnlyRoute><WeeklyMetricsPage /></DataOnlyRoute>} />
         <Route path="calendar" element={<DataOnlyRoute><CalendarPage /></DataOnlyRoute>} />
         <Route path="industry-day/:id" element={<DataOnlyRoute><IndustryDayDetail /></DataOnlyRoute>} />
         <Route path="contacts" element={<DataOnlyRoute><ContactsPage /></DataOnlyRoute>} />
