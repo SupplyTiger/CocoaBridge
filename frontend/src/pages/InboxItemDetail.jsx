@@ -46,6 +46,7 @@ const InboxItemDetail = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inboxItem", id] });
       queryClient.invalidateQueries({ queryKey: ["inboxItems"] });
+      queryClient.invalidateQueries({ queryKey: ["weeklyMetrics"] });
       toast.success("Saved");
       setIsEditing(false);
       setDraft({});

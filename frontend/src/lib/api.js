@@ -209,6 +209,7 @@ export const analyticsApi = {
   getPsc:        async (params) => { const { data } = await axiosInstance.get("/db/analytics/psc",        { params }); return data; },
   getNaics:      async (params) => { const { data } = await axiosInstance.get("/db/analytics/naics",      { params }); return data; },
   getAgencies:   async (params) => { const { data } = await axiosInstance.get("/db/analytics/agencies",   { params }); return data; },
+  getWeeklyMetrics: async (week) => { const { data } = await axiosInstance.get("/db/analytics/weekly-metrics", { params: { week } }); return data; },
 };
 
 export const chatApi = {
