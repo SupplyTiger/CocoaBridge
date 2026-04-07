@@ -234,7 +234,7 @@ const WeeklyMetricsPage = () => {
 
           <MetricCard
             title="Followups Sent"
-            description="Contact interactions logged as Follow-Up this week — second and subsequent touches after the initial outreach."
+            description="Contact interactions logged as Follow-Up or Meeting-Scheduled this week — second and subsequent touches after the initial outreach."
             current={data.current.followups}
             previous={data.previous.followups}
           >

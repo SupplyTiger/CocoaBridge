@@ -185,15 +185,26 @@ export const getWeeklyMetrics = async (req, res) => {
 
     // ── Current week — full records ──
     const [newContacts, outreaches, followups, screened, qualifiedInbox, respondedInteractions] = await Promise.all([
-      // 1. New contacts with at least one inbox-linked ContactLink
-      prisma.contact.findMany({
+      // 1. New contacts — ContactLinks whose opportunity has an InboxItem created this week.
+      //    ContactLinks are always written with opportunityId (never inboxItemId), so we
+      //    traverse: ContactLink.opportunityId → Opportunity.inboxItems.createdAt.
+      prisma.contactLink.findMany({
         where: {
-          createdAt: { gte: start, lte: end },
-          links: { some: { inboxItemId: { not: null } } },
+          opportunityId: { not: null },
+          opportunity: { inboxItems: { some: { createdAt: { gte: start, lte: end } } } },
         },
         select: {
-          id: true, fullName: true, email: true,
-          links: { where: { inboxItemId: { not: null } }, take: 1, select: { inboxItemId: true } },
+          contactId: true,
+          contact: { select: { id: true, fullName: true, email: true } },
+          opportunity: {
+            select: {
+              inboxItems: {
+                where: { createdAt: { gte: start, lte: end } },
+                take: 1,
+                select: { id: true },
+              },
+            },
+          },
         },
       }),
       // 2. Outreaches sent
@@ -203,7 +214,7 @@ export const getWeeklyMetrics = async (req, res) => {
       }),
       // 3. Followups sent
       prisma.contactInteraction.findMany({
-        where: { status: "FOLLOW_UP", loggedAt: { gte: start, lte: end } },
+        where: { status: { in: ["FOLLOW_UP", "MEETING_SCHEDULED", ] }, loggedAt: { gte: start, lte: end } },
         include: {
           contact: { select: { id: true, fullName: true } },
           user: { select: { name: true } },
@@ -249,9 +260,12 @@ export const getWeeklyMetrics = async (req, res) => {
 
     // ── Previous week — counts only ──
     const [prevNewContacts, prevOutreaches, prevFollowups, prevScreened, prevQualified, prevResponded] = await Promise.all([
-      prisma.contact.count({ where: { createdAt: { gte: prevStart, lte: prevEnd }, links: { some: { inboxItemId: { not: null } } } } }),
+      prisma.contactLink.findMany({
+        where: { opportunityId: { not: null }, opportunity: { inboxItems: { some: { createdAt: { gte: prevStart, lte: prevEnd } } } } },
+        select: { contactId: true },
+      }).then((links) => new Set(links.map((l) => l.contactId)).size),
       prisma.inboxItem.count({ where: { reviewStatus: "CONTACTED", reviewedAt: { gte: prevStart, lte: prevEnd } } }),
-      prisma.contactInteraction.count({ where: { status: "FOLLOW_UP", loggedAt: { gte: prevStart, lte: prevEnd } } }),
+      prisma.contactInteraction.count({ where: { status: { in: ["FOLLOW_UP", "MEETING_SCHEDULED"] }, loggedAt: { gte: prevStart, lte: prevEnd } } }),
       prisma.inboxItem.count({ where: { reviewStatus: "IN_REVIEW", reviewedAt: { gte: prevStart, lte: prevEnd } } }),
       prisma.inboxItem.count({ where: { reviewStatus: "QUALIFIED", reviewedAt: { gte: prevStart, lte: prevEnd } } }),
       prisma.contactInteraction.count({ where: { status: "RESPONDED", loggedAt: { gte: prevStart, lte: prevEnd } } }),
@@ -262,10 +276,18 @@ export const getWeeklyMetrics = async (req, res) => {
       weekStart: toDateStr(start),
       weekEnd: toDateStr(end),
       current: {
-        newContacts: {
-          count: newContacts.length,
-          records: newContacts.map((c) => ({ contactId: c.id, fullName: c.fullName, email: c.email, inboxItemId: c.links[0]?.inboxItemId ?? null })),
-        },
+        newContacts: (() => {
+          // Deduplicate links by contactId — one contact may have multiple links this week
+          const seen = new Set();
+          const records = [];
+          for (const link of newContacts) {
+            if (!seen.has(link.contactId)) {
+              seen.add(link.contactId);
+              records.push({ contactId: link.contact.id, fullName: link.contact.fullName, email: link.contact.email, inboxItemId: link.opportunity.inboxItems[0]?.id ?? null });
+            }
+          }
+          return { count: records.length, records };
+        })(),
         outreaches: {
           count: outreaches.length,
           records: outreaches.map((i) => ({ inboxItemId: i.id, title: i.title, reviewedBy: i.reviewedBy, reviewedAt: i.reviewedAt })),
