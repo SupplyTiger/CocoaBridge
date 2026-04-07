@@ -214,7 +214,7 @@ export const getWeeklyMetrics = async (req, res) => {
       }),
       // 3. Followups sent
       prisma.contactInteraction.findMany({
-        where: { status: { in: ["FOLLOW_UP", "MEETING_SCHEDULED", ] }, loggedAt: { gte: start, lte: end } },
+        where: { status: { in: ["FOLLOW_UP", "MEETING_SCHEDULED"] }, loggedAt: { gte: start, lte: end } },
         include: {
           contact: { select: { id: true, fullName: true } },
           user: { select: { name: true } },
