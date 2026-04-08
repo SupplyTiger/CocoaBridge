@@ -31,13 +31,13 @@ export function buildEmailHtml({ user, data, narrative, dateLabel }) {
   // ── Weekly metrics section ─────────────────────────────────────────────────
   const metricsHtml = weeklyMetrics
     ? (() => {
-        const m = weeklyMetrics;
+        const c = weeklyMetrics.current ?? {};
         const metrics = [
-          { label: "New Contacts", value: m.newContacts ?? "—" },
-          { label: "Outreaches", value: m.outreaches ?? "—" },
-          { label: "Follow-ups", value: m.followUps ?? "—" },
-          { label: "Screened Solics.", value: m.screenedSolicitations ?? "—" },
-          { label: "Buyer Paths", value: m.buyerPaths ?? "—" },
+          { label: "New Contacts", value: c.newContacts?.count ?? "—" },
+          { label: "Outreaches", value: c.outreaches?.count ?? "—" },
+          { label: "Follow-ups", value: c.followups?.count ?? "—" },
+          { label: "Screened Solics.", value: c.screened?.count ?? "—" },
+          { label: "Buyer Paths", value: c.buyerPaths?.count ?? "—" },
         ];
         const cells = metrics
           .map(
