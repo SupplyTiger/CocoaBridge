@@ -43,6 +43,9 @@ const required = [
   "MCP_SECRET",
   "GEMINI_API_KEY",
   "SAMGOV_RESOURCES_URL",
+  "RESEND_API_KEY",
+  "RESEND_FROM",
+  "DIGEST_HMAC_SECRET",
 ];
 
 const missing = required.filter((key) => !ENV[key]);
