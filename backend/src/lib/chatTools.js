@@ -96,14 +96,49 @@ export const chatTools = {
     description:
       "Find contacts linked to opportunities, buying organizations, or industry days",
     parameters: z.object({
-      keyword: z.string().optional().describe("Searches linked opportunity/industry day text"),
+      keyword: z.string().optional().describe("Searches contact name, email, linked opportunity titles/descriptions, and industry day text (case-insensitive)"),
       opportunityId: z.string().optional().describe("Filter by opportunity"),
       buyingOrgId: z.string().optional().describe("Filter by buying org"),
       includeInboxContacts: z.boolean().optional().describe("Include contacts linked to inbox items (excluded by default)"),
+      contactType: z.enum(["PRIMARY", "SECONDARY", "OTHER"]).optional().describe("Filter by contact link type (PRIMARY, SECONDARY, or OTHER)"),
       limit: z.number().optional().describe("Max results (default 20, max 50)"),
       offset: z.number().optional().describe("Pagination offset"),
     }),
     execute: (args) => callMcpTool("search_contacts", args),
+  }),
+
+  get_contact: tool({
+    description:
+      "Get a contact's full profile: fields, all entity links (opportunities, buying orgs, industry days, inbox items), and complete outreach interaction history.",
+    parameters: z.object({
+      id: z.string().describe("Contact ID"),
+    }),
+    execute: (args) => callMcpTool("get_contact", args),
+  }),
+
+  get_contact_interactions: tool({
+    description:
+      "Get the paginated outreach interaction log for a contact. Filter by status or date. Useful for reviewing outreach history before drafting a follow-up.",
+    parameters: z.object({
+      contactId: z.string().describe("Contact ID"),
+      status: z
+        .enum(["SENT", "RESPONDED", "NO_REPLY", "FOLLOW_UP", "MEETING_SCHEDULED", "CLOSED"])
+        .optional()
+        .describe("Filter by interaction status"),
+      since: z.string().optional().describe("ISO date — only return interactions on or after this date (e.g. '2026-03-01')"),
+      limit: z.number().optional().describe("Max results (default 20, max 50)"),
+      offset: z.number().optional().describe("Pagination offset (default 0)"),
+    }),
+    execute: (args) => callMcpTool("get_contact_interactions", args),
+  }),
+
+  get_weekly_metrics: tool({
+    description:
+      "Get the 5-metric pipeline report for a given ISO week (e.g. '2026-W14'): new contacts, outreaches, follow-ups, screened solicitations, and buyer paths. Includes full records for the requested week and counts for the prior week. Defaults to the current week.",
+    parameters: z.object({
+      week: z.string().optional().describe("ISO week string e.g. '2026-W14'. Defaults to current week if omitted."),
+    }),
+    execute: (args) => callMcpTool("get_weekly_metrics", args),
   }),
 
   search_inbox_opportunities: tool({
