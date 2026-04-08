@@ -20,6 +20,9 @@ export const ENV = {
   INNGEST_ID: process.env.INNGEST_ID,
   CLERK_JWKS_URL: process.env.CLERK_JWKS_URL,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  RESEND_API_KEY: process.env.RESEND_API_KEY,
+  RESEND_FROM: process.env.RESEND_FROM,
+  DIGEST_HMAC_SECRET: process.env.DIGEST_HMAC_SECRET,
   ADMIN_EMAILS: process.env.ADMIN_EMAILS
     ? process.env.ADMIN_EMAILS.split(",").map((e) => e.trim().toLowerCase())
     : [],

@@ -4,6 +4,8 @@ import { runAwardsSyncFromUsaspending } from "./usaspending.controller.js";
 import { runBackfillNullOpportunityDescriptionsFromSam, runBackfillOpportunityAttachments, runScoreAllParsedAttachments } from "./db.controller.js";
 import { runScoreNewOpportunityAttachments, runBackfillInboxItemScores, runBackfillAwardInboxScores } from "../utils/inboxScoring.js";
 import { loadFilterConfig, VALID_CONFIG_KEYS } from "../utils/filterConfig.js";
+import { buildUnsubscribeToken, sendDigestEmail } from "../lib/digestEmail.js";
+import { fetchDigestData, generateNarrative } from "../lib/digestContent.js";
 
 // ─── SyncLog helper ──────────────────────────────────────────────────────────
 
@@ -136,6 +138,7 @@ const KNOWN_JOBS = [
   { jobId: "score-new-opportunity-attachments", jobName: "Score New Opportunity Attachments" },
   { jobId: "backfill-inbox-item-scores", jobName: "Backfill Inbox Item Scores" },
   { jobId: "backfill-award-inbox-scores", jobName: "Backfill Award Inbox Scores" },
+  { jobId: "send-daily-digest", jobName: "Send Daily Digest Email" },
 ];
 
 export const getSystemHealth = async (req, res) => {
@@ -276,6 +279,33 @@ const SYNC_JOBS = {
       const n = r?.results?.failed ?? 0;
       return n > 0 ? `${n} scoring error(s)` : null;
     },
+  },
+  "send-daily-digest": {
+    jobId: "send-daily-digest",
+    jobName: "Send Daily Digest Email",
+    fn: async () => {
+      const recipients = await prisma.user.findMany({
+        where: { isActive: true, role: { in: ["READ_ONLY", "ADMIN"] }, digestEnabled: true },
+        select: { id: true, email: true, name: true },
+      });
+      if (recipients.length === 0) return { sent: 0, total: 0 };
+
+      const data = await fetchDigestData();
+      const narrative = await generateNarrative(data);
+      const dateLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+
+      let sent = 0;
+      for (const user of recipients) {
+        try {
+          await sendDigestEmail({ user, data, narrative, dateLabel });
+          sent++;
+        } catch (err) {
+          console.error(`[Digest] Failed to send to ${user.email}:`, err.message);
+        }
+      }
+      return { sent, total: recipients.length };
+    },
+    countFn: (r) => r?.sent ?? null,
   },
 };
 
@@ -559,5 +589,25 @@ export const updateFilterConfig = async (req, res) => {
   } catch (error) {
     console.error(`Error updating filter config key ${key}:`, error);
     return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ─── Digest unsubscribe (public — no auth, protected by HMAC) ────────────────
+
+export const handleDigestUnsubscribe = async (req, res) => {
+  const { userId, token } = req.query;
+  if (!userId || !token) return res.status(400).send("<p>Invalid unsubscribe link.</p>");
+
+  const expected = buildUnsubscribeToken(userId);
+  if (token !== expected) return res.status(403).send("<p>Invalid or expired unsubscribe token.</p>");
+
+  try {
+    await prisma.user.update({ where: { id: userId }, data: { digestEnabled: false } });
+    return res.send(`<!DOCTYPE html><html><body style="font-family:sans-serif;text-align:center;padding:60px;">
+      <h2>Unsubscribed</h2>
+      <p>You've been removed from the daily digest. You won't receive future emails.</p>
+    </body></html>`);
+  } catch {
+    return res.status(500).send("<p>Something went wrong. Please try again.</p>");
   }
 };

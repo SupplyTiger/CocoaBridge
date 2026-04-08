@@ -124,9 +124,10 @@ model User {
   clerkId  String   @unique
   email    String   @unique
   name     String?
-  role     UserRole @default(USER)
-  isActive Boolean  @default(true)
-  imageUrl String?
+  role          UserRole @default(USER)
+  isActive      Boolean  @default(true)
+  imageUrl      String?
+  digestEnabled Boolean  @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

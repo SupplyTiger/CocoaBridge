@@ -1,4 +1,6 @@
 import { OppTag, Type, AcquisitionPath } from "@prisma/client";
+import { fetchDigestData, generateNarrative } from "../lib/digestContent.js";
+import { sendDigestEmail } from "../lib/digestEmail.js";
 import prisma from "./db.js";
 import { inngestClient } from "./inngestClient.js";
 import {
@@ -501,6 +503,54 @@ export const cleanupExpiredChats = inngest.createFunction(
   },
 );
 
+// ─── Daily Digest ─────────────────────────────────────────────────────────────
+
+export const sendDailyDigest = inngest.createFunction(
+  {
+    id: "send-daily-digest",
+    name: "Send Daily Digest Email",
+    description: "Sends a daily procurement digest email to all active users with digestEnabled on weekdays at 8 AM EST",
+  },
+  { cron: "0 12 * * 1-5" }, // Mon–Fri 12:00 UTC (8 AM EST)
+  async () => {
+    const recipients = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        role: { in: ["READ_ONLY", "ADMIN"] },
+        digestEnabled: true,
+      },
+      select: { id: true, email: true, name: true },
+    });
+
+    if (recipients.length === 0) {
+      console.log("[Digest] No eligible recipients, skipping.");
+      return { sent: 0, total: 0 };
+    }
+
+    const data = await fetchDigestData();
+    const narrative = await generateNarrative(data);
+
+    const dateLabel = new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+
+    let sent = 0;
+    for (const user of recipients) {
+      try {
+        await sendDigestEmail({ user, data, narrative, dateLabel });
+        sent++;
+      } catch (err) {
+        console.error(`[Digest] Failed to send to ${user.email}:`, err.message);
+      }
+    }
+
+    console.log(`[Digest] Sent ${sent}/${recipients.length}`);
+    return { sent, total: recipients.length };
+  }
+);
+
 export const functions = [
   syncUser,
   updateUserInDB,
@@ -519,4 +569,5 @@ export const functions = [
   scoreNewOpportunityAttachmentsDaily,
   cleanupExpiredScoringQueueDaily,
   cleanupExpiredChats,
+  sendDailyDigest,
 ];

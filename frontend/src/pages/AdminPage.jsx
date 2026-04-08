@@ -31,6 +31,7 @@ const SYNC_JOBS = [
   { type: "backfill-inbox-scores", label: "Backfill Inbox Scores", description: "Re-score inbox items that have parsed attachment text but no attachment score. One-time catch-up for items created before the scoring pipeline was live." },
   { type: "backfill-award-inbox-scores", label: "Backfill Award Inbox Scores", description: "Score award-linked inbox items that have no score yet. Uses NAICS/PSC/keyword/micropurchase signals. Does not delete items below threshold." },
   { type: "cleanup-chats", label: "Cleanup Expired Chats", description: "Delete chat conversations that have passed their retention expiry date." },
+  { type: "send-daily-digest", label: "Send Daily Digest", description: "Send today's digest email immediately to all active users with digest enabled. Use for testing." },
 ];
 
 const ADMIN_TABS = [
