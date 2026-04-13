@@ -140,6 +140,7 @@ const KNOWN_JOBS = [
   { jobId: "backfill-award-inbox-scores", jobName: "Backfill Award Inbox Scores" },
   { jobId: "send-daily-digest", jobName: "Send Daily Digest Email" },
   { jobId: "cleanup-expired-parsed-docs", jobName: "Cleanup Expired Parsed Docs" },
+  { jobId: "cleanup-orphaned-contacts", jobName: "Cleanup Orphaned Contacts" },
 ];
 
 export const getSystemHealth = async (req, res) => {
@@ -324,6 +325,20 @@ const SYNC_JOBS = {
     },
     countFn: (r) => r?.clearedCount ?? null,
   },
+  "cleanup-orphaned-contacts": {
+    jobId: "cleanup-orphaned-contacts",
+    jobName: "Cleanup Orphaned Contacts",
+    fn: async () => {
+      const { count } = await prisma.contact.deleteMany({
+        where: {
+          links: { none: { opportunityId: { not: null } } },
+          interactions: { none: {} },
+        },
+      });
+      return { deletedCount: count };
+    },
+    countFn: (r) => r?.deletedCount ?? null,
+  },
 };
 
 export const triggerSync = async (req, res) => {
@@ -374,6 +389,23 @@ export const getCleanupDbPreview = async (req, res) => {
     return res.status(200).json({ opportunityCount, attachmentCount });
   } catch (error) {
     console.error("Error fetching cleanup preview:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// ─── Cleanup Orphaned Contacts Preview ───────────────────────────────────────
+
+export const getCleanupOrphanedContactsPreview = async (req, res) => {
+  try {
+    const contactCount = await prisma.contact.count({
+      where: {
+        links: { none: { opportunityId: { not: null } } },
+        interactions: { none: {} },
+      },
+    });
+    return res.status(200).json({ contactCount });
+  } catch (error) {
+    console.error("Error fetching orphaned contacts preview:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

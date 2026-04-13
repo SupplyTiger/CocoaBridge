@@ -302,4 +302,9 @@ export const adminApi = {
     const { data } = await axiosInstance.get("/admin/cleanup-db/preview");
     return data;
   },
+  // Cleanup Orphaned Contacts preview — returns { contactCount }
+  cleanupOrphanedContactsPreview: async () => {
+    const { data } = await axiosInstance.get("/admin/cleanup-orphaned-contacts/preview");
+    return data;
+  },
 };

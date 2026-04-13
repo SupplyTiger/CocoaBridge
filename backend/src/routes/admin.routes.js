@@ -14,6 +14,7 @@ import {
   getParsedDocumentStats,
   listParsedDocuments,
   getCleanupDbPreview,
+  getCleanupOrphanedContactsPreview,
 } from "../controllers/admin.controller.js";
 
 export const router = express.Router();
@@ -46,3 +47,6 @@ router.get("/parsed-documents", ...protectRoute, adminOnly, listParsedDocuments)
 
 // Cleanup DB — preview count before running
 router.get("/cleanup-db/preview", ...protectRoute, adminOnly, getCleanupDbPreview);
+
+// Cleanup Orphaned Contacts — preview count before running
+router.get("/cleanup-orphaned-contacts/preview", ...protectRoute, adminOnly, getCleanupOrphanedContactsPreview);
