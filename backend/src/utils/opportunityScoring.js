@@ -6,10 +6,14 @@ function startsWithAny(code, prefixes) {
   return prefixes.some((prefix) => code.startsWith(prefix));
 }
 
+function keywordWholeWordMatch(text, keyword) {
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(text);
+}
+
 function textMatchesKeywords(text, keywords) {
   if (!text || keywords.length === 0) return { match: false, matched: [] };
-  const lower = text.toLowerCase();
-  const matched = keywords.filter((kw) => lower.includes(kw.toLowerCase()));
+  const matched = keywords.filter((kw) => keywordWholeWordMatch(text, kw));
   return { match: matched.length > 0, matched };
 }
 

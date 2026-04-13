@@ -8,6 +8,11 @@ import { CORE_PSC, CORE_NAICS, FLIS_PSC, classificationPrefixes, naicsPrefixes, 
 // NSN format: 4-digit FSC + 2-digit country code + 3-digit item number + 4-digit variant
 const NSN_REGEX = /\b\d{4}-\d{2}-\d{3}-\d{4}\b/g;
 
+function keywordWholeWordMatch(text, keyword) {
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "i").test(text);
+}
+
 /**
  * Score an opportunity using only metadata signals (NAICS, PSC, agency history, deadline, keywords).
  * No attachment parsing or FLIS lookups. Used for manual scoring preview and as the base layer
@@ -83,7 +88,7 @@ export async function scoreOpportunityMetadata(opportunity, filterConfig) {
 
   // Keyword signals on title/description
   const metaLower = metaText.toLowerCase();
-  const kwMatches = filterConfig.solicitationKeywords.filter(kw => metaLower.includes(kw.toLowerCase()));
+  const kwMatches = filterConfig.solicitationKeywords.filter(kw => keywordWholeWordMatch(metaText, kw));
   for (const kw of kwMatches) {
     score += 2;
     matchedSignals.push({ type: "KEYWORD", value: kw, source: "title" });
@@ -164,7 +169,7 @@ export async function scoreOpportunityForInbox(opportunity, flisItems, filterCon
     }
 
     for (const kw of filterConfig.solicitationKeywords) {
-      if (textLower.includes(kw.toLowerCase()) && !metaLower.includes(kw.toLowerCase())) {
+      if (keywordWholeWordMatch(text, kw) && !keywordWholeWordMatch(metaText, kw)) {
         attachScore += 2;
         attachSignals.push({ type: "KEYWORD", value: kw, source });
       }
@@ -373,8 +378,7 @@ export async function scoreAwardForInbox(award) {
 
   // Keyword match on description (first match only)
   if (award.description) {
-    const descLower = award.description.toLowerCase();
-    const kw = solicitationTitleKeywords.find(k => descLower.includes(k.toLowerCase()));
+    const kw = solicitationTitleKeywords.find(k => keywordWholeWordMatch(award.description, k));
     if (kw) {
       score += 2;
       matchedSignals.push({ type: "KEYWORD", value: kw, source: "award" });
