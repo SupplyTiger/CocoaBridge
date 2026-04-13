@@ -453,11 +453,6 @@ async function upsertOpportunityFromSam(prisma, opportunity, filterConfig = null
     });
   }
 
-  // Opportunities are admitted to the inbox only via the daily scoring job
-  // (scoreNewOpportunityAttachmentsDaily), which enforces PSC gate + score thresholds.
-  // Emitting internal/opportunity.upserted here would bypass scoring entirely.
-  opp.pendingInboxEvent = null;
-
   if (opportunity?.award?.number) {
     await upsertAwardAndRecipientFromSam(prisma, opportunity, opp.id);
   }
@@ -637,10 +632,7 @@ export async function runCurrentOpportunitiesSyncFromSam({
       }
 
       try {
-        const savedOpp = await upsertOpportunityFromSam(prisma, opp, filterConfig);
-        if (savedOpp.pendingInboxEvent) {
-          await emitInternalEventSafe("internal/opportunity.upserted", savedOpp.pendingInboxEvent);
-        }
+        await upsertOpportunityFromSam(prisma, opp, filterConfig);
         upserted += 1;
       } catch (e) {
         skipped += 1;
@@ -826,19 +818,13 @@ export async function runIndustryDaySyncFromSam({
       }
 
       try {
-        let pendingInboxEvent = null;
         await prisma.$transaction(
           async (tx) => {
             const savedOpp = await upsertOpportunityFromSam(tx, opp, filterConfig);
-            pendingInboxEvent = savedOpp.pendingInboxEvent;
             await upsertIndustryDayFromSam(tx, opp, savedOpp.id);
           },
           { timeout: 30000 },
         );
-        // Emit only after the transaction commits successfully
-        if (pendingInboxEvent) {
-          await emitInternalEventSafe("internal/opportunity.upserted", pendingInboxEvent);
-        }
         upserted += 1;
       } catch (e) {
         skipped += 1;
@@ -971,18 +957,13 @@ export const getIndustryDayOpportunitiesFromSam = async (req, res) => {
         }
 
         try {
-          let pendingInboxEvent = null;
           await prisma.$transaction(
             async (tx) => {
               const savedOpp = await upsertOpportunityFromSam(tx, opp);
-              pendingInboxEvent = savedOpp.pendingInboxEvent;
               await upsertIndustryDayFromSam(tx, opp, savedOpp.id);
             },
             { timeout: 30000 },
           );
-          if (pendingInboxEvent) {
-            await emitInternalEventSafe("internal/opportunity.upserted", pendingInboxEvent);
-          }
           upserted += 1;
         } catch (e) {
           skipped += 1;
