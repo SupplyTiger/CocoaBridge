@@ -107,10 +107,14 @@ export async function scoreOpportunityForInbox(opportunity, flisItems, filterCon
   const metaText = [opportunity.title ?? "", opportunity.description ?? ""].join(" ");
   const metaLower = metaText.toLowerCase();
 
-  // Parse attachments
+  // Parse attachments — prefer cached parsedText from DB to avoid SAM.gov download dependency
   const parsedTexts = [];
   if (opportunity.attachments?.length > 0) {
     for (const attachment of opportunity.attachments) {
+      if (attachment.parsedText) {
+        parsedTexts.push({ attachmentId: attachment.id, text: attachment.parsedText });
+        continue;
+      }
       const result = await parseAttachmentContent(attachment);
       if (result.skip) continue;
       parsedTexts.push({ attachmentId: attachment.id, text: result.parsedText });

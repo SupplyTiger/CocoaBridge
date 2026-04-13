@@ -66,64 +66,6 @@ const deleteUserInDB = inngest.createFunction(
   }
 );
 
-// Converts internal "opportunity upserted" events into a single idempotent InboxItem row.
-const upsertInboxItemFromOpportunityEvent = inngest.createFunction(
-  {
-    id: "upsert-inbox-item-from-opportunity-event",
-    name: "Upsert InboxItem from Opportunity Event",
-    description:
-      "Creates or updates InboxItem for an opportunity using source+opportunityId idempotency",
-  },
-  { event: "internal/opportunity.upserted" },
-  async ({ event }) => {
-    const data = event?.data ?? {};
-
-    if (!data?.opportunityId || !data?.source) {
-      return {
-        skipped: true,
-        reason: "Missing source or opportunityId",
-      };
-    }
-
-    const source = data.source;
-
-    const inboxItem = await prisma.inboxItem.upsert({
-      where: {
-        source_opportunityId: {
-          source,
-          opportunityId: data.opportunityId,
-        },
-      },
-      update: {
-        acquisitionPath: data.acquisitionPath ?? AcquisitionPath.OPEN_MARKET,
-        type: data.type ?? Type.OTHER,
-        tag: data.tag ?? OppTag.GENERAL,
-        title: data.title ?? null,
-        summary: data.summary ?? null,
-        buyingOrganizationId: data.buyingOrganizationId ?? null,
-      },
-      create: {
-        source,
-        acquisitionPath: data.acquisitionPath ?? AcquisitionPath.OPEN_MARKET,
-        type: data.type ?? Type.OTHER,
-        tag: data.tag ?? OppTag.GENERAL,
-        title: data.title ?? null,
-        summary: data.summary ?? null,
-        buyingOrganizationId: data.buyingOrganizationId ?? null,
-        opportunityId: data.opportunityId,
-      },
-    });
-
-    return {
-      ok: true,
-      inboxItemId: inboxItem.id,
-      source,
-      opportunityId: data.opportunityId,
-      op: data.op ?? "UPSERTED",
-    };
-  },
-);
-
 // Converts internal "award upserted" events into a single idempotent InboxItem row.
 const upsertInboxItemFromAwardEvent = inngest.createFunction(
   {
@@ -208,9 +150,9 @@ export const deactivateExpiredOpportunitiesDaily = inngest.createFunction(
   {
     id: "deactivate-expired-opportunities-daily",
     name: "Deactivate Expired Opportunities Daily",
-    description: "Cron job to deactivate expired opportunities every day at 12:15 AM EST",
+    description: "Cron job to deactivate expired opportunities every day at 5:15 UTC",
   },
-  { cron: "15 5 * * *" }, // Every day at 12:15 AM EST (5:15 am UTC)
+  { cron: "15 5 * * *" }, // 5:15 UTC
   async () => {
     return await withSyncLog(
       "deactivate-expired-opportunities",
@@ -225,9 +167,9 @@ export const getOpportunityDescriptionsFromSamDaily = inngest.createFunction(
   {
     id: "get-opportunity-descriptions-from-sam-daily",
     name: "Get Opportunity Descriptions from SAM Daily",
-    description: "Cron job to update null opportunity descriptions from SAM.gov every day at 12:30 AM EST",
+    description: "Cron job to update null opportunity descriptions from SAM.gov every day at 5:30 UTC",
   },
-  { cron: "30 5 * * *" }, // Every day at 12:30am EST (5:30am UTC)
+  { cron: "30 5 * * *" }, // 5:30 UTC
   async () => {
     return await withSyncLog(
       "backfill-opportunity-descriptions",
@@ -247,9 +189,9 @@ export const syncCurrentSamOpportunitiesDaily = inngest.createFunction(
     id: "sync-current-sam-opportunities-daily",
     name: "Sync Current SAM Opportunities Daily",
     description:
-      "Daily cron to sync SAM current opportunities to the database every day at 12:00 AM EST",
+      "Daily cron to sync SAM current opportunities to the database every day at 5:00 UTC",
   },
-  { cron: "0 5 * * *" }, // 12:00am EST / 5:00am UTC
+  { cron: "0 5 * * *" }, // 5:00 UTC
   async () => {
     return await withSyncLog(
       "sync-current-sam-opportunities",
@@ -273,9 +215,9 @@ export const syncIndustryDaysFromSamDaily = inngest.createFunction(
     id: "sync-industry-days-from-sam-daily",
     name: "Sync Industry Days from SAM Daily",
     description:
-      "Daily cron to sync SAM industry day opportunities to the database every day at 12:45 AM EST",
+      "Daily cron to sync SAM industry day opportunities to the database every day at 5:45 UTC",
   },
-  { cron: "45 5 * * *" }, // 12:45am EST / 5:45am UTC
+  { cron: "45 5 * * *" }, // 5:45 UTC
   async () => {
     return await withSyncLog(
       "sync-sam-industry-days",
@@ -299,9 +241,9 @@ export const markPastIndustryDaysDaily = inngest.createFunction(
     id: "mark-past-industry-days-daily",
     name: "Mark Past Industry Days Daily",
     description:
-      "Daily cron to mark industry days as PAST_EVENT once their event date has passed, runs at 12:20 AM EST",
+      "Daily cron to mark industry days as PAST_EVENT once their event date has passed, runs at 5:20 UTC",
   },
-  { cron: "20 5 * * *" }, // 12:20am EST / 5:20am UTC
+  { cron: "20 5 * * *" }, // 5:20 UTC
   async () => {
     return await withSyncLog(
       "mark-past-industry-days",
@@ -319,9 +261,9 @@ export const syncAwardsFromUsaspendingBiWeekly = inngest.createFunction(
     id: "sync-awards-from-usaspending-biweekly",
     name: "Sync USASpending Awards Bi-Weekly",
     description:
-      "Cron job to sync awards from USASpending.gov to the database every 3 days at 1:00 AM EST",
+      "Cron job to sync awards from USASpending.gov to the database every 3 days at 6:00 UTC",
   },
-  { cron: "0 6 */3 * *" }, // Every 3 days at 1:00am EST (6:00am UTC)
+  { cron: "0 6 */3 * *" }, // 6:00 UTC every 3 days
   async () => {
     return await withSyncLog(
       "sync-usaspending-awards",
@@ -345,9 +287,9 @@ export const backfillAttachmentMetadataDaily = inngest.createFunction(
     id: "backfill-attachment-metadata-daily",
     name: "Backfill Attachment Metadata Daily",
     description:
-      "Daily cron to fetch attachment metadata for opportunities with resourceLinks, runs at 1:00 AM EST",
+      "Daily cron to fetch attachment metadata for opportunities with resourceLinks, runs at 6:00 UTC",
   },
-  { cron: "0 6 * * *" }, // 1:00 AM EST / 6:00 AM UTC
+  { cron: "0 6 * * *" }, // 6:00 UTC
   async () => {
     return await withSyncLog(
       "backfill-opportunity-attachments",
@@ -429,9 +371,9 @@ export const scoreAllParsedAttachmentsWeekly = inngest.createFunction(
   {
     id: "score-all-parsed-attachments-weekly",
     name: "Score All Parsed Attachments Weekly",
-    description: "Weekly cron to score parsed attachments missing a score result, runs Sundays at 2:00 AM EST",
+    description: "Weekly cron to score parsed attachments missing a score result, runs Sundays at 7:00 UTC",
   },
-  { cron: "0 7 * * 0" }, // 2:00 AM EST / 7:00 AM UTC on Sundays
+  { cron: "0 7 * * 0" }, // 7:00 UTC Sundays
   async () => {
     return await withSyncLog(
       "score-parsed-attachments",
@@ -452,9 +394,9 @@ export const scoreNewOpportunityAttachmentsDaily = inngest.createFunction(
     id: "score-new-opportunity-attachments-daily",
     name: "Score New Opportunity Attachments Daily",
     description:
-      "Daily cron to score new opportunities matching configured PSC or NAICS codes using FLIS item matching and keyword signals, runs at 1:15 AM EST",
+      "Daily cron to score new opportunities matching configured PSC or NAICS codes using FLIS item matching and keyword signals, runs at 14:00 UTC during business hours when SAM.gov file downloads are reliable",
   },
-  { cron: "15 6 * * *" }, // 1:15 AM EST / 6:15 AM UTC — after attachment metadata backfill at 1:00 AM
+  { cron: "0 14 * * *" }, // 14:00 UTC — business hours; nightly sync finishes by 6:00 UTC
   async () => {
     return await withSyncLog(
       "score-new-opportunity-attachments",
@@ -474,9 +416,9 @@ export const cleanupExpiredScoringQueueDaily = inngest.createFunction(
   {
     id: "cleanup-expired-scoring-queue-daily",
     name: "Cleanup Expired Scoring Queue Daily",
-    description: "Daily cron to delete expired PENDING ScoringQueue items, runs at 4:00 AM UTC",
+    description: "Daily cron to delete expired PENDING ScoringQueue items, runs at 4:00 UTC",
   },
-  { cron: "0 4 * * *" }, // Daily at 4:00 AM UTC
+  { cron: "0 4 * * *" }, // 4:00 UTC
   async () => {
     return await withSyncLog(
       "cleanup-expired-scoring-queue",
@@ -492,9 +434,9 @@ export const cleanupExpiredChats = inngest.createFunction(
   {
     id: "cleanup-expired-chats",
     name: "Cleanup Expired Chat Conversations",
-    description: "Daily cron to delete chat conversations older than 14 days at 3:00 AM UTC",
+    description: "Daily cron to delete chat conversations older than 14 days at 3:00 UTC",
   },
-  { cron: "0 3 * * *" }, // Daily at 3 AM UTC
+  { cron: "0 3 * * *" }, // 3:00 UTC
   async () => {
     const deleted = await prisma.chatConversation.deleteMany({
       where: { expiresAt: { lte: new Date() } },
@@ -555,7 +497,6 @@ export const functions = [
   syncUser,
   updateUserInDB,
   deleteUserInDB,
-  upsertInboxItemFromOpportunityEvent,
   upsertInboxItemFromAwardEvent,
   deactivateExpiredOpportunitiesDaily,
   syncCurrentSamOpportunitiesDaily,
