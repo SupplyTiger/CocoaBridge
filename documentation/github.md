@@ -77,11 +77,11 @@ This is the safest option because it doesn't disrupt anyone else who may have pu
 
 If something is seriously broken and you need to get back to a known good state immediately:
 
-**Last known good commit hash:** `2edf282998b51a08cb52df3873885b8e39c6d4a6`
+**Last known good commit hash:** `53784a0fa2a4550705c851c70fc3ed17608873f8`
 
 ```bash
 # Create a new branch from the known good commit (safer than resetting main)
-git checkout 2edf282998b51a08cb52df3873885b8e39c6d4a6
+git checkout 53784a0fa2a4550705c851c70fc3ed17608873f8
 git checkout -b recovery/rollback
 git push origin recovery/rollback
 # Then open a PR to merge recovery/rollback into main
